@@ -1,0 +1,62 @@
+{
+  "pr": 619,
+  "sourceCommit": "25b69203ef25784981f0accd37eb088bc7de1a36",
+  "sourceTree": "bbd296d931317ca9e2a2588a6143a864d58572f2",
+  "base": "2cec2a5c071a15436ffd636b54e9789121ca6d7d",
+  "rebasedOntoDevelopBeforeCapture": true,
+  "binary": {
+    "path": "peasant",
+    "sha256": "248ff90f09132f94d8ed58f5b8354c852c0b02ab5a17e129d6d1a90ffc773873",
+    "embeddedVersion": "v0.9.1-dev.24+25b69203e"
+  },
+  "pageChunk": {
+    "path": "web/out/_next/static/chunks/app/page-260b2c349d449e59.js",
+    "sha256": "e8ed0168527c93d0cf34dad0cb605993d371189ec7f514635328d647b3d9f621",
+    "signatures": [
+      "data-session-group-child",
+      "session-group-rows:",
+      "var(--sp-5) + var(--sp-4)",
+      "data-root-session-list"
+    ]
+  },
+  "servedBuild": {
+    "exportEmbeddedHTTPMatch": true,
+    "sandboxPort": 18751,
+    "emptySandboxPort": 18752,
+    "mockDataOnly": true,
+    "noLiveDatabaseRead": true
+  },
+  "dependencies": {
+    "goSchema": "v0.28.0",
+    "npmSchema": "0.28.0",
+    "fairtrade": "0.0.25",
+    "goWorkspace": "off"
+  },
+  "captureWindowUTC": ["2026-10-14T12:07:04Z", "2026-10-14T12:07:48Z"],
+  "inspection": {
+    "bothThemes": true,
+    "bothViewports": true,
+    "nestedPerLevelDistinctValues": true,
+    "newVisualRegressionObserved": false
+  },
+  "currentChecks": {
+    "homeTests": "29/29",
+    "webTests": "1415/1415 in 106 files",
+    "typecheck": "PASS",
+    "runnerSyntax": "PASS",
+    "lockfile": "PASS",
+    "normalFullMakeBuild": "PASS",
+    "mountedFourCombos": "PASS"
+  },
+  "mountedResults": {
+    "rootCounts": { "all": 14, "notPublished": 8, "published": 6, "auto": 4 },
+    "nestedGlyphDelta": 0,
+    "strayRowsRejected": true,
+    "perLevelDistinctValues": {
+      "ancestor": "2 turns / 1m / 77d ago",
+      "delegate": "4 turns / 8m / 42d ago",
+      "nested-a": "9 turns / 22m / 12d ago",
+      "second-a": "1 turn / 2m / 3d ago"
+    }
+  }
+}
