@@ -140,3 +140,122 @@ cases:
     path: /api/v1/transcripts/22222222-2222-4222-8222-222222222222/collectives
     body: '{"collectives":[]} {}'
     invalid: true
+  - name: complete-membership-input
+    method: memberships
+    path: /api/v1/collectives
+    body: '[{"id":"33333333-3333-4333-8333-333333333333","name":"member collective","description":"permitted","role":"member","member_since":"2026-01-01T00:00:00Z","acceptance_mode":"curated","data_access":"members_only"}]'
+    wantMemberships:
+      - id: 33333333-3333-4333-8333-333333333333
+        name: member collective
+        description: permitted
+        role: member
+        membersince: 2026-01-01T00:00:00Z
+        acceptancemode: curated
+        dataaccess: members_only
+  - name: empty-membership-input
+    method: memberships
+    path: /api/v1/collectives
+    body: '[]'
+    wantMemberships: []
+  - name: null-membership-not-complete
+    method: memberships
+    path: /api/v1/collectives
+    body: 'null'
+    invalid: true
+  - name: repeated-membership-refused
+    method: memberships
+    path: /api/v1/collectives
+    body: '[{"id":"33333333-3333-4333-8333-333333333333","name":"member collective","role":"member","member_since":"2026-01-01T00:00:00Z","acceptance_mode":"curated","data_access":"members_only"},{"id":"33333333-3333-4333-8333-333333333333","name":"member collective","role":"member","member_since":"2026-01-01T00:00:00Z","acceptance_mode":"curated","data_access":"members_only"}]'
+    invalid: true
+  - name: unknown-membership-policy-refused
+    method: memberships
+    path: /api/v1/collectives
+    body: '[{"id":"33333333-3333-4333-8333-333333333333","name":"member collective","role":"member","member_since":"2026-01-01T00:00:00Z","acceptance_mode":"invented","data_access":"members_only"}]'
+    invalid: true
+  - name: permitted-detail-projection
+    method: collective
+    path: /api/v1/collectives/33333333-3333-4333-8333-333333333333
+    body: '{"group":{"id":"33333333-3333-4333-8333-333333333333","name":"visible collective","description":"permitted description","acceptance_mode":"open","data_access":"public"},"members":[],"transcripts":[],"models":[],"contributors":[]}'
+    wantCollective:
+      id: 33333333-3333-4333-8333-333333333333
+      name: visible collective
+      description: permitted description
+      acceptancemode: open
+      dataaccess: public
+  - name: detail-wrong-identity-refused
+    method: collective
+    path: /api/v1/collectives/33333333-3333-4333-8333-333333333333
+    body: '{"group":{"id":"44444444-4444-4444-8444-444444444444","name":"wrong collective","acceptance_mode":"open","data_access":"public"}}'
+    invalid: true
+  - name: detail-unavailable-not-empty
+    method: collective
+    path: /api/v1/collectives/33333333-3333-4333-8333-333333333333
+    status: 404
+    body: '{"error":"unavailable"}'
+    invalid: true
+  - name: complete-own-attempts
+    method: events
+    path: /api/v1/users/me/collectives/33333333-3333-4333-8333-333333333333/transcripts/22222222-2222-4222-8222-222222222222/events
+    body: '[{"event_num":1,"status":"rejected","recorded_at":"2026-01-01T00:00:00.000000001Z","decided_at":"2026-01-02T00:00:00.000000002Z","decided_by_actor":"moderator"},{"event_num":3,"status":"pending","recorded_at":"2026-01-03T00:00:00Z","decided_at":null,"decided_by_actor":""}]'
+    wantEvents:
+      - eventnum: 1
+        status: rejected
+        recordedat: 2026-01-01T00:00:00.000000001Z
+        decidedat: 2026-01-02T00:00:00.000000002Z
+        decidedbyactor: moderator
+      - eventnum: 3
+        status: pending
+        recordedat: 2026-01-03T00:00:00Z
+        decidedat: null
+        decidedbyactor: ''
+  - name: empty-own-attempts
+    method: events
+    path: /api/v1/users/me/collectives/33333333-3333-4333-8333-333333333333/transcripts/22222222-2222-4222-8222-222222222222/events
+    body: '[]'
+    wantEvents: []
+  - name: null-attempts-not-complete
+    method: events
+    path: /api/v1/users/me/collectives/33333333-3333-4333-8333-333333333333/transcripts/22222222-2222-4222-8222-222222222222/events
+    body: 'null'
+    invalid: true
+  - name: repeated-attempt-ordinal-refused
+    method: events
+    path: /api/v1/users/me/collectives/33333333-3333-4333-8333-333333333333/transcripts/22222222-2222-4222-8222-222222222222/events
+    body: '[{"event_num":1,"status":"pending","recorded_at":"2026-01-01T00:00:00Z","decided_at":null,"decided_by_actor":""},{"event_num":1,"status":"pending","recorded_at":"2026-01-01T00:00:00Z","decided_at":null,"decided_by_actor":""}]'
+    invalid: true
+  - name: malformed-attempt-actor-refused
+    method: events
+    path: /api/v1/users/me/collectives/33333333-3333-4333-8333-333333333333/transcripts/22222222-2222-4222-8222-222222222222/events
+    body: '[{"event_num":1,"status":"rejected","recorded_at":"2026-01-01T00:00:00Z","decided_at":"2026-01-02T00:00:00Z","decided_by_actor":"owner"}]'
+    invalid: true
+  - name: history-unavailable-not-empty
+    method: events
+    path: /api/v1/users/me/collectives/33333333-3333-4333-8333-333333333333/transcripts/22222222-2222-4222-8222-222222222222/events
+    status: 403
+    body: '{"error":"unavailable"}'
+    invalid: true
+  - name: complete-account-organizations
+    method: organizations
+    path: /api/v1/auth/orgs
+    body: '[{"org_login":"fixture-org","org_id":42,"avatar_url":null,"visible":false,"fetched_at":"2026-01-01T00:00:00Z"}]'
+    wantOrganizations:
+      - orglogin: fixture-org
+        orgid: 42
+        avatarurl: null
+        visible: false
+        fetchedat: 2026-01-01T00:00:00Z
+  - name: empty-account-organizations
+    method: organizations
+    path: /api/v1/auth/orgs
+    body: '[]'
+    wantOrganizations: []
+  - name: null-organizations-not-complete
+    method: organizations
+    path: /api/v1/auth/orgs
+    body: 'null'
+    invalid: true
+  - name: repeated-organization-login-refused
+    method: organizations
+    path: /api/v1/auth/orgs
+    body: '[{"org_login":"fixture-org","org_id":42,"visible":true,"fetched_at":"2026-01-01T00:00:00Z"},{"org_login":"FIXTURE-ORG","org_id":42,"visible":true,"fetched_at":"2026-01-01T00:00:00Z"}]'
+    invalid: true

@@ -4,9 +4,11 @@ package collectiveobservations
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/peasant-labs/peasant/internal/auth"
+	"github.com/peasant-labs/peasant/internal/store"
 	"github.com/peasant-labs/peasant/internal/village"
 	"github.com/peasant-labs/schema"
 )
@@ -23,6 +25,8 @@ var _ IdentityReader = (*village.VillageClient)(nil)
 type Dependencies struct {
 	ConfigHome        string
 	NewIdentityReader func(auth.Credentials) IdentityReader
+	Store             *store.Store
+	Now               func() time.Time
 }
 
 // Service shares credential selection between offline readers and online
@@ -30,6 +34,8 @@ type Dependencies struct {
 type Service struct {
 	configHome        string
 	newIdentityReader func(auth.Credentials) IdentityReader
+	store             *store.Store
+	now               func() time.Time
 }
 
 // New uses the real Village transport unless a dependency is explicitly supplied.
@@ -40,7 +46,11 @@ func New(deps Dependencies) *Service {
 			return village.NewVillageClient(creds.VillageURL, creds.APIKey, nil)
 		}
 	}
-	return &Service{configHome: deps.ConfigHome, newIdentityReader: factory}
+	now := deps.Now
+	if now == nil {
+		now = time.Now
+	}
+	return &Service{configHome: deps.ConfigHome, newIdentityReader: factory, store: deps.Store, now: now}
 }
 
 // SelectedCredentials selects the saved private scope OFFLINE. It never logs
@@ -65,28 +75,33 @@ func (s *Service) SelectedCredentials(ctx context.Context) (auth.CredentialSnaps
 // any local write lock. Every later domain commit must still call WithCurrent
 // around its actual transaction; this preliminary check cannot replace it.
 func (s *Service) AuthenticatedCredentials(ctx context.Context) (auth.CredentialSnapshot, error) {
+	snapshot, _, err := s.authenticatedReader(ctx)
+	return snapshot, err
+}
+
+func (s *Service) authenticatedReader(ctx context.Context) (auth.CredentialSnapshot, IdentityReader, error) {
 	snapshot, err := s.SelectedCredentials(ctx)
 	if err != nil {
-		return auth.CredentialSnapshot{}, err
+		return auth.CredentialSnapshot{}, nil, err
 	}
 	creds := snapshot.Credentials()
 	creds.VillageURL, err = auth.NormalizeVillageURL(creds.VillageURL)
 	if err != nil {
-		return auth.CredentialSnapshot{}, err
+		return auth.CredentialSnapshot{}, nil, err
 	}
 	reader := s.newIdentityReader(creds)
 	if reader == nil {
-		return auth.CredentialSnapshot{}, fmt.Errorf("verify collective observation scope: identity transport is missing; no observations were fetched; configure the Village client and retry")
+		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope: identity transport is missing; no observations were fetched; configure the Village client and retry")
 	}
 	user, err := reader.VerifyUser(ctx)
 	if err != nil {
-		return auth.CredentialSnapshot{}, fmt.Errorf("verify collective observation scope before fetching: %w; no new metadata was installed; verify the selected login and retry explicitly", err)
+		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope before fetching: %w; no new metadata was installed; verify the selected login and retry explicitly", err)
 	}
 	if user.ID.String() != creds.UserID {
-		return auth.CredentialSnapshot{}, fmt.Errorf("verify collective observation scope: auth/me disagrees with the saved stable user UUID; no private metadata was selected or installed; sign in again to select the correct account")
+		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope: auth/me disagrees with the saved stable user UUID; no private metadata was selected or installed; sign in again to select the correct account")
 	}
 	if err := snapshot.WithCurrent(ctx, func() error { return nil }); err != nil {
-		return auth.CredentialSnapshot{}, err
+		return auth.CredentialSnapshot{}, nil, err
 	}
-	return snapshot, nil
+	return snapshot, reader, nil
 }

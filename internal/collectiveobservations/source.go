@@ -1,0 +1,65 @@
+package collectiveobservations
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/peasant-labs/peasant/internal/auth"
+	"github.com/peasant-labs/peasant/internal/store"
+	"github.com/peasant-labs/peasant/internal/village"
+	"github.com/peasant-labs/schema"
+)
+
+// Source reads complete validated Village inputs. Discovery and source errors
+// remain explicit; callers must not substitute failed inputs with empty sets.
+// This interface is checked against the actual production transport, not a
+// parallel private wire model. History validation remains schema-owned.
+type Source interface {
+	IdentityReader
+	ReadObservationMemberships(context.Context) ([]schema.VillageUserGroup, error)
+	ReadObservationCollective(context.Context, schema.VillageUUID) (schema.VillageGroupDetailRecord, error)
+	ReadOwnSubmissions(context.Context, schema.VillageUUID) ([]schema.VillageCollectiveSubmission, error)
+	ReadOwnShareEvents(context.Context, schema.TranscriptID, schema.VillageUUID) ([]schema.VillageShareEvent, error)
+	ReadObservationOrganizations(context.Context) ([]schema.VillageMetadataUserOrganization, error)
+	ReadTranscriptCollectives(context.Context, schema.TranscriptID) ([]schema.VillageTranscriptCollective, error)
+}
+
+var _ Source = (*village.VillageClient)(nil)
+
+// AuthenticatedSource returns the SAME transport that verified auth/me and its
+// guarded credential snapshot. All later persistence still needs WithCurrent
+// through the actual Store commit; this function holds no network/write lock.
+func (s *Service) AuthenticatedSource(ctx context.Context) (auth.CredentialSnapshot, Source, error) {
+	snapshot, reader, err := s.authenticatedReader(ctx)
+	if err != nil {
+		return auth.CredentialSnapshot{}, nil, err
+	}
+	source, ok := reader.(Source)
+	if !ok {
+		return auth.CredentialSnapshot{}, nil, fmt.Errorf("fetch collective observation sources: authenticated transport lacks complete source reads; no metadata was installed; configure the production Village source adapter before retrying")
+	}
+	return snapshot, source, nil
+}
+
+// ObserveOwnPair is the targeted owner-history path, not a full history fetch.
+// It authenticates, allocates source ordering before network work, reads the
+// entire pair outside locks, and reconciles under the actual guarded Store
+// transaction. It cannot be used for foreign transcript associations.
+func (s *Service) ObserveOwnPair(ctx context.Context, collective schema.VillageUUID, transcript schema.TranscriptID) (store.ContributionAttemptInstall, error) {
+	if s.store == nil {
+		return store.ContributionAttemptInstall{}, fmt.Errorf("observe own contribution pair: local Store is not configured; no evidence changed; configure the observation service with the selected local Store")
+	}
+	snapshot, source, err := s.AuthenticatedSource(ctx)
+	if err != nil {
+		return store.ContributionAttemptInstall{}, err
+	}
+	invocation, err := s.store.BeginCollectiveObservation(ctx, snapshot)
+	if err != nil {
+		return store.ContributionAttemptInstall{}, err
+	}
+	events, err := source.ReadOwnShareEvents(ctx, transcript, collective)
+	if err != nil {
+		return store.ContributionAttemptInstall{}, err
+	}
+	return s.store.InstallContributionAttemptSources(ctx, invocation, []store.ContributionAttemptSource{{CollectiveID: collective, TranscriptID: transcript, Events: events, ObservedAt: s.now().UTC()}})
+}

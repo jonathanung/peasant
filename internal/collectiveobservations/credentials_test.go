@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/peasant-labs/peasant/internal/auth"
+	"github.com/peasant-labs/peasant/internal/village"
 	"github.com/peasant-labs/schema"
 	"gopkg.in/yaml.v3"
 )
@@ -28,6 +29,7 @@ type credentialSelectionCase struct {
 	Rotate          bool                            `yaml:"rotate"`
 	Invalid         bool                            `yaml:"invalid"`
 	NoRequest       bool                            `yaml:"noRequest"`
+	Source          bool                            `yaml:"source"`
 	WantCredentials *credentialSelectionExpectation `yaml:"wantCredentials"`
 }
 
@@ -57,7 +59,7 @@ func loadCredentialSelectionFixtures(t *testing.T) []credentialSelectionCase {
 			t.Fatalf("missing selected credential expectation for %s", fixture.Name)
 		}
 	}
-	for _, required := range strings.Fields("offline-no-network online-stable-user-not-username username-reuse invalid-saved-stable-id authentication-refused credentials-rotated-during-authentication") {
+	for _, required := range strings.Fields("offline-no-network online-stable-user-not-username authenticated-source-reuses-verified-client username-reuse invalid-saved-stable-id authentication-refused credentials-rotated-during-authentication") {
 		if !names[required] {
 			t.Fatalf("missing required fixture %s", required)
 		}
@@ -73,6 +75,13 @@ func TestCredentialScopeSelection(t *testing.T) {
 			var creds auth.Credentials
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
+				if fixture.Source && r.URL.Path == "/installation/api/v1/transcripts/22222222-2222-4222-8222-222222222222/collectives" {
+					if r.Header.Get("Authorization") != "Bearer fixture-key" {
+						t.Error("source request lost selected credential")
+					}
+					_ = json.NewEncoder(w).Encode(schema.VillageTranscriptCollectivesResponse{Collectives: []schema.VillageTranscriptCollective{}})
+					return
+				}
 				if r.URL.Path != "/installation/api/v1/auth/me" || r.Header.Get("Authorization") != "Bearer fixture-key" {
 					t.Errorf("wrong selected source %s", r.URL.Path)
 				}
@@ -93,10 +102,32 @@ func TestCredentialScopeSelection(t *testing.T) {
 			if err := auth.SaveCredentialsFrom(&creds, home); err != nil {
 				t.Fatal(err)
 			}
-			service := New(Dependencies{ConfigHome: home})
+			deps := Dependencies{ConfigHome: home}
+			var created *village.VillageClient
+			var factoryCalls int
+			if fixture.Source {
+				deps.NewIdentityReader = func(selected auth.Credentials) IdentityReader {
+					factoryCalls++
+					created = village.NewVillageClient(selected.VillageURL, selected.APIKey, server.Client())
+					return created
+				}
+			}
+			service := New(deps)
 			var err error
 			var snapshot auth.CredentialSnapshot
-			if fixture.Online {
+			if fixture.Source {
+				var source Source
+				snapshot, source, err = service.AuthenticatedSource(context.Background())
+				if err == nil {
+					if factoryCalls != 1 || source != created {
+						t.Fatal("source transport is not the same instance that verified the account")
+					}
+					rows, readErr := source.ReadTranscriptCollectives(context.Background(), schema.TranscriptID("22222222-2222-4222-8222-222222222222"))
+					if readErr != nil || rows == nil || len(rows) != 0 {
+						t.Fatalf("authenticated source did not return complete empty association set: %v", readErr)
+					}
+				}
+			} else if fixture.Online {
 				snapshot, err = service.AuthenticatedCredentials(context.Background())
 			} else {
 				snapshot, err = service.SelectedCredentials(context.Background())
@@ -119,6 +150,9 @@ func TestCredentialScopeSelection(t *testing.T) {
 				t.Fatalf("credential generation was not checked after auth/me: %v", err)
 			}
 			wantCalls := int32(1)
+			if fixture.Source {
+				wantCalls = 2
+			}
 			if !fixture.Online || fixture.NoRequest {
 				wantCalls = 0
 			}

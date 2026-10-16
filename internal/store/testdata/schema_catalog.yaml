@@ -3,6 +3,9 @@
 # comparison. Tables exclude sqlite_% internals; the FTS5 shadow tables are
 # listed because they are real schema objects in this catalog.
 tables:
+  - collective_observation_scopes
+  - collective_attempt_sources
+  - remote_contribution_attempts
   - session_source_unavailability
   - annotation_classes
   - annotation_families

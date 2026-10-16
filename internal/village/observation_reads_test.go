@@ -21,16 +21,20 @@ import (
 var observationReadYAML []byte
 
 type observationReadFixture struct {
-	Name             string                              `yaml:"name"`
-	Method           string                              `yaml:"method"`
-	Path             string                              `yaml:"path"`
-	Body             string                              `yaml:"body"`
-	Status           int                                 `yaml:"status"`
-	PaddingBytes     int                                 `yaml:"paddingBytes"`
-	Invalid          bool                                `yaml:"invalid"`
-	WantUser         *observationUserExpectation         `yaml:"wantUser"`
-	WantAssociations []observationAssociationExpectation `yaml:"wantAssociations"`
-	WantSubmissions  []observationSubmissionExpectation  `yaml:"wantSubmissions"`
+	Name              string                                   `yaml:"name"`
+	Method            string                                   `yaml:"method"`
+	Path              string                                   `yaml:"path"`
+	Body              string                                   `yaml:"body"`
+	Status            int                                      `yaml:"status"`
+	PaddingBytes      int                                      `yaml:"paddingBytes"`
+	Invalid           bool                                     `yaml:"invalid"`
+	WantUser          *observationUserExpectation              `yaml:"wantUser"`
+	WantAssociations  []observationAssociationExpectation      `yaml:"wantAssociations"`
+	WantSubmissions   []observationSubmissionExpectation       `yaml:"wantSubmissions"`
+	WantMemberships   []schema.VillageUserGroup                `yaml:"wantMemberships"`
+	WantCollective    *schema.VillageGroupDetailRecord         `yaml:"wantCollective"`
+	WantEvents        []schema.VillageShareEvent               `yaml:"wantEvents"`
+	WantOrganizations []schema.VillageMetadataUserOrganization `yaml:"wantOrganizations"`
 }
 
 type observationUserExpectation struct {
@@ -87,6 +91,22 @@ func loadObservationReadFixtures(t *testing.T) []observationReadFixture {
 				for _, row := range fixture.WantSubmissions {
 					statuses[row.Status] = true
 				}
+			case "memberships":
+				if fixture.WantMemberships == nil {
+					t.Fatalf("missing complete membership expectation: %s", fixture.Name)
+				}
+			case "collective":
+				if fixture.WantCollective == nil {
+					t.Fatalf("missing collective projection expectation: %s", fixture.Name)
+				}
+			case "events":
+				if fixture.WantEvents == nil {
+					t.Fatalf("missing complete attempt expectation: %s", fixture.Name)
+				}
+			case "organizations":
+				if fixture.WantOrganizations == nil {
+					t.Fatalf("missing organization input expectation: %s", fixture.Name)
+				}
 			default:
 				t.Fatalf("unknown successful source method: %s", fixture.Method)
 			}
@@ -103,6 +123,12 @@ func loadObservationReadFixtures(t *testing.T) []observationReadFixture {
 	for _, name := range strings.Fields(required) {
 		if !names[name] {
 			t.Fatalf("required fixture %s missing", name)
+		}
+	}
+	const requiredSources = "complete-membership-input empty-membership-input null-membership-not-complete repeated-membership-refused unknown-membership-policy-refused permitted-detail-projection detail-wrong-identity-refused detail-unavailable-not-empty complete-own-attempts empty-own-attempts null-attempts-not-complete repeated-attempt-ordinal-refused malformed-attempt-actor-refused history-unavailable-not-empty complete-account-organizations empty-account-organizations null-organizations-not-complete repeated-organization-login-refused"
+	for _, name := range strings.Fields(requiredSources) {
+		if !names[name] {
+			t.Fatalf("required source fixture %s missing", name)
 		}
 	}
 	return data.Cases
@@ -171,6 +197,30 @@ func TestObservationSourceCompleteReads(t *testing.T) {
 					if !reflect.DeepEqual(got, fixture.WantSubmissions) {
 						t.Fatalf("complete returned submissions = %#v, want %#v", got, fixture.WantSubmissions)
 					}
+				}
+			case "memberships":
+				var got []schema.VillageUserGroup
+				got, err = client.ReadObservationMemberships(context.Background())
+				if err == nil && (got == nil || !reflect.DeepEqual(got, fixture.WantMemberships)) {
+					t.Fatalf("returned membership set differs from complete expected evidence: %#v", got)
+				}
+			case "collective":
+				var got schema.VillageGroupDetailRecord
+				got, err = client.ReadObservationCollective(context.Background(), schema.VillageUUID("33333333-3333-4333-8333-333333333333"))
+				if err == nil && (fixture.WantCollective == nil || !reflect.DeepEqual(got, *fixture.WantCollective)) {
+					t.Fatalf("returned collective projection differs from expected evidence: %#v", got)
+				}
+			case "events":
+				var got []schema.VillageShareEvent
+				got, err = client.ReadOwnShareEvents(context.Background(), schema.TranscriptID("22222222-2222-4222-8222-222222222222"), schema.VillageUUID("33333333-3333-4333-8333-333333333333"))
+				if err == nil && (got == nil || !reflect.DeepEqual(got, fixture.WantEvents)) {
+					t.Fatalf("returned attempt set differs from complete expected evidence: %#v", got)
+				}
+			case "organizations":
+				var got []schema.VillageMetadataUserOrganization
+				got, err = client.ReadObservationOrganizations(context.Background())
+				if err == nil && (got == nil || !reflect.DeepEqual(got, fixture.WantOrganizations)) {
+					t.Fatalf("returned organization set differs from complete expected evidence: %#v", got)
 				}
 			default:
 				t.Fatalf("unknown method %s", fixture.Method)
