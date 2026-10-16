@@ -229,9 +229,12 @@ func (c *VillageClient) readCollectiveJSON(ctx context.Context, operation, path 
 		return fmt.Errorf("%s: reach Village: %w", operation, err)
 	}
 	defer resp.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, collectiveResponseLimit))
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, collectiveResponseLimit+1))
 	if err != nil {
 		return fmt.Errorf("%s: read Village's answer: %w", operation, err)
+	}
+	if len(raw) > collectiveResponseLimit {
+		return fmt.Errorf("%s: Village's answer exceeds the complete-response byte limit; no partial metadata is usable; narrow the source or upgrade Village and retry", operation)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return &StatusError{Operation: operation, Path: path, StatusCode: resp.StatusCode, Message: villageErrorText(raw)}
