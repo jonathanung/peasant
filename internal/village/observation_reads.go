@@ -15,6 +15,9 @@ import (
 // Observation reads do not follow redirects: even a same-host redirect can
 // select a different Village base path or forward a saved credential.
 func (c *VillageClient) readObservationJSON(ctx context.Context, operation, path string, into any) error {
+	if err := observationBudgetAvailable(ctx); err != nil {
+		return err
+	}
 	req, err := c.newAuthedGet(ctx, c.baseURL+path)
 	if err != nil {
 		return fmt.Errorf("%s: construct metadata request: %w; no observations changed; correct the Village URL and retry", operation, err)
@@ -32,6 +35,9 @@ func (c *VillageClient) readObservationJSON(ctx context.Context, operation, path
 	}
 	if len(raw) > collectiveResponseLimit {
 		return fmt.Errorf("%s: metadata response exceeds the complete-response byte limit; no partial set is usable; narrow the source or upgrade Village and retry", operation)
+	}
+	if err := chargeObservationBytes(ctx, int64(len(raw))); err != nil {
+		return err
 	}
 	if resp.StatusCode != http.StatusOK {
 		return &StatusError{Operation: operation, Path: path, StatusCode: resp.StatusCode, Message: villageErrorText(raw)}

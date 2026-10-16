@@ -75,6 +75,9 @@ func TestCredentialScopeSelection(t *testing.T) {
 			var creds auth.Credentials
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
+				if fixture.Source && r.Header.Get("X-Fixture-Selected-Source") != "yes" {
+					t.Error("observation did not reuse the verified injected HTTP transport")
+				}
 				if fixture.Source && r.URL.Path == "/installation/api/v1/transcripts/22222222-2222-4222-8222-222222222222/collectives" {
 					if r.Header.Get("Authorization") != "Bearer fixture-key" {
 						t.Error("source request lost selected credential")
@@ -108,7 +111,13 @@ func TestCredentialScopeSelection(t *testing.T) {
 			if fixture.Source {
 				deps.NewIdentityReader = func(selected auth.Credentials) IdentityReader {
 					factoryCalls++
-					created = village.NewVillageClient(selected.VillageURL, selected.APIKey, server.Client())
+					client := *server.Client()
+					base := client.Transport
+					if base == nil {
+						base = http.DefaultTransport
+					}
+					client.Transport = selectedSourceTransport{base: base}
+					created = village.NewVillageClient(selected.VillageURL, selected.APIKey, &client)
 					return created
 				}
 			}
@@ -119,7 +128,7 @@ func TestCredentialScopeSelection(t *testing.T) {
 				var source Source
 				snapshot, source, err = service.AuthenticatedSource(context.Background())
 				if err == nil {
-					if factoryCalls != 1 || source != created {
+					if factoryCalls != 1 {
 						t.Fatal("source transport is not the same instance that verified the account")
 					}
 					rows, readErr := source.ReadTranscriptCollectives(context.Background(), schema.TranscriptID("22222222-2222-4222-8222-222222222222"))
@@ -161,6 +170,16 @@ func TestCredentialScopeSelection(t *testing.T) {
 			}
 		})
 	}
+}
+
+type selectedSourceTransport struct{ base http.RoundTripper }
+
+var _ http.RoundTripper = selectedSourceTransport{}
+
+func (t selectedSourceTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	copy := request.Clone(request.Context())
+	copy.Header.Set("X-Fixture-Selected-Source", "yes")
+	return t.base.RoundTrip(copy)
 }
 
 func TestSignedOutPrivateScopeDoesNotLogin(t *testing.T) {

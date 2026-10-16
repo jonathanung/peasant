@@ -21,6 +21,10 @@ type Source interface {
 	ReadOwnSubmissions(context.Context, schema.VillageUUID) ([]schema.VillageCollectiveSubmission, error)
 	ReadOwnShareEvents(context.Context, schema.TranscriptID, schema.VillageUUID) ([]schema.VillageShareEvent, error)
 	ReadObservationOrganizations(context.Context) ([]schema.VillageMetadataUserOrganization, error)
+	ReadOwnContributionIdentities(context.Context) ([]schema.VillageUUID, error)
+	ReadOwnContributionDiscovery(context.Context) ([]schema.VillageContributedCollective, error)
+	SearchObservationCollectives(context.Context, string) ([]schema.VillageCollectiveSearchResult, error)
+	ReadOrganizationCollectives(context.Context, string) ([]schema.VillageOrganizationCollective, error)
 	ReadTranscriptCollectives(context.Context, schema.TranscriptID) ([]schema.VillageTranscriptCollective, error)
 }
 
@@ -38,7 +42,7 @@ func (s *Service) AuthenticatedSource(ctx context.Context) (auth.CredentialSnaps
 	if !ok {
 		return auth.CredentialSnapshot{}, nil, fmt.Errorf("fetch collective observation sources: authenticated transport lacks complete source reads; no metadata was installed; configure the production Village source adapter before retrying")
 	}
-	return snapshot, source, nil
+	return snapshot, &boundedSource{Source: source, slots: s.sourceSlots}, nil
 }
 
 // ObserveOwnPair is the targeted owner-history path, not a full history fetch.
@@ -46,6 +50,8 @@ func (s *Service) AuthenticatedSource(ctx context.Context) (auth.CredentialSnaps
 // entire pair outside locks, and reconciles under the actual guarded Store
 // transaction. It cannot be used for foreign transcript associations.
 func (s *Service) ObserveOwnPair(ctx context.Context, collective schema.VillageUUID, transcript schema.TranscriptID) (store.ContributionAttemptInstall, error) {
+	ctx, cancel := s.operationContext(ctx)
+	defer cancel()
 	if s.store == nil {
 		return store.ContributionAttemptInstall{}, fmt.Errorf("observe own contribution pair: local Store is not configured; no evidence changed; configure the observation service with the selected local Store")
 	}

@@ -23,19 +23,26 @@ var _ IdentityReader = (*village.VillageClient)(nil)
 
 // Dependencies selects the credential profile and remote identity transport.
 type Dependencies struct {
-	ConfigHome        string
-	NewIdentityReader func(auth.Credentials) IdentityReader
-	Store             *store.Store
-	Now               func() time.Time
+	ConfigHome               string
+	NewIdentityReader        func(auth.Credentials) IdentityReader
+	Store                    *store.Store
+	Now                      func() time.Time
+	FetchTimeout             time.Duration
+	SourceBudgetBytes        int64
+	LocallyHeldTranscriptIDs func(context.Context, schema.CollectiveObservationScope) ([]schema.TranscriptID, error)
 }
 
 // Service shares credential selection between offline readers and online
 // observation operations. A snapshot is never itself remote authorization.
 type Service struct {
-	configHome        string
-	newIdentityReader func(auth.Credentials) IdentityReader
-	store             *store.Store
-	now               func() time.Time
+	configHome         string
+	newIdentityReader  func(auth.Credentials) IdentityReader
+	store              *store.Store
+	now                func() time.Time
+	operationTimeout   time.Duration
+	sourceSlots        chan struct{}
+	sourceBudgetBytes  int64
+	localTranscriptIDs func(context.Context, schema.CollectiveObservationScope) ([]schema.TranscriptID, error)
 }
 
 // New uses the real Village transport unless a dependency is explicitly supplied.
@@ -50,7 +57,19 @@ func New(deps Dependencies) *Service {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{configHome: deps.ConfigHome, newIdentityReader: factory, store: deps.Store, now: now}
+	timeout := deps.FetchTimeout
+	if timeout <= 0 {
+		timeout = 2 * time.Minute
+	}
+	budget := deps.SourceBudgetBytes
+	if budget <= 0 {
+		budget = 4 * village.ObservationResponseLimit
+	}
+	return &Service{configHome: deps.ConfigHome, newIdentityReader: factory, store: deps.Store, now: now, operationTimeout: timeout, sourceSlots: make(chan struct{}, 4), sourceBudgetBytes: budget, localTranscriptIDs: deps.LocallyHeldTranscriptIDs}
+}
+
+func (s *Service) operationContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(village.WithObservationReadBudget(ctx, s.sourceBudgetBytes), s.operationTimeout)
 }
 
 // SelectedCredentials selects the saved private scope OFFLINE. It never logs
@@ -63,7 +82,7 @@ func (s *Service) SelectedCredentials(ctx context.Context) (auth.CredentialSnaps
 	creds := snapshot.Credentials()
 	id, err := uuid.Parse(creds.UserID)
 	if err != nil || id.String() != creds.UserID {
-		return auth.CredentialSnapshot{}, fmt.Errorf("select private collective scope: saved user identity is not a canonical Village UUID; no private observations were selected; sign in again (unfiltered local inventory remains available)")
+		return auth.CredentialSnapshot{}, fmt.Errorf("select private collective scope: saved user identity is not a canonical Village UUID; no private observations selected; sign in again (unfiltered local inventory remains available): %w", auth.ErrSignedOut)
 	}
 	if _, err := auth.NormalizeVillageURL(creds.VillageURL); err != nil {
 		return auth.CredentialSnapshot{}, err
@@ -93,12 +112,12 @@ func (s *Service) authenticatedReader(ctx context.Context) (auth.CredentialSnaps
 	if reader == nil {
 		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope: identity transport is missing; no observations were fetched; configure the Village client and retry")
 	}
-	user, err := reader.VerifyUser(ctx)
+	user, err := sourceRead(ctx, s.sourceSlots, func() (schema.VillageUser, error) { return reader.VerifyUser(ctx) })
 	if err != nil {
 		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope before fetching: %w; no new metadata was installed; verify the selected login and retry explicitly", err)
 	}
 	if user.ID.String() != creds.UserID {
-		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope: auth/me disagrees with the saved stable user UUID; no private metadata was selected or installed; sign in again to select the correct account")
+		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope: auth/me disagrees with the saved stable user UUID; no private metadata was selected or installed; sign in again to select the correct account: %w", auth.ErrSignedOut)
 	}
 	if err := snapshot.WithCurrent(ctx, func() error { return nil }); err != nil {
 		return auth.CredentialSnapshot{}, nil, err

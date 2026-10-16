@@ -1,0 +1,22 @@
+requiredNames:
+  - relevant-membership
+  - relevant-pending-nonmember
+  - relevant-org-visible
+  - relevant-explicit
+  - duplicate-reasons
+  - catalog-complete-history-timeout
+  - catalog-failed-history-complete
+  - incomplete-contribution-source-no-relevance-prune
+  - catalog-committed-before-cancel-reported
+  - association-one-complete-one-timeout
+cases:
+  - {name: relevant-membership, wantStatus: 200, wantName: New, wantEvent: approved}
+  - {name: relevant-pending-nonmember, membershipEmpty: true, wantStatus: 200, wantName: New, wantEvent: approved}
+  - {name: relevant-org-visible, contributionEmpty: true, membershipEmpty: true, org: true, wantStatus: 200, wantName: New, wantEvent: pending}
+  - {name: relevant-explicit, contributionEmpty: true, membershipEmpty: true, track: true, wantStatus: 200, wantName: New, wantEvent: pending}
+  - {name: duplicate-reasons, org: true, track: true, wantStatus: 200, wantName: New, wantEvent: approved}
+  - {name: catalog-complete-history-timeout, failPath: /api/v1/users/me/collectives/33333333-3333-4333-8333-333333333333/transcripts/22222222-2222-4222-8222-222222222222/events, cancel: true, wantStatus: 504, wantName: New, wantEvent: pending}
+  - {name: catalog-failed-history-complete, org: true, failPath: /api/v1/orgs/example, failStatus: 503, wantStatus: 502, wantName: Old, wantEvent: approved}
+  - {name: incomplete-contribution-source-no-relevance-prune, missingCounter: true, wantStatus: 502, wantName: Old, wantEvent: pending}
+  - {name: catalog-committed-before-cancel-reported, failPath: /api/v1/users/me/collectives/33333333-3333-4333-8333-333333333333/transcripts/22222222-2222-4222-8222-222222222222/events, cancel: true, wantStatus: 504, wantName: New, wantEvent: pending}
+  - {name: association-one-complete-one-timeout, associationFailure: true, wantStatus: 504, wantName: New, wantEvent: approved}

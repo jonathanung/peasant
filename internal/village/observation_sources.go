@@ -2,6 +2,7 @@ package village
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"slices"
@@ -117,4 +118,82 @@ func (c *VillageClient) ReadObservationOrganizations(ctx context.Context) ([]sch
 		seen[login] = true
 	}
 	return rows, nil
+}
+
+// ReadOwnContributionIdentities discovers owned history scopes only. Counter
+// values are intentionally not exposed by this projection: relevance pruning
+// needs the canonical required-counter decoder, not zero-value JSON decoding.
+func (c *VillageClient) ReadOwnContributionIdentities(ctx context.Context) ([]schema.VillageUUID, error) {
+	rows, err := c.ReadOwnContributionDiscovery(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]schema.VillageUUID, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.ID)
+	}
+	return ids, nil
+}
+
+func (c *VillageClient) ReadOwnContributionDiscovery(ctx context.Context) ([]schema.VillageContributedCollective, error) {
+	var raw json.RawMessage
+	if err := c.readObservationJSON(ctx, "discover owned contribution collective identities", "/api/v1/users/me/collectives/contributions", &raw); err != nil {
+		return nil, err
+	}
+	response, err := decodeContributionDiscovery(raw)
+	if err != nil {
+		return nil, err
+	}
+	if response.Collectives == nil {
+		return nil, fmt.Errorf("discover owned contribution identities: missing complete array; prior history retained; obtain a complete owner discovery response")
+	}
+	seen := map[schema.VillageUUID]bool{}
+	for _, row := range response.Collectives {
+		if !IsCollectiveID(row.ID) || seen[row.ID] {
+			return nil, fmt.Errorf("discover owned contribution identities: invalid or repeated UUID; no history prefix can be installed; correct the Village discovery response")
+		}
+		seen[row.ID] = true
+		if row.Name == "" || row.ApprovedCount < 0 || row.PendingCount < 0 || row.RejectedAttemptCount < 0 || row.WithdrawnAttemptCount < 0 {
+			return nil, fmt.Errorf("read contribution discovery: empty label or negative measured count; no relevance installed; correct the Village source response")
+		}
+	}
+	return response.Collectives, nil
+}
+
+// SearchObservationCollectives resolves an explicit exact-name request, never
+// populates a world-directory cache. The existing search route caps at 50; a
+// full cap cannot prove absence of another exact match, so callers must use UUID.
+func (c *VillageClient) SearchObservationCollectives(ctx context.Context, name string) ([]schema.VillageCollectiveSearchResult, error) {
+	var response schema.VillageCollectiveSearchResponse
+	if err := c.readObservationJSON(ctx, "resolve an explicitly selected collective name", "/api/v1/collectives/search?q="+url.QueryEscape(name)+"&limit=50", &response); err != nil {
+		return nil, err
+	}
+	if response.Collectives == nil {
+		return nil, fmt.Errorf("resolve collective name: missing complete search array; no selection made; use a UUID or retry validated search")
+	}
+	if len(response.Collectives) >= 50 {
+		return nil, fmt.Errorf("resolve collective name: search reached the server result cap, so exact-name uniqueness is unknown; no selection made; use the collective's canonical UUID")
+	}
+	seen := map[schema.VillageUUID]bool{}
+	for _, row := range response.Collectives {
+		if !IsCollectiveID(row.ID) || row.Name == "" || seen[row.ID] {
+			return nil, fmt.Errorf("resolve collective name: invalid or repeated search identity; no selection made; correct the Village response or use UUID")
+		}
+		seen[row.ID] = true
+	}
+	return response.Collectives, nil
+}
+
+func (c *VillageClient) ReadOrganizationCollectives(ctx context.Context, login string) ([]schema.VillageOrganizationCollective, error) {
+	if strings.TrimSpace(login) == "" {
+		return nil, fmt.Errorf("read organization collectives: login is empty; no request sent; use a selected-account organization login")
+	}
+	var response schema.VillageOrganizationCollectivesResponse
+	if err := c.readObservationJSON(ctx, "read permitted organization collective projection", "/api/v1/orgs/"+url.PathEscape(login), &response); err != nil {
+		return nil, err
+	}
+	if err := response.Validate(); err != nil {
+		return nil, err
+	}
+	return response.Collectives, nil
 }

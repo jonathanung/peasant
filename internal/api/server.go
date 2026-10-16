@@ -22,10 +22,12 @@ import (
 	"time"
 
 	"github.com/peasant-labs/peasant/internal/annotations"
+	"github.com/peasant-labs/peasant/internal/collectiveobservations"
 	"github.com/peasant-labs/peasant/internal/config"
 	"github.com/peasant-labs/peasant/internal/defaults"
 	"github.com/peasant-labs/peasant/internal/githooks"
 	"github.com/peasant-labs/peasant/internal/ingest"
+	"github.com/peasant-labs/peasant/internal/observationinventory"
 	"github.com/peasant-labs/peasant/internal/store"
 	schema "github.com/peasant-labs/schema"
 )
@@ -243,6 +245,8 @@ func (s *Server) Listen(ctx context.Context) error {
 	}
 	mux.HandleFunc("GET "+defaults.RoutePublications.String(), ph.handlePublications)
 	mux.HandleFunc("GET "+defaults.RouteVillageCollectives.String(), ph.handleVillageCollectives)
+	observations := &collectiveObservationHandler{service: collectiveobservations.New(collectiveobservations.Dependencies{Store: s.cfg.Store, ConfigHome: s.cfg.ConfigHome, LocallyHeldTranscriptIDs: observationinventory.Held(s.cfg.Store)})}
+	observations.register(mux)
 
 	// Auto-publish rules: save or remove a rule, and install its hooks in one
 	// recorded repository.

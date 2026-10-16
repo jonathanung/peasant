@@ -18,6 +18,13 @@ import (
 // It never means all other observation domains or sources became obsolete.
 var ErrObservationSuperseded = errors.New("collective observation source was superseded by a newer invocation; retained evidence was not overwritten; fetch the source again to inspect its current observation")
 
+// ContributionAttemptConflictError classifies canonical remote-data conflict,
+// not SQLite failure. The shared schema helper remains the transition rule.
+type ContributionAttemptConflictError struct{ Err error }
+
+func (e *ContributionAttemptConflictError) Error() string { return e.Err.Error() }
+func (e *ContributionAttemptConflictError) Unwrap() error { return e.Err }
+
 // CollectiveObservationInvocation pins local credentials, scope incarnation and
 // a durable sequence. Its fields are private: callers cannot forge a different
 // account scope or substitute a sequence from another Store.
@@ -45,6 +52,17 @@ type ContributionAttemptSource struct {
 type ContributionAttemptInstall struct {
 	Changed    bool
 	Generation int64
+}
+
+func checkObservationInvocation(conn *sqlite.Conn, invocation CollectiveObservationInvocation) error {
+	var incarnation string
+	if err := sqlitex.Execute(conn, `SELECT incarnation FROM collective_observation_scopes WHERE village_url=? AND user_id=?`, &sqlitex.ExecOptions{Args: []any{invocation.villageURL, invocation.userID}, ResultFunc: func(stmt *sqlite.Stmt) error { incarnation = stmt.ColumnText(0); return nil }}); err != nil {
+		return err
+	}
+	if incarnation != invocation.incarnation {
+		return ErrObservationSuperseded
+	}
+	return nil
 }
 
 func observationCredentialScope(snapshot auth.CredentialSnapshot) (string, string, error) {
@@ -127,6 +145,10 @@ func (s *Store) BeginCollectiveObservation(ctx context.Context, snapshot auth.Cr
 // attempts. No missing discovery/pair is interpreted as deletion of history.
 // A stale overlapping source rejects this install; disjoint sources do not.
 func (s *Store) InstallContributionAttemptSources(ctx context.Context, invocation CollectiveObservationInvocation, sources []ContributionAttemptSource) (ContributionAttemptInstall, error) {
+	return s.installContributionAttemptSources(ctx, invocation, sources, nil, nil)
+}
+
+func (s *Store) installContributionAttemptSources(ctx context.Context, invocation CollectiveObservationInvocation, sources []ContributionAttemptSource, before func(*sqlite.Conn) error, after func(*sqlite.Conn, ContributionAttemptInstall) error) (ContributionAttemptInstall, error) {
 	if invocation.store != s || invocation.sequence < 1 {
 		return ContributionAttemptInstall{}, fmt.Errorf("install contribution attempts: invocation does not belong to this Store; no evidence changed; begin an authenticated observation in this Store")
 	}
@@ -167,6 +189,11 @@ func (s *Store) InstallContributionAttemptSources(ctx context.Context, invocatio
 	}
 	var result ContributionAttemptInstall
 	err := s.withObservationTransaction(ctx, invocation.credentials, true, func(conn *sqlite.Conn) error {
+		if before != nil {
+			if err := before(conn); err != nil {
+				return err
+			}
+		}
 		var incarnation string
 		if err := sqlitex.ExecuteTransient(conn, `SELECT incarnation,attempt_generation FROM collective_observation_scopes WHERE village_url=? AND user_id=?`, &sqlitex.ExecOptions{Args: []any{invocation.villageURL, invocation.userID}, ResultFunc: func(stmt *sqlite.Stmt) error {
 			incarnation = stmt.ColumnText(0)
@@ -195,7 +222,7 @@ func (s *Store) InstallContributionAttemptSources(ctx context.Context, invocatio
 				incoming := schema.LocalRemoteContributionAttempt{CollectiveID: source.CollectiveID, TranscriptID: source.TranscriptID, Attempt: event, FirstSeenAt: source.ObservedAt}
 				retained, effect, err := schema.ReconcileVillageContributionAttempt(old, incoming)
 				if err != nil {
-					return err
+					return &ContributionAttemptConflictError{Err: err}
 				}
 				if effect == schema.VillageContributionAttemptInserted || effect == schema.VillageContributionAttemptUpdated {
 					result.Changed = true
@@ -217,10 +244,13 @@ func (s *Store) InstallContributionAttemptSources(ctx context.Context, invocatio
 			if result.Generation == math.MaxInt64 {
 				return fmt.Errorf("install contribution attempts: category generation exhausted; no evidence changed; recreate the selected cache before retrying")
 			}
-			if err := sqlitex.ExecuteTransient(conn, `UPDATE collective_observation_scopes SET attempt_generation=attempt_generation+1 WHERE village_url=? AND user_id=?`, &sqlitex.ExecOptions{Args: []any{invocation.villageURL, invocation.userID}}); err != nil {
+			if err := bumpEvidence(conn, invocation.villageURL, invocation.userID, schema.LocalContributionEvidenceRemoteAttempts); err != nil {
 				return err
 			}
 			result.Generation++
+		}
+		if after != nil {
+			return after(conn, result)
 		}
 		return nil
 	})
