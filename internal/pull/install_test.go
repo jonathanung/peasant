@@ -8,9 +8,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/peasant-labs/peasant/internal/ingest"
 	"github.com/peasant-labs/peasant/internal/pull"
@@ -26,13 +27,15 @@ import (
 var contentInstallYAML []byte
 
 type installCase struct {
-	Name            string `yaml:"name"`
-	Operation       string `yaml:"operation"`
-	Target          string `yaml:"target"`
-	After           bool   `yaml:"after"`
-	ForceRecovery   bool   `yaml:"forceRecovery"`
-	Mode            string `yaml:"mode"`
-	CorruptPrevious bool   `yaml:"corruptPrevious"`
+	Name             string `yaml:"name"`
+	Operation        string `yaml:"operation"`
+	Target           string `yaml:"target"`
+	After            bool   `yaml:"after"`
+	ForceRecovery    bool   `yaml:"forceRecovery"`
+	Mode             string `yaml:"mode"`
+	CorruptPrevious  bool   `yaml:"corruptPrevious"`
+	RecoveryOnly     bool   `yaml:"recoveryOnly"`
+	AbsentAfterFault bool   `yaml:"absentAfterFault"`
 }
 
 // A second process must not sweep or replace the first process's staging tree.
@@ -54,7 +57,7 @@ func TestContentInstallProcessLock(t *testing.T) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), deadline)
 		defer cancel()
-		_, err = pull.NewPipeline(happyReader(), &ingest.OSFileSystem{}, db, testutil.NewFixedClock(), testCreds(), filepath.Join(root, "pulls")).PullTranscript(ctx, newRef(t), pull.PullOptions{Force: true})
+		_, err = pull.NewPipeline(happyReader(), pull.NewFileSystem(filepath.Join(root, "pulls")), db, testutil.NewFixedClock(), testCreds(), filepath.Join(root, "pulls")).PullTranscript(ctx, newRef(t), pull.PullOptions{Force: true})
 		if os.Getenv(heldEnv) == "true" {
 			if !errors.Is(err, context.DeadlineExceeded) {
 				t.Fatalf("concurrent process did not honor content ownership: %v", err)
@@ -138,7 +141,7 @@ func TestContentInstallDryRunDoesNotRepairOrWrite(t *testing.T) {
 	}
 	defer db.Close()
 	pulls := filepath.Join(root, "pulls")
-	osfs := &ingest.OSFileSystem{}
+	osfs := pull.NewFileSystem(pulls)
 	fault := &installFaultStore{PullStore: db}
 	if _, err := pull.NewPipeline(happyReader(), osfs, fault, testutil.NewFixedClock(), testCreds(), pulls).PullTranscript(ctx, newRef(t), pull.PullOptions{}); !errors.Is(err, errInstallInjected) {
 		t.Fatal(err)
@@ -196,9 +199,10 @@ var errInstallInjected = errors.New("injected filesystem/index interruption")
 // This decorator faults actual OS operations, never the pipeline under test.
 type installFaultFS struct {
 	ingest.FileSystem
-	fixture installCase
-	final   string
-	fired   bool
+	fixture  installCase
+	final    string
+	fired    bool
+	barriers []string
 }
 
 var _ ingest.FileSystem = (*installFaultFS)(nil)
@@ -220,6 +224,23 @@ func (f *installFaultFS) operation(op, path string, run func() error) error {
 		match = filepath.Base(path) == "previous-metadata.json"
 	case "metadataBackupTemp":
 		match = filepath.Base(path) == "previous-metadata.json.tmp"
+	case "transcript":
+		match = filepath.Base(path) == pull.TranscriptFilename
+	case "manifest":
+		match = filepath.Base(path) == pull.ManifestFilename
+	case "journalWrite":
+		match = filepath.Base(path) == "journal.json.tmp"
+	case "metadataBackupDirectory":
+		root := filepath.Join(filepath.Dir(f.final), ".install-"+filepath.Base(f.final))
+		_, err := os.Stat(filepath.Join(root, "previous-metadata.json"))
+		match = path == root && err == nil
+	case "metadataMovedStage":
+		data, err := os.ReadFile(filepath.Join(f.final, pull.MetadataFilename))
+		var meta schema.PullTranscriptInfo
+		match = f.barrierName(path) == "stageDirectory" && err == nil &&
+			json.Unmarshal(data, &meta) == nil && meta.Title != happyMeta().Title
+	default:
+		match = f.barrierName(path) == f.fixture.Target
 	}
 	if f.fired || op != f.fixture.Operation || !match {
 		return run()
@@ -231,6 +252,75 @@ func (f *installFaultFS) operation(op, path string, run func() error) error {
 		}
 	}
 	return errInstallInjected
+}
+
+func (f *installFaultFS) barrierName(path string) string {
+	root := filepath.Join(filepath.Dir(f.final), ".install-"+filepath.Base(f.final))
+	switch filepath.Base(path) {
+	case pull.TranscriptFilename:
+		return "stagedBlob"
+	case pull.MetadataFilename:
+		return "stagedMetadata"
+	case pull.ManifestFilename:
+		return "stagedManifest"
+	case "journal.json.tmp":
+		return "journalFile"
+	}
+	if path == filepath.Dir(filepath.Dir(filepath.Dir(f.final))) {
+		return "ancestor"
+	}
+	if path == root {
+		if _, err := os.Stat(filepath.Join(root, "journal.json")); err == nil {
+			return "journalDirectory"
+		}
+	}
+	if filepath.Dir(path) == root {
+		if _, err := uuid.Parse(filepath.Base(path)); err == nil {
+			return "stageDirectory"
+		}
+	}
+	if path == filepath.Dir(f.final) || path == f.final {
+		data, err := os.ReadFile(filepath.Join(f.final, pull.MetadataFilename))
+		var meta schema.PullTranscriptInfo
+		if err == nil && json.Unmarshal(data, &meta) == nil && meta.Title != happyMeta().Title {
+			return "publicationDirectory"
+		}
+	}
+	return ""
+}
+
+func (f *installFaultFS) sync(path string) error {
+	if point := f.barrierName(path); point != "" {
+		f.barriers = append(f.barriers, point)
+	}
+	return f.operation("sync", path, func() error { return syncActualInstallFile(f.FileSystem, path) })
+}
+
+func syncActualInstallFile(filesystem ingest.FileSystem, path string) error {
+	if syncing, ok := filesystem.(interface{ Sync(string) error }); ok {
+		return syncing.Sync(path)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	return errors.Join(file.Sync(), file.Close())
+}
+
+type installAuditStore struct {
+	pull.PullStore
+	commits int
+	before  func()
+}
+
+var _ pull.PullStore = (*installAuditStore)(nil)
+
+func (s *installAuditStore) CommitPull(ctx context.Context, commit store.PullCommit) error {
+	if s.before != nil {
+		s.before()
+	}
+	s.commits++
+	return s.PullStore.CommitPull(ctx, commit)
 }
 func (f *installFaultFS) WriteFile(path string, data []byte, mode os.FileMode) error {
 	return f.operation("write", path, func() error { return f.FileSystem.WriteFile(path, data, mode) })
@@ -284,7 +374,7 @@ func TestContentInstallRestartRecovery(t *testing.T) {
 			}
 			t.Cleanup(func() { _ = db.Close() })
 			pulls := filepath.Join(root, "pulls")
-			osfs := &ingest.OSFileSystem{}
+			osfs := pull.NewFileSystem(pulls)
 			ref := newRef(t)
 			first := happyReader()
 			if _, err := pull.NewPipeline(first, osfs, db, testutil.NewFixedClock(), testCreds(), pulls).PullTranscript(ctx, ref, pull.PullOptions{}); err != nil {
@@ -328,18 +418,22 @@ func TestContentInstallRestartRecovery(t *testing.T) {
 				reader.Meta.ContentHash = ""
 			}
 			filesystem := &installFaultFS{FileSystem: osfs, fixture: fixture, final: final}
-			var persistence pull.PullStore = db
+			audit := &installAuditStore{PullStore: db}
+			var persistence pull.PullStore = audit
 			var failedStore *installFaultStore
 			if fixture.Operation == "index" {
-				failedStore = &installFaultStore{PullStore: db, after: fixture.After}
+				failedStore = &installFaultStore{PullStore: audit, after: fixture.After}
 				persistence = failedStore
 			}
-			result, err := pull.NewPipeline(reader, filesystem, persistence, testutil.NewFixedClock(), testCreds(), pulls).PullTranscript(ctx, ref, pull.PullOptions{Force: force})
+			result, err := pull.NewPipeline(reader, filesystem, persistence, testutil.NewFixedClock(), testCreds(), pulls, pull.WithInstallSync(filesystem.sync)).PullTranscript(ctx, ref, pull.PullOptions{Force: force})
 			if !errors.Is(err, errInstallInjected) || result.Status != pull.PullStatusError {
 				t.Fatalf("fault must be a required failure, result=%+v error=%v", result, err)
 			}
 			if !filesystem.fired && (failedStore == nil || !failedStore.fired) {
 				t.Fatal("fault did not hit actual production operation")
+			}
+			if fixture.Operation == "sync" && audit.commits != 0 {
+				t.Fatal("persistence barrier failure reached index transaction")
 			}
 			// The previous complete files must survive in the published directory
 			// or the owned backup until the replacement index is verified.
@@ -347,6 +441,14 @@ func TestContentInstallRestartRecovery(t *testing.T) {
 			oldDir := final
 			if _, err := os.Stat(backup); err == nil {
 				oldDir = backup
+			}
+			if fixture.AbsentAfterFault {
+				if _, err := os.Lstat(final); !os.IsNotExist(err) {
+					t.Fatalf("canonical directory must be absent after interrupted backup rename: %v", err)
+				}
+				if oldDir != backup {
+					t.Fatal("complete previous copy is not retained in backup")
+				}
 			}
 			if fixture.Target != "journal" || fixture.Operation != "remove" {
 				got, err := os.ReadFile(filepath.Join(oldDir, pull.TranscriptFilename))
@@ -391,10 +493,21 @@ func TestContentInstallRestartRecovery(t *testing.T) {
 			retry.Meta = reader.Meta
 			retry.ContentBody = reader.ContentBody
 			retry.ContentETag = reader.ContentETag
+			if fixture.RecoveryOnly {
+				metaCopy := *reader.Meta
+				metaCopy.ContentHash = schema.ComputeTranscriptHash(reader.ContentBody)
+				retry.Meta = &metaCopy
+				retry.ContentErr = errors.New("restart must not download replacement bytes")
+				retry.AnnotationsErr = errors.New("restart must not fetch replacement annotations")
+			}
 			result, err = pull.NewPipeline(retry, osfs, db, testutil.NewFixedClock(), testCreds(), pulls).PullTranscript(ctx, ref, pull.PullOptions{Force: fixture.ForceRecovery})
 			if err != nil || (result.Status != pull.PullStatusPulled && result.Status != pull.PullStatusUpToDate) {
 				t.Fatalf("restart repair: result=%+v error=%v", result, err)
 			}
+			if fixture.RecoveryOnly && (retry.ContentCalls != 0 || retry.AnnotationsCalls != 0) {
+				t.Fatal("remote transfer masked failed local journal recovery")
+			}
+			assertInstalledContent(t, db, final, reader)
 			row, err := db.GetPulledTranscript(ctx, testutil.TestVillageHost, ref.ID)
 			if err != nil || row == nil || row.Title != reader.Meta.Title {
 				t.Fatalf("index projection was not repaired: row=%+v error=%v", row, err)
@@ -412,10 +525,35 @@ func TestContentInstallRestartRecovery(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, entry := range entries {
-				if !strings.HasSuffix(entry.Name(), ".tmp") {
-					t.Errorf("owned recovery resource leaked after repair: %s", entry.Name())
-				}
+				t.Errorf("owned recovery resource leaked after repair: %s", entry.Name())
 			}
 		})
+	}
+}
+
+func TestContentInstallBarrierOrder(t *testing.T) {
+	pulls, db, filesystem := newSafetySandbox(t)
+	final := filepath.Join(pulls, testutil.TestVillageHost, testutil.TestTranscriptUUID)
+	fault := &installFaultFS{FileSystem: filesystem, final: final}
+	var corpus struct {
+		BarrierOrder []string `yaml:"barrierOrder"`
+	}
+	if err := yaml.Unmarshal(contentInstallYAML, &corpus); err != nil {
+		t.Fatal(err)
+	}
+	audit := &installAuditStore{PullStore: db, before: func() {
+		cursor := 0
+		for _, point := range fault.barriers {
+			if cursor < len(corpus.BarrierOrder) && point == corpus.BarrierOrder[cursor] {
+				cursor++
+			}
+		}
+		if cursor != len(corpus.BarrierOrder) {
+			t.Fatalf("index commit preceded required ordered persistence barriers: %v; require %v", fault.barriers, corpus.BarrierOrder)
+		}
+	}}
+	_, err := pull.NewPipeline(replacementReader(), fault, audit, testutil.NewFixedClock(), testCreds(), pulls, pull.WithInstallSync(fault.sync)).PullTranscript(context.Background(), newRef(t), pull.PullOptions{})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

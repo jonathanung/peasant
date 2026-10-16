@@ -18,6 +18,14 @@ downloads a fresh replacement. No manual SQL is required. An invalid journal or
 checksum mismatch fails closed, retaining files rather than guessing which
 unverified copy to delete.
 
+An explicit `--force` also authorizes replacement of damaged old files when a
+normal pull has already left a valid pending journal. It does not bypass the
+journal identity, staged checksum, index projection, or exact stage ownership
+checks. File and directory components must be real artifacts, not symlinks;
+bounded filesystem handles prevent namespace swaps from redirecting artifact I/O
+outside the configured pulls root. Existing configured ancestors remain trusted
+configuration (including an explicitly configured linked XDG home).
+
 An unchanged content hash or HTTP 304 does not freeze descriptive metadata.
 Changed metadata is atomically replaced as a file, without moving the blob or
 provenance, then indexed through the same recovery boundary. A metadata-only
@@ -33,3 +41,5 @@ File data and directory publication barriers are flushed on supported local
 filesystems. Windows flushes file data but has no portable directory-flush API
 through Go's `os.File`; process-interruption recovery still applies. Filesystem
 or hardware durability guarantees remain platform-dependent.
+First-pull creation flushes the ancestor entry chain as well, including any
+directories created by lock setup, before committing the derived index.

@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/peasant-labs/peasant/internal/defaults"
-	"github.com/peasant-labs/peasant/internal/ingest"
 	"github.com/peasant-labs/peasant/internal/pull"
 	"github.com/peasant-labs/peasant/internal/testkit/testwait"
 	"github.com/peasant-labs/peasant/internal/testutil"
@@ -529,7 +528,7 @@ func runCancelOnce(t *testing.T) (string, *testutil.CollectiveVillage, []schema.
 	defer db.Close()
 	client := village.NewVillageClient(server.URL(), "test-api-key", nil)
 	pullsRoot := string(defaults.ResolveVillagePullsDirPathWith(dir))
-	realPipeline := pull.NewPipeline(client, &ingest.OSFileSystem{}, db,
+	realPipeline := pull.NewPipeline(client, pull.NewFileSystem(pullsRoot), db,
 		pull.SystemClock{},
 		pull.Credentials{UserID: testutil.TestOwnerUserID, VillageURL: server.URL()},
 		pullsRoot)

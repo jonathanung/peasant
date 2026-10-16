@@ -6,7 +6,6 @@ import (
 
 	"github.com/peasant-labs/peasant/internal/auth"
 	"github.com/peasant-labs/peasant/internal/defaults"
-	"github.com/peasant-labs/peasant/internal/ingest"
 	"github.com/peasant-labs/peasant/internal/pull"
 	"github.com/peasant-labs/peasant/internal/store"
 	"github.com/peasant-labs/peasant/internal/village"
@@ -50,7 +49,7 @@ func villagePullPipeline(cmd *cobra.Command, creds *auth.Credentials, db *store.
 	pullsRoot := string(defaults.ResolveVillagePullsDirPathWith(dataDirOverride(cmd)))
 	return pull.NewPipeline(
 		client,
-		&ingest.OSFileSystem{},
+		pull.NewFileSystem(pullsRoot),
 		db,
 		pull.SystemClock{},
 		pull.Credentials{UserID: creds.UserID, VillageURL: creds.VillageURL},

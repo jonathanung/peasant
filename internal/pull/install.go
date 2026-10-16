@@ -69,6 +69,26 @@ func (p *Pipeline) syncInstallMove(root, final string) error {
 	return errors.Join(p.syncInstall(root), p.syncInstall(filepath.Dir(final)))
 }
 
+// Flush the directory entry chain, including ancestors lock setup may just have
+// created. Flushing an existing directory's parent is safe and avoids relying on
+// a racy pre-creation existence census across processes. Path depth bounds work.
+func (p *Pipeline) syncInstallAncestors(path string) error {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	for {
+		if err := p.syncInstall(abs); err != nil {
+			return err
+		}
+		parent := filepath.Dir(abs)
+		if parent == abs {
+			return nil
+		}
+		abs = parent
+	}
+}
+
 func (p *Pipeline) installRoot(host string, id schema.TranscriptID) string {
 	return filepath.Join(p.pullsRoot, host, ".install-"+id.String())
 }
@@ -187,7 +207,7 @@ func (p *Pipeline) installContent(ctx context.Context, host string, id schema.Tr
 	if err := p.syncInstall(root); err != nil {
 		return installError(err)
 	}
-	return p.recoverInstall(ctx, host, id)
+	return p.recoverInstall(ctx, host, id, replaceInvalid)
 }
 
 // contentDigest validates the complete file set and binds the journal to exact
@@ -197,6 +217,14 @@ func (p *Pipeline) contentDigest(dir, host string, id schema.TranscriptID) (stri
 }
 
 func (p *Pipeline) contentDigestWithMetadata(dir, metadataPath, host string, id schema.TranscriptID) (string, error) {
+	if err := p.validateDirectory(dir); err != nil {
+		return "", err
+	}
+	for _, path := range []string{filepath.Join(dir, ManifestFilename), filepath.Join(dir, TranscriptFilename), metadataPath} {
+		if err := p.validateRegular(path); err != nil {
+			return "", err
+		}
+	}
 	var manifest PullManifest
 	var meta schema.PullTranscriptInfo
 	m, err := p.fs.ReadFile(filepath.Join(dir, ManifestFilename))
@@ -243,7 +271,7 @@ func (p *Pipeline) exists(path string) (bool, error) {
 // recoverInstall is called with exclusive per-transcript OS ownership. It never
 // removes a prior directory until exact replacement bytes and index commit have
 // both been verified. Repeated index commits are idempotent store projections.
-func (p *Pipeline) recoverInstall(ctx context.Context, host string, id schema.TranscriptID) error {
+func (p *Pipeline) recoverInstall(ctx context.Context, host string, id schema.TranscriptID, force bool) error {
 	root := p.installRoot(host, id)
 	if info, err := p.fs.Lstat(root); err == nil && (!info.IsDir() || info.Mode()&fs.ModeSymlink != 0) {
 		return installError(fmt.Errorf("owned recovery namespace is not a real directory; no files removed"))
@@ -251,6 +279,13 @@ func (p *Pipeline) recoverInstall(ctx context.Context, host string, id schema.Tr
 		return installError(err)
 	}
 	journal := filepath.Join(root, "journal.json")
+	if present, err := p.exists(journal); err != nil {
+		return installError(err)
+	} else if present {
+		if err := p.validateRegular(journal); err != nil {
+			return installError(err)
+		}
+	}
 	data, err := p.fs.ReadFile(journal)
 	if errors.Is(err, fs.ErrNotExist) {
 		return p.cleanAbandonedStages(root, id)
@@ -273,6 +308,13 @@ func (p *Pipeline) recoverInstall(ctx context.Context, host string, id schema.Tr
 		return installError(fmt.Errorf("invalid install journal identity; no files were removed"))
 	}
 	stage := filepath.Join(root, j.Stage)
+	if present, err := p.exists(stage); err != nil {
+		return installError(err)
+	} else if present {
+		if err := p.validateStage(stage, id); err != nil {
+			return installError(err)
+		}
+	}
 	if j.MetadataOnly {
 		return p.recoverMetadata(ctx, host, id, root, stage, j)
 	}
@@ -289,12 +331,18 @@ func (p *Pipeline) recoverInstall(ctx context.Context, host string, id schema.Tr
 		if digest != j.Digest {
 			return installError(fmt.Errorf("staged file checksum differs from journal; previous content retained"))
 		}
+		if err := p.validateProjection(stage, j.Commit, false); err != nil {
+			return installError(err)
+		}
 		present, err := p.exists(final)
 		if err != nil {
 			return installError(err)
 		}
 		if present {
-			if _, err := p.contentDigest(final, host, id); err != nil && !j.ReplaceInvalid {
+			if err := p.validateDirectory(final); err != nil {
+				return installError(err)
+			}
+			if _, err := p.contentDigest(final, host, id); err != nil && !j.ReplaceInvalid && !force {
 				return installError(err)
 			}
 			previous, err := p.exists(backup)
@@ -319,6 +367,9 @@ func (p *Pipeline) recoverInstall(ctx context.Context, host string, id schema.Tr
 		}
 	}
 	if err := p.syncInstallMove(root, final); err != nil {
+		return installError(err)
+	}
+	if err := p.validateStage(final, id); err != nil {
 		return installError(err)
 	}
 	digest, err := p.contentDigest(final, host, id)
@@ -349,6 +400,44 @@ func (p *Pipeline) recoverInstall(ctx context.Context, host string, id schema.Tr
 	return p.cleanAbandonedStages(root, id)
 }
 
+func (p *Pipeline) validateDirectory(path string) error {
+	info, err := p.fs.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode()&fs.ModeSymlink != 0 {
+		return fmt.Errorf("pull installation: expected a real directory, not a symlink; no unowned content may be published")
+	}
+	return nil
+}
+func (p *Pipeline) validateRegular(path string) error {
+	info, err := p.fs.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("pull installation: expected a regular file, not a symlink or special file; retain previous content and repair the owned stage")
+	}
+	return nil
+}
+func (p *Pipeline) validateStage(path string, id schema.TranscriptID) error {
+	if err := p.validateDirectory(path); err != nil {
+		return err
+	}
+	marker := filepath.Join(path, stageOwnerFilename)
+	if err := p.validateRegular(marker); err != nil {
+		return err
+	}
+	owner, err := p.fs.ReadFile(marker)
+	if err != nil {
+		return err
+	}
+	if string(owner) != id.String() {
+		return fmt.Errorf("pull installation: stage ownership marker does not match transcript; no files removed")
+	}
+	return nil
+}
+
 // Metadata publication is an atomic file replacement, so content/provenance
 // paths never move. Keep the previous metadata until the new projection commits.
 func (p *Pipeline) recoverMetadata(ctx context.Context, host string, id schema.TranscriptID, root, stage string, j installJournal) error {
@@ -367,6 +456,9 @@ func (p *Pipeline) recoverMetadata(ctx context.Context, host string, id schema.T
 		}
 		if digest != j.Digest {
 			return installError(fmt.Errorf("staged metadata checksum differs from journal; previous metadata retained"))
+		}
+		if err := p.validateProjectionWithMetadata(final, stagedMetadata, j.Commit, true); err != nil {
+			return installError(err)
 		}
 		// A crash during a backup copy cannot make a partial file authoritative.
 		// Staged metadata still present means the original has not been replaced.
@@ -425,7 +517,11 @@ func (p *Pipeline) recoverMetadata(ctx context.Context, host string, id schema.T
 }
 
 func (p *Pipeline) validateProjection(dir string, commit store.PullCommit, metadataOnly bool) error {
-	data, err := p.fs.ReadFile(filepath.Join(dir, MetadataFilename))
+	return p.validateProjectionWithMetadata(dir, filepath.Join(dir, MetadataFilename), commit, metadataOnly)
+}
+
+func (p *Pipeline) validateProjectionWithMetadata(dir, metadataPath string, commit store.PullCommit, metadataOnly bool) error {
+	data, err := p.fs.ReadFile(metadataPath)
 	if err != nil {
 		return err
 	}
@@ -465,7 +561,7 @@ func (p *Pipeline) validateProjection(dir string, commit store.PullCommit, metad
 			return fmt.Errorf("journal annotation projection differs from published provenance; previous backup retained")
 		}
 	}
-	expected := p.buildCommit(manifest.VillageHost, dir, manifest.ServedBlobHash, commit.Transcript.LastPulledAt, &meta, annotations)
+	expected := p.buildCommit(manifest.VillageHost, commit.Transcript.PullDir, manifest.ServedBlobHash, commit.Transcript.LastPulledAt, &meta, annotations)
 	expected.Transcript.FirstPulledAt = manifest.PulledAt
 	// Metadata-only projection leaves existing annotation rows untouched.
 	expected.Transcript.AnnotationCount = len(manifest.Annotations)

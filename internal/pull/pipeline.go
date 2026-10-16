@@ -79,7 +79,7 @@ func (c Credentials) IsLoggedIn() bool {
 // Pipeline is the system under test: it orchestrates the staged pull flow over
 // injected dependencies (a VillageReader, an ingest.FileSystem, a PullStore, a
 // Clock, and the requester Credentials). It is constructed with real
-// dependencies in production (the *village.VillageClient, *ingest.OSFileSystem,
+// dependencies in production (the *village.VillageClient, *FileSystem,
 // *store.Store) and with MemFS + a stub reader in tests — the Pipeline itself is
 // never mocked.
 type Pipeline struct {
@@ -107,6 +107,9 @@ func NewPipeline(reader VillageReader, fs ingest.FileSystem, st PullStore, clock
 		pullsRoot:   pullsRoot,
 		lockInstall: lockContentInstall,
 		syncInstall: syncContentPath,
+	}
+	if syncing, ok := fs.(interface{ Sync(string) error }); ok {
+		p.syncInstall = syncing.Sync
 	}
 	for _, option := range options {
 		option(p)
@@ -195,11 +198,17 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 
 	pullDir := p.pullDir(host, ref.ID)
 	if !opts.DryRun {
+		if err := p.fs.MkdirAll(filepath.Dir(pullDir), defaults.PrivateDirPerm); err != nil {
+			return &PullResult{Ref: ref, Status: PullStatusError, VillageHost: host}, installError(err)
+		}
 		release, err := p.lockInstall(ctx, filepath.Dir(pullDir), ref.ID)
 		if err != nil {
 			return &PullResult{Ref: ref, Status: PullStatusError, VillageHost: host}, err
 		}
 		defer release()
+		if err := p.syncInstallAncestors(filepath.Dir(pullDir)); err != nil {
+			return &PullResult{Ref: ref, Status: PullStatusError, VillageHost: host}, installError(err)
+		}
 	}
 
 	// --- FETCH-META (skipped when the caller passed the listing's own row) ---
@@ -213,7 +222,7 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 	}
 
 	if !opts.DryRun {
-		if err := p.recoverInstall(ctx, host, ref.ID); err != nil {
+		if err := p.recoverInstall(ctx, host, ref.ID, opts.Force); err != nil {
 			return &PullResult{Ref: ref, Status: PullStatusError, VillageHost: host, PullDir: pullDir}, err
 		}
 	}
