@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -77,69 +78,71 @@ func (s *Service) Fetch(ctx context.Context) (schema.CollectiveFetchReport, erro
 		return report, err
 	}
 	creds := selected.Credentials()
-	scope, err := schema.NormalizeCollectiveObservationScope(creds.VillageURL, schema.VillageUUID(creds.UserID))
+	base, err := auth.NormalizeVillageURL(creds.VillageURL)
 	if err != nil {
 		return report, err
 	}
+	scope, err := schema.NormalizeCollectiveObservationScope(base, schema.VillageUUID(creds.UserID))
+	if err != nil {
+		return report, err
+	}
+	report = schema.CollectiveFetchReport{Scope: scope, InvocationID: schema.VillageUUID(uuid.NewString()), CacheRevision: "0", Outcome: schema.CollectiveFetchOutcomeFailed, Domains: []schema.CollectiveFetchDomainResult{}, Issues: []schema.OperationIssue{}}
+	unknown := schema.CollectiveFetchDomainSummary{State: schema.CollectiveFetchStateNotRequested, Coverage: schema.CollectiveEvidenceCoverageUnknown}
 	if s.store == nil || s.localTranscriptIDs == nil {
-		return report, fmt.Errorf("fetch collective observations: local Store or held-inventory adapter is not configured; no metadata installed; configure the Store and canonical held-manifest inventory")
+		return s.initialFetchFailure(report, schema.CollectiveFetchSummary{Catalog: unknown, History: unknown, Associations: unknown}, s.now().UTC(), persistenceError(fmt.Errorf("fetch collective observations: local Store or held-inventory adapter is not configured; no metadata installed; configure the Store and canonical held-manifest inventory")))
 	}
 	prior, err := s.store.ReadCollectiveObservations(ctx, selected)
 	if err != nil {
-		return report, err
+		return s.initialFetchFailure(report, schema.CollectiveFetchSummary{Catalog: unknown, History: unknown, Associations: unknown}, s.now().UTC(), persistenceError(err))
 	}
-	report = schema.CollectiveFetchReport{Scope: scope, InvocationID: schema.VillageUUID(uuid.NewString()), CacheRevision: prior.CacheRevision, Outcome: schema.CollectiveFetchOutcomeFailed, Domains: []schema.CollectiveFetchDomainResult{}, Issues: []schema.OperationIssue{}}
+	report.CacheRevision = prior.CacheRevision
 	started := s.now().UTC()
-	snapshot, source, authErr := s.AuthenticatedSource(ctx)
+	snapshot, source, authErr := s.AuthenticatedSourceFor(ctx, selected)
 	var invocation store.CollectiveObservationInvocation
 	if authErr == nil {
 		invocation, authErr = s.store.BeginCollectiveObservation(ctx, snapshot)
 		authErr = persistenceError(authErr)
 	}
 	if authErr != nil {
-		issue := operationIssue(authErr, schema.CollectiveOperationFetch)
-		for _, domain := range schema.AllCollectiveFetchDomains {
-			summary := prior.Fetch.Catalog
-			if domain == schema.CollectiveFetchDomainHistory {
-				summary = prior.Fetch.History
-			}
-			if domain == schema.CollectiveFetchDomainAssociations {
-				summary = prior.Fetch.Associations
-			}
-			at := s.now().UTC()
-			r := schema.CollectiveFetchDomainResult{Domain: domain, Requested: true, State: failureState(issue), Commit: schema.CollectiveFetchCommitRetained, StartedAt: &started, LastAttemptAt: &at, LastCompletedAt: summary.LastCompletedAt, LastInstalledRevision: summary.LastInstalledRevision, Coverage: summary.Coverage, SourceOutcomes: []schema.CollectiveFetchSourceResult{}, Issue: &issue}
-			if domain == schema.CollectiveFetchDomainAssociations {
-				r.Associations = &schema.CollectiveFetchAssociationResults{Scopes: []schema.CollectiveFetchAssociationScopeResult{}}
-			}
-			report.Domains = append(report.Domains, r)
-		}
-		report.Issues = append(report.Issues, issue)
-		return report, &FetchFailure{Report: report}
+		return s.initialFetchFailure(report, prior.Fetch, started, authErr)
 	}
 	discovery, discoveryErr := source.ReadOwnContributionDiscovery(ctx)
 	discoveryResult := sourceOutcome(schema.CollectiveObservationSourceContributionDiscovery, s.now().UTC(), discoveryErr)
-	catalogRows, catalogSources, catalogErr := s.fetchCatalog(ctx, source, snapshot, discovery, discoveryResult, discoveryErr)
-	var catalog schema.CollectiveFetchDomainResult
-	if catalogErr == nil {
-		catalog, catalogErr = s.store.CommitCollectiveCatalog(ctx, invocation, catalogRows, catalogSources, started, s.now().UTC())
-		catalogErr = persistenceError(catalogErr)
-	}
-	if catalogErr != nil {
-		catalog = s.failedDomain(ctx, invocation, schema.CollectiveFetchDomainCatalog, started, prior.Fetch.Catalog, catalogSources, catalogErr)
-	}
-	report.Domains = append(report.Domains, catalog)
-	pairs, historySources, coverage, historyErr := s.fetchHistory(ctx, source, discovery, discoveryResult, discoveryErr)
-	var history schema.CollectiveFetchDomainResult
-	if historyErr == nil {
-		history, historyErr = s.store.CommitCollectiveHistory(ctx, invocation, pairs, historySources, coverage, started, s.now().UTC())
-		historyErr = persistenceError(historyErr)
-	}
-	if historyErr != nil {
-		history = s.failedDomain(ctx, invocation, schema.CollectiveFetchDomainHistory, started, prior.Fetch.History, historySources, historyErr)
-	}
-	report.Domains = append(report.Domains, history)
-	associations := s.fetchAssociations(ctx, snapshot, source, invocation, scope, started, prior.Fetch.Associations)
-	report.Domains = append(report.Domains, associations)
+	// Independent domains must also make progress during an unrelated stalled
+	// source, not only after it fails quickly. Each owns its result and stages
+	// outside the writer. The shared source semaphore caps all HTTP reads at 4;
+	// Store transactions still use the existing serial writer lane.
+	var catalog, history, associations schema.CollectiveFetchDomainResult
+	var domains sync.WaitGroup
+	domains.Add(3)
+	go func() {
+		defer domains.Done()
+		rows, sources, err := s.fetchCatalog(ctx, source, snapshot, discovery, discoveryResult, discoveryErr)
+		if err == nil {
+			catalog, err = s.store.CommitCollectiveCatalog(ctx, invocation, rows, sources, started, s.now().UTC())
+			err = persistenceError(err)
+		}
+		if err != nil {
+			catalog = s.failedDomain(ctx, invocation, schema.CollectiveFetchDomainCatalog, started, prior.Fetch.Catalog, sources, err)
+		}
+	}()
+	go func() {
+		defer domains.Done()
+		pairs, sources, coverage, err := s.fetchHistory(ctx, source, discovery, discoveryResult, discoveryErr)
+		if err == nil {
+			history, err = s.store.CommitCollectiveHistory(ctx, invocation, pairs, sources, coverage, started, s.now().UTC())
+			err = persistenceError(err)
+		}
+		if err != nil {
+			history = s.failedDomain(ctx, invocation, schema.CollectiveFetchDomainHistory, started, prior.Fetch.History, sources, err)
+		}
+	}()
+	go func() {
+		defer domains.Done()
+		associations = s.fetchAssociations(ctx, snapshot, source, invocation, scope, started, prior.Fetch.Associations)
+	}()
+	domains.Wait()
+	report.Domains = append(report.Domains, catalog, history, associations)
 	setFetchOutcome(&report)
 	cleanup, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 	defer stop()
@@ -182,6 +185,27 @@ func (s *Service) Fetch(ctx context.Context) (schema.CollectiveFetchReport, erro
 		return report, &FetchFailure{Report: report}
 	}
 	return report, nil
+}
+
+func (s *Service) initialFetchFailure(report schema.CollectiveFetchReport, prior schema.CollectiveFetchSummary, started time.Time, cause error) (schema.CollectiveFetchReport, error) {
+	issue := operationIssue(cause, schema.CollectiveOperationFetch)
+	for _, domain := range schema.AllCollectiveFetchDomains {
+		summary := prior.Catalog
+		if domain == schema.CollectiveFetchDomainHistory {
+			summary = prior.History
+		}
+		if domain == schema.CollectiveFetchDomainAssociations {
+			summary = prior.Associations
+		}
+		at := s.now().UTC()
+		r := schema.CollectiveFetchDomainResult{Domain: domain, Requested: true, State: failureState(issue), Commit: schema.CollectiveFetchCommitRetained, StartedAt: &started, LastAttemptAt: &at, LastCompletedAt: summary.LastCompletedAt, LastInstalledRevision: summary.LastInstalledRevision, Coverage: summary.Coverage, SourceOutcomes: []schema.CollectiveFetchSourceResult{}, Issue: &issue}
+		if domain == schema.CollectiveFetchDomainAssociations {
+			r.Associations = &schema.CollectiveFetchAssociationResults{Scopes: []schema.CollectiveFetchAssociationScopeResult{}}
+		}
+		report.Domains = append(report.Domains, r)
+	}
+	report.Issues = append(report.Issues, issue)
+	return report, &FetchFailure{Report: report}
 }
 
 func setFetchOutcome(report *schema.CollectiveFetchReport) {
@@ -399,6 +423,9 @@ func (s *Service) fetchAssociations(ctx context.Context, snapshot auth.Credentia
 		result.State = failureState(issue)
 		result.Issue = &issue
 		result.CompletedAt = nil
+		if result.Associations.Completed == 0 {
+			result.Commit = schema.CollectiveFetchCommitRetained
+		}
 		return result
 	}
 	return saved

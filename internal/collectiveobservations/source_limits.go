@@ -27,7 +27,9 @@ func sourceRead[T any](ctx context.Context, slots chan struct{}, read func() (T,
 	}
 	var status *village.StatusError
 	var network net.Error
-	if errors.As(err, &status) || errors.As(err, &network) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+	transportFailure := errors.As(err, &status) || errors.As(err, &network)
+	cancelled := errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+	if transportFailure || cancelled {
 		return value, err
 	}
 	return value, &observationSourceContractError{error: err}

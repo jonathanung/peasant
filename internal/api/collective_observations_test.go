@@ -140,6 +140,7 @@ func TestMountedCollectiveObservationRoutes(t *testing.T) {
 			Path         string `yaml:"path"`
 			Status       int    `yaml:"status"`
 			RemoteStatus int    `yaml:"remoteStatus"`
+			CloseStore   bool   `yaml:"closeStore"`
 			Origin       string `yaml:"origin"`
 			Network      bool   `yaml:"network"`
 			Shape        string `yaml:"shape"`
@@ -221,6 +222,11 @@ func TestMountedCollectiveObservationRoutes(t *testing.T) {
 					t.Error("mounted API shutdown deadline")
 				}
 			}()
+			if c.CloseStore {
+				if err := db.Close(); err != nil {
+					t.Fatal(err)
+				}
+			}
 			request, err := http.NewRequestWithContext(t.Context(), c.Method, "http://"+server.Addr().String()+c.Path, nil)
 			if err != nil {
 				t.Fatal(err)

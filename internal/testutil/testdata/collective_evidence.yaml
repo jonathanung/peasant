@@ -32,6 +32,7 @@ requiredNames:
   - evidence-empty-beyond-total
   - evidence-filter-before-total
   - evidence-max-page-bound
+  - evidence-catalog-rename-keeps-receipt-token
 cases:
   - name: evidence-all-three-categories-multipage-remote
     kind: remote-attempts
@@ -160,3 +161,11 @@ cases:
     wantStatus: 200
     wantTotal: 7
     wantIDs: *remoteIDs
+  - name: evidence-catalog-rename-keeps-receipt-token
+    kind: receipts
+    mode: catalog-rename
+    limit: 1
+    page: 2
+    wantStatus: 200
+    wantTotal: 7
+    wantIDs: [r2]

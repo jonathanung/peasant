@@ -40,15 +40,24 @@ func writeCollectiveDomain(conn *sqlite.Conn, invocation CollectiveObservationIn
 	if err := result.Validate(); err != nil {
 		return err
 	}
-	if attempt > invocation.sequence {
-		return nil
-	}
 	summary := schema.CollectiveFetchDomainSummary{State: result.State, Coverage: result.Coverage, LastAttemptAt: result.LastAttemptAt, LastCompletedAt: result.LastCompletedAt, LastInstalledRevision: result.LastInstalledRevision, Issue: result.Issue}
+	if attempt > invocation.sequence {
+		if result.State != schema.CollectiveFetchStateComplete {
+			return nil
+		}
+		// A newer failed attempt does not invalidate an independently complete
+		// older source. Preserve its reporting, but MUST advance the installed
+		// fence and completion evidence with the actual payload commit.
+		prior.LastCompletedAt, prior.LastInstalledRevision, prior.Coverage = result.LastCompletedAt, result.LastInstalledRevision, result.Coverage
+		summary = prior
+	} else {
+		attempt = invocation.sequence
+	}
 	data, err := json.Marshal(summary)
 	if err != nil {
 		return err
 	}
-	return sqlitex.Execute(conn, `INSERT INTO collective_domain_observations(village_url,user_id,domain,installed_seq,attempt_seq,summary_json) VALUES(?,?,?,?,?,?) ON CONFLICT(village_url,user_id,domain) DO UPDATE SET installed_seq=excluded.installed_seq,attempt_seq=excluded.attempt_seq,summary_json=excluded.summary_json`, &sqlitex.ExecOptions{Args: []any{invocation.villageURL, invocation.userID, string(result.Domain), installed, invocation.sequence, string(data)}})
+	return sqlitex.Execute(conn, `INSERT INTO collective_domain_observations(village_url,user_id,domain,installed_seq,attempt_seq,summary_json) VALUES(?,?,?,?,?,?) ON CONFLICT(village_url,user_id,domain) DO UPDATE SET installed_seq=excluded.installed_seq,attempt_seq=excluded.attempt_seq,summary_json=excluded.summary_json`, &sqlitex.ExecOptions{Args: []any{invocation.villageURL, invocation.userID, string(result.Domain), installed, attempt, string(data)}})
 }
 
 // RecordCollectiveDomainFailure changes attempt reporting only. It loads the

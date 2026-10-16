@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -21,19 +22,26 @@ import (
 var fetchFixtureYAML []byte
 
 type fetchCase struct {
-	Name               string                    `yaml:"name"`
-	MembershipEmpty    bool                      `yaml:"membershipEmpty"`
-	ContributionEmpty  bool                      `yaml:"contributionEmpty"`
-	Org                bool                      `yaml:"org"`
-	Track              bool                      `yaml:"track"`
-	FailPath           string                    `yaml:"failPath"`
-	FailStatus         int                       `yaml:"failStatus"`
-	Cancel             bool                      `yaml:"cancel"`
-	MissingCounter     bool                      `yaml:"missingCounter"`
-	AssociationFailure bool                      `yaml:"associationFailure"`
-	WantStatus         int                       `yaml:"wantStatus"`
-	WantName           string                    `yaml:"wantName"`
-	WantEvent          schema.VillageShareStatus `yaml:"wantEvent"`
+	Name                string                               `yaml:"name"`
+	MembershipEmpty     bool                                 `yaml:"membershipEmpty"`
+	ContributionEmpty   bool                                 `yaml:"contributionEmpty"`
+	Org                 bool                                 `yaml:"org"`
+	Track               bool                                 `yaml:"track"`
+	FailPath            string                               `yaml:"failPath"`
+	FailStatus          int                                  `yaml:"failStatus"`
+	Cancel              bool                                 `yaml:"cancel"`
+	DiscoveryBody       string                               `yaml:"discoveryBody"`
+	AssociationFailure  bool                                 `yaml:"associationFailure"`
+	RotateDuringHistory bool                                 `yaml:"rotateDuringHistory"`
+	RotateBeforeAuth    bool                                 `yaml:"rotateBeforeAuth"`
+	HistoryOnly         bool                                 `yaml:"historyOnly"`
+	HistoryStatus       schema.VillageShareStatus            `yaml:"historyStatus"`
+	WantReasons         []schema.CollectiveObservationReason `yaml:"wantReasons"`
+	WantCoverage        schema.CollectiveEvidenceCoverage    `yaml:"wantCoverage"`
+	AwaitHistory        bool                                 `yaml:"awaitHistory"`
+	WantStatus          int                                  `yaml:"wantStatus"`
+	WantName            string                               `yaml:"wantName"`
+	WantEvent           schema.VillageShareStatus            `yaml:"wantEvent"`
 }
 
 func TestFetchIndependentCompleteDomains(t *testing.T) {
@@ -68,6 +76,51 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 			const collective = "33333333-3333-4333-8333-333333333333"
 			const transcript = "22222222-2222-4222-8222-222222222222"
 			creds := auth.Credentials{APIKey: "fixture-key", KeyID: "fixture-key-id", UserID: "11111111-1111-4111-8111-111111111111", Username: "fixture"}
+			var rotated atomic.Bool
+			rotate := func() {
+				if rotated.Swap(true) {
+					return
+				}
+				other := creds
+				other.APIKey, other.KeyID, other.UserID = "other-key", "other-id", "77777777-7777-4777-8777-777777777777"
+				if err := auth.SaveCredentialsFrom(&other, home); err != nil {
+					t.Error(err)
+				}
+			}
+			// These cases deliberately cancel AFTER actual earlier domain commits.
+			// Observe real Store rows with a two-second deadline; no production
+			// hook or SQL replacement can manufacture the committed effect.
+			awaitCommitted := func(request context.Context, catalogToo, historyToo bool) bool {
+				ctx, cancel := context.WithTimeout(request, 2*time.Second)
+				defer cancel()
+				snapshot, err := auth.CaptureCredentials(ctx, home)
+				if err != nil {
+					t.Error(err)
+					return false
+				}
+				ticks := time.NewTicker(5 * time.Millisecond)
+				defer ticks.Stop()
+				for {
+					ready := true
+					if catalogToo {
+						catalog, err := db.ReadCollectiveObservations(ctx, snapshot)
+						ready = err == nil && len(catalog.Collectives) == 1 && catalog.Collectives[0].Name == "New"
+					}
+					if ready && historyToo {
+						attempt, err := db.ReadContributionAttempt(ctx, snapshot, collective, transcript, 1)
+						ready = err == nil && attempt != nil && attempt.Attempt.Status == schema.VillageShareStatusApproved
+					}
+					if ready {
+						return true
+					}
+					select {
+					case <-ticks.C:
+					case <-ctx.Done():
+						t.Errorf("earlier domain did not commit before cancellation: %v", ctx.Err())
+						return false
+					}
+				}
+			}
 			remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.Method != http.MethodGet || r.Header.Get("Authorization") != "Bearer fixture-key" {
 					t.Errorf("non-metadata or wrong-credential request: %s %s", r.Method, r.URL.Path)
@@ -81,6 +134,10 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 				}
 				if current && c.FailPath == r.URL.Path {
 					if c.Cancel {
+						if !awaitCommitted(r.Context(), !c.AwaitHistory, c.AwaitHistory) {
+							w.WriteHeader(500)
+							return
+						}
 						stop()
 						<-r.Context().Done()
 						return
@@ -97,6 +154,10 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 					value = schema.VillageTranscriptCollectivesResponse{Collectives: []schema.VillageTranscriptCollective{}}
 				case "/api/v1/transcripts/44444444-4444-4444-8444-444444444444/collectives":
 					if current && c.AssociationFailure {
+						if !awaitCommitted(r.Context(), true, true) {
+							w.WriteHeader(500)
+							return
+						}
 						stop()
 						<-r.Context().Done()
 						return
@@ -109,13 +170,17 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 					}
 					value = rows
 				case "/api/v1/users/me/collectives/contributions":
-					if current && c.MissingCounter {
-						_, _ = w.Write([]byte(`{"collectives":[{"id":"` + collective + `","name":"New","description":null,"linked_github_org":null,"approved_count":0,"rejected_attempt_count":0,"withdrawn_attempt_count":0}]}`))
+					if current && c.DiscoveryBody != "" {
+						_, _ = w.Write([]byte(c.DiscoveryBody))
 						return
 					}
 					rows := []schema.VillageContributedCollective{}
 					if !current || !c.ContributionEmpty {
 						rows = append(rows, schema.VillageContributedCollective{ID: collective, Name: name, PendingCount: 1})
+					}
+					if current && c.HistoryOnly {
+						rows[0].PendingCount = 0
+						rows[0].RejectedAttemptCount = 1
 					}
 					value = schema.VillageContributedCollectivesResponse{Collectives: rows}
 				case "/api/v1/auth/orgs":
@@ -131,12 +196,27 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 				case "/api/v1/users/me/collectives/" + collective + "/submissions":
 					value = []schema.VillageCollectiveSubmission{{TranscriptID: transcript, GroupID: collective, EventNum: 1, Status: "pending", RecordedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}}
 				case "/api/v1/users/me/collectives/" + collective + "/transcripts/" + transcript + "/events":
+					if current && c.RotateDuringHistory {
+						if !awaitCommitted(r.Context(), true, false) {
+							w.WriteHeader(500)
+							return
+						}
+						rotate()
+					}
 					event := schema.VillageShareEvent{EventNum: 1, Status: "pending", RecordedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
 					if current {
 						at := time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC)
 						event.Status = "approved"
 						event.DecidedAt = &at
 						event.DecidedByActor = "moderator"
+						if c.HistoryStatus != "" {
+							event.Status = c.HistoryStatus
+							actor, err := schema.VillageContributionAttemptActor(event.Status)
+							if err != nil {
+								t.Error(err)
+							}
+							event.DecidedByActor = actor
+						}
 					}
 					value = []schema.VillageShareEvent{event}
 				default:
@@ -152,7 +232,12 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 				t.Fatal(err)
 			}
 			at := time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
-			service := New(Dependencies{Store: db, ConfigHome: home, Now: func() time.Time { return at }, LocallyHeldTranscriptIDs: func(context.Context, schema.CollectiveObservationScope) ([]schema.TranscriptID, error) {
+			service := New(Dependencies{Store: db, ConfigHome: home, Now: func() time.Time {
+				if phase.Load() > 0 && c.RotateBeforeAuth {
+					rotate()
+				}
+				return at
+			}, LocallyHeldTranscriptIDs: func(context.Context, schema.CollectiveObservationScope) ([]schema.TranscriptID, error) {
 				if c.AssociationFailure {
 					return []schema.TranscriptID{transcript, "44444444-4444-4444-8444-444444444444"}, nil
 				}
@@ -178,19 +263,43 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 			}
 			if c.AssociationFailure {
 				domain := report.Domains[2]
-				if domain.Commit != schema.CollectiveFetchCommitUpdated || domain.Associations.Completed != 1 || domain.Associations.Failed != 1 || domain.Associations.Scopes[0].State != schema.CollectiveFetchStateComplete || domain.Associations.Scopes[1].State == schema.CollectiveFetchStateComplete {
+				counts := domain.Associations.Completed == 1 && domain.Associations.Failed == 1
+				scopes := domain.Associations.Scopes[0].State == schema.CollectiveFetchStateComplete && domain.Associations.Scopes[1].State != schema.CollectiveFetchStateComplete
+				if domain.Commit != schema.CollectiveFetchCommitUpdated || !counts || !scopes {
 					t.Fatalf("per-set effects were lost: %#v", domain)
 				}
 			}
 			if status := schema.CollectiveFetchHTTPStatus(report); status != c.WantStatus {
 				t.Fatalf("status=%d want=%d report=%#v", status, c.WantStatus, report)
 			}
+			if c.RotateBeforeAuth || c.RotateDuringHistory {
+				if report.Scope.UserID.String() != creds.UserID {
+					t.Fatal("partial report silently reselected a different account")
+				}
+				other, err := service.List(t.Context())
+				if err != nil || len(other.Collectives) != 0 {
+					t.Fatalf("old catalog leaked into new account: %#v %v", other, err)
+				}
+				otherHistory, err := service.History(t.Context(), schema.LocalContributionHistoryQuery{Kind: schema.LocalContributionEvidenceRemoteAttempts, Page: 1, Limit: 50})
+				if err != nil || otherHistory.Total != 0 {
+					t.Fatalf("old history leaked into new account: %#v %v", otherHistory, err)
+				}
+				if err := auth.SaveCredentialsFrom(&creds, home); err != nil {
+					t.Fatal(err)
+				}
+			}
 			catalog, err := service.List(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
-			if len(catalog.Collectives) != 1 || catalog.Collectives[0].Name != c.WantName {
+			if c.WantName == "" && len(catalog.Collectives) != 0 {
+				t.Fatalf("history-only evidence conferred catalog relevance: %#v", catalog.Collectives)
+			}
+			if c.WantName != "" && (len(catalog.Collectives) != 1 || catalog.Collectives[0].Name != c.WantName) {
 				t.Fatalf("catalog=%#v want=%s", catalog.Collectives, c.WantName)
+			}
+			if c.WantName != "" && c.WantReasons != nil && !reflect.DeepEqual(catalog.Collectives[0].Reasons, c.WantReasons) {
+				t.Fatalf("catalog reasons=%v want=%v", catalog.Collectives[0].Reasons, c.WantReasons)
 			}
 			history, err := service.History(t.Context(), schema.LocalContributionHistoryQuery{Kind: schema.LocalContributionEvidenceRemoteAttempts, Page: 1, Limit: 50})
 			if err != nil {
@@ -198,6 +307,9 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 			}
 			if len(history.RemoteAttempts) != 1 || history.RemoteAttempts[0].Attempt.Status != c.WantEvent {
 				t.Fatalf("history=%#v want=%s", history.RemoteAttempts, c.WantEvent)
+			}
+			if c.WantCoverage != "" && history.Coverage != c.WantCoverage {
+				t.Fatalf("unavailable history range was called empty/available: %#v", history)
 			}
 			if c.WantStatus != 200 && catalog.Fetch.LastCompletedFetchAt != nil && !catalog.Fetch.LastCompletedFetchAt.Equal(before.Domains[0].CompletedAt.UTC()) {
 				t.Fatal("partial fetch advanced all-complete timestamp")

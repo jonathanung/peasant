@@ -152,6 +152,25 @@ func TestContributionEvidenceSavedService(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			if c.Mode == "catalog-rename" {
+				row := schema.CollectiveObservation{ID: f.CollectiveID, Name: "Original", Reasons: []schema.CollectiveObservationReason{schema.CollectiveObservationReasonExplicit}, ObservedAt: f.ObservedAt, State: schema.CollectiveObservationStateObserved}
+				invocation, err := db.BeginCollectiveObservation(ctx, snapshot)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := db.TrackCollectiveObservation(ctx, invocation, row); err != nil {
+					t.Fatal(err)
+				}
+				row.Name = "Renamed"
+				row.ObservedAt = row.ObservedAt.Add(time.Hour)
+				invocation, err = db.BeginCollectiveObservation(ctx, snapshot)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := db.TrackCollectiveObservation(ctx, invocation, row); err != nil {
+					t.Fatal(err)
+				}
+			}
 			q.Page = c.Page
 			token := first.TraversalRevision
 			q.Revision = &token

@@ -120,9 +120,8 @@ func (c *VillageClient) ReadObservationOrganizations(ctx context.Context) ([]sch
 	return rows, nil
 }
 
-// ReadOwnContributionIdentities discovers owned history scopes only. Counter
-// values are intentionally not exposed by this projection: relevance pruning
-// needs the canonical required-counter decoder, not zero-value JSON decoding.
+// ReadOwnContributionIdentities projects complete validated owner discovery,
+// including historical identities that do not confer current relevance.
 func (c *VillageClient) ReadOwnContributionIdentities(ctx context.Context) ([]schema.VillageUUID, error) {
 	rows, err := c.ReadOwnContributionDiscovery(ctx)
 	if err != nil {
@@ -144,17 +143,15 @@ func (c *VillageClient) ReadOwnContributionDiscovery(ctx context.Context) ([]sch
 	if err != nil {
 		return nil, err
 	}
-	if response.Collectives == nil {
-		return nil, fmt.Errorf("discover owned contribution identities: missing complete array; prior history retained; obtain a complete owner discovery response")
+	if err := response.Validate(); err != nil {
+		return nil, err
 	}
-	seen := map[schema.VillageUUID]bool{}
+	if len(response.Collectives) > schema.MaxCollectiveFetchItems {
+		return nil, fmt.Errorf("discover owned contributions: complete source exceeds the metadata invocation item bound; no prefix installed; narrow source inventory before retrying")
+	}
 	for _, row := range response.Collectives {
-		if !IsCollectiveID(row.ID) || seen[row.ID] {
-			return nil, fmt.Errorf("discover owned contribution identities: invalid or repeated UUID; no history prefix can be installed; correct the Village discovery response")
-		}
-		seen[row.ID] = true
-		if row.Name == "" || row.ApprovedCount < 0 || row.PendingCount < 0 || row.RejectedAttemptCount < 0 || row.WithdrawnAttemptCount < 0 {
-			return nil, fmt.Errorf("read contribution discovery: empty label or negative measured count; no relevance installed; correct the Village source response")
+		if row.Name == "" {
+			return nil, fmt.Errorf("read contribution discovery: empty collective label; no relevance installed; correct the Village source response")
 		}
 	}
 	return response.Collectives, nil

@@ -1,18 +1,17 @@
-package store
+package store_test
 
 import (
 	_ "embed"
-	"path/filepath"
+	"github.com/peasant-labs/peasant/internal/store/storetest"
+	"github.com/peasant-labs/peasant/internal/testutil"
 	"reflect"
 	"regexp"
 	"sort"
-	"strings"
 	"testing"
 
 	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite"
 	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite/sqlitex"
 	"github.com/peasant-labs/schema"
-	"gopkg.in/yaml.v3"
 )
 
 //go:embed testdata/collective_cache_menus.yaml
@@ -37,9 +36,7 @@ func TestCollectiveCacheSQLMenusMatchCanonicalSets(t *testing.T) {
 			Menu   string `yaml:"menu"`
 		} `yaml:"cases"`
 	}
-	d := yaml.NewDecoder(strings.NewReader(string(cacheMenusYAML)))
-	d.KnownFields(true)
-	if err := d.Decode(&fixtures); err != nil {
+	if err := testutil.DecodeNamedFixtureYAML(cacheMenusYAML, &fixtures); err != nil {
 		t.Fatal(err)
 	}
 	names := map[string]bool{}
@@ -54,15 +51,7 @@ func TestCollectiveCacheSQLMenusMatchCanonicalSets(t *testing.T) {
 			t.Fatalf("missing required SQL menu fixture %s", name)
 		}
 	}
-	s, err := Open(filepath.Join(t.TempDir(), "menus.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := s.Close(); err != nil {
-			t.Error(err)
-		}
-	})
+	s := storetest.Open(t)
 	for _, c := range fixtures.Cases {
 		t.Run(c.Name, func(t *testing.T) {
 			var expected []string

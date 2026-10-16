@@ -22,7 +22,12 @@ func persistenceError(err error) error {
 		return nil
 	}
 	var conflict *store.ContributionAttemptConflictError
-	if errors.Is(err, auth.ErrCredentialsChanged) || errors.Is(err, auth.ErrSignedOut) || errors.Is(err, store.ErrObservationSuperseded) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || errors.As(err, &conflict) {
+	authFailure := errors.Is(err, auth.ErrCredentialsChanged) || errors.Is(err, auth.ErrSignedOut)
+	cancelled := errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded)
+	if authFailure || cancelled {
+		return err
+	}
+	if errors.Is(err, store.ErrObservationSuperseded) || errors.As(err, &conflict) {
 		return err
 	}
 	return &observationPersistenceError{error: err}
