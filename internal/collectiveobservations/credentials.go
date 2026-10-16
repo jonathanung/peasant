@@ -103,11 +103,21 @@ func (s *Service) authenticatedReader(ctx context.Context) (auth.CredentialSnaps
 	if err != nil {
 		return auth.CredentialSnapshot{}, nil, err
 	}
+	return s.authenticatedSnapshot(ctx, snapshot)
+}
+
+func (s *Service) authenticatedSnapshot(ctx context.Context, snapshot auth.CredentialSnapshot) (auth.CredentialSnapshot, IdentityReader, error) {
+	// Original-action variants must refuse rotation BEFORE constructing a
+	// client, rather than silently selecting the new account for old effects.
+	if err := snapshot.WithCurrent(ctx, func() error { return nil }); err != nil {
+		return auth.CredentialSnapshot{}, nil, err
+	}
 	creds := snapshot.Credentials()
-	creds.VillageURL, err = auth.NormalizeVillageURL(creds.VillageURL)
+	base, err := auth.NormalizeVillageURL(creds.VillageURL)
 	if err != nil {
 		return auth.CredentialSnapshot{}, nil, err
 	}
+	creds.VillageURL = base
 	reader := s.newIdentityReader(creds)
 	if reader == nil {
 		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope: identity transport is missing; no observations were fetched; configure the Village client and retry")

@@ -1,0 +1,9 @@
+requiredNames: [original-action-pair, original-action-targets, original-action-associations, rotated-action-pair-no-network, rotated-action-targets-no-network, rotated-action-associations-no-network, original-action-profile-pinned]
+cases:
+  - {name: original-action-pair, operation: pair}
+  - {name: original-action-targets, operation: targets}
+  - {name: original-action-associations, operation: associations}
+  - {name: rotated-action-pair-no-network, operation: pair, rotate: true}
+  - {name: rotated-action-targets-no-network, operation: targets, rotate: true}
+  - {name: rotated-action-associations-no-network, operation: associations, rotate: true}
+  - {name: original-action-profile-pinned, operation: pair, otherProfile: true}

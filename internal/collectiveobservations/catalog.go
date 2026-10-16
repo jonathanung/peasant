@@ -220,13 +220,25 @@ func (s *Service) Untrack(ctx context.Context, id schema.VillageUUID) (schema.Co
 func (s *Service) VerifyTargets(ctx context.Context, transcript schema.TranscriptID, ids []schema.VillageUUID) ([]schema.VillageGroupDetailRecord, error) {
 	ctx, cancel := s.operationContext(ctx)
 	defer cancel()
+	original, err := s.SelectedCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.VerifyTargetsFor(ctx, original, transcript, ids)
+}
+
+// VerifyTargetsFor obtains only named target projections with the ORIGINAL
+// action snapshot; observations never replace final Village authorization.
+func (s *Service) VerifyTargetsFor(ctx context.Context, original auth.CredentialSnapshot, transcript schema.TranscriptID, ids []schema.VillageUUID) ([]schema.VillageGroupDetailRecord, error) {
+	ctx, cancel := s.operationContext(ctx)
+	defer cancel()
 	if _, err := schema.NewTranscriptID(transcript.String()); err != nil {
 		return nil, err
 	}
 	if len(ids) > schema.MaxCollectiveFetchItems {
 		return nil, &ReferenceError{Message: "Too many explicit targets; no action performed; split the explicit request within the metadata bound"}
 	}
-	snapshot, source, err := s.AuthenticatedSource(ctx)
+	snapshot, source, err := s.AuthenticatedSourceFor(ctx, original)
 	if err != nil {
 		return nil, err
 	}

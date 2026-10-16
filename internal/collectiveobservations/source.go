@@ -34,7 +34,17 @@ var _ Source = (*village.VillageClient)(nil)
 // guarded credential snapshot. All later persistence still needs WithCurrent
 // through the actual Store commit; this function holds no network/write lock.
 func (s *Service) AuthenticatedSource(ctx context.Context) (auth.CredentialSnapshot, Source, error) {
-	snapshot, reader, err := s.authenticatedReader(ctx)
+	snapshot, err := s.SelectedCredentials(ctx)
+	if err != nil {
+		return auth.CredentialSnapshot{}, nil, err
+	}
+	return s.AuthenticatedSourceFor(ctx, snapshot)
+}
+
+// AuthenticatedSourceFor verifies the ORIGINAL action's captured profile and
+// generation. It never reselects an account from current configuration.
+func (s *Service) AuthenticatedSourceFor(ctx context.Context, original auth.CredentialSnapshot) (auth.CredentialSnapshot, Source, error) {
+	snapshot, reader, err := s.authenticatedSnapshot(ctx, original)
 	if err != nil {
 		return auth.CredentialSnapshot{}, nil, err
 	}
@@ -59,6 +69,25 @@ func (s *Service) ObserveOwnPair(ctx context.Context, collective schema.VillageU
 	if err != nil {
 		return store.ContributionAttemptInstall{}, err
 	}
+	return s.observeOwnPair(ctx, snapshot, source, collective, transcript)
+}
+
+// ObserveOwnPairFor reconciles a complete owner source bound to an earlier
+// action snapshot. Receipt confirmation remains separate from this lookup.
+func (s *Service) ObserveOwnPairFor(ctx context.Context, original auth.CredentialSnapshot, collective schema.VillageUUID, transcript schema.TranscriptID) (store.ContributionAttemptInstall, error) {
+	ctx, cancel := s.operationContext(ctx)
+	defer cancel()
+	if s.store == nil {
+		return store.ContributionAttemptInstall{}, fmt.Errorf("observe original action history: local Store is missing; no evidence installed; configure the observation Store")
+	}
+	snapshot, source, err := s.AuthenticatedSourceFor(ctx, original)
+	if err != nil {
+		return store.ContributionAttemptInstall{}, err
+	}
+	return s.observeOwnPair(ctx, snapshot, source, collective, transcript)
+}
+
+func (s *Service) observeOwnPair(ctx context.Context, snapshot auth.CredentialSnapshot, source Source, collective schema.VillageUUID, transcript schema.TranscriptID) (store.ContributionAttemptInstall, error) {
 	invocation, err := s.store.BeginCollectiveObservation(ctx, snapshot)
 	if err != nil {
 		return store.ContributionAttemptInstall{}, err

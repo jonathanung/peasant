@@ -69,9 +69,20 @@ func (s *Service) ObserveAssociations(ctx context.Context, id schema.TranscriptI
 	if err != nil {
 		return schema.PullAssociationMetadataResult{}, err
 	}
-	snapshot, source, err := s.AuthenticatedSource(ctx)
+	return s.ObserveAssociationsFor(ctx, selected, id)
+}
+
+// ObserveAssociationsFor refreshes optional metadata for the original content
+// action's account. Rotation cannot turn it into another principal's evidence.
+func (s *Service) ObserveAssociationsFor(ctx context.Context, original auth.CredentialSnapshot, id schema.TranscriptID) (schema.PullAssociationMetadataResult, error) {
+	ctx, cancel := s.operationContext(ctx)
+	defer cancel()
+	if s.store == nil {
+		return schema.PullAssociationMetadataResult{}, fmt.Errorf("observe original content associations: local Store is missing; no evidence installed; configure the observation Store")
+	}
+	snapshot, source, err := s.AuthenticatedSourceFor(ctx, original)
 	if err != nil {
-		return s.associationFailureResult(ctx, selected, id, err)
+		return s.associationFailureResult(ctx, original, id, err)
 	}
 	invocation, err := s.store.BeginCollectiveObservation(ctx, snapshot)
 	if err != nil {
