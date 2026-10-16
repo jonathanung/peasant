@@ -13,6 +13,7 @@ import (
 
 	"github.com/peasant-labs/peasant/internal/auth"
 	"github.com/peasant-labs/peasant/internal/store/storetest"
+	"github.com/peasant-labs/peasant/internal/village"
 	"github.com/peasant-labs/schema"
 	"gopkg.in/yaml.v3"
 )
@@ -28,6 +29,8 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 			Operation    string `yaml:"operation"`
 			Rotate       bool   `yaml:"rotate"`
 			OtherProfile bool   `yaml:"otherProfile"`
+			SameAccount  bool   `yaml:"sameAccount"`
+			SwitchBack   bool   `yaml:"switchBack"`
 		} `yaml:"cases"`
 	}
 	decoder := yaml.NewDecoder(strings.NewReader(string(actionSnapshotsYAML)))
@@ -52,12 +55,13 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 			db := storetest.Open(t)
 			home := t.TempDir()
 			var calls atomic.Int32
+			var observers, factories atomic.Int32
 			const collective schema.VillageUUID = "33333333-3333-4333-8333-333333333333"
 			const transcript schema.TranscriptID = "22222222-2222-4222-8222-222222222222"
 			creds := auth.Credentials{APIKey: "original-key", KeyID: "original-id", UserID: "11111111-1111-4111-8111-111111111111", Username: "original"}
 			remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
-				if r.Method != http.MethodGet || r.Header.Get("Authorization") != "Bearer original-key" {
+				if r.Method != http.MethodGet || r.Header.Get("Authorization") != "Bearer original-key" || r.Header.Get("X-Fixture-Selected-Source") != "yes" {
 					t.Errorf("wrong action identity: %s %s", r.Method, r.Header.Get("Authorization"))
 					w.WriteHeader(401)
 					return
@@ -92,8 +96,16 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 			other := creds
 			other.APIKey, other.KeyID, other.UserID, other.Username = "different-key", "different-id", "44444444-4444-4444-8444-444444444444", "different"
 			if c.Rotate {
+				if c.SameAccount {
+					other = creds
+				}
 				if err := auth.SaveCredentialsFrom(&other, home); err != nil {
 					t.Fatal(err)
+				}
+				if c.SwitchBack {
+					if err := auth.SaveCredentialsFrom(&creds, home); err != nil {
+						t.Fatal(err)
+					}
 				}
 			}
 			if c.OtherProfile {
@@ -102,7 +114,18 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			service := New(Dependencies{Store: db, ConfigHome: selectedHome})
+			service := New(Dependencies{Store: db, ConfigHome: selectedHome, NewIdentityReader: func(selected auth.Credentials) IdentityReader {
+				factories.Add(1)
+				client := *remote.Client()
+				base := client.Transport
+				if base == nil {
+					base = http.DefaultTransport
+				}
+				client.Transport = selectedSourceTransport{base: base}
+				source := village.NewVillageClient(selected.VillageURL, selected.APIKey, &client)
+				source.SetRequestObserver(func() { observers.Add(1) })
+				return source
+			}})
 			switch c.Operation {
 			case "pair":
 				_, err = service.ObserveOwnPairFor(t.Context(), original, collective, transcript)
@@ -128,6 +151,9 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 				if calls.Load() != 0 {
 					t.Fatalf("rotated original action made %d remote requests", calls.Load())
 				}
+				if observers.Load() != 0 || factories.Load() != 0 {
+					t.Fatal("rotated original action constructed a client or reported fictional HTTP attempts")
+				}
 				response, readErr := service.History(t.Context(), schema.LocalContributionHistoryQuery{Kind: schema.LocalContributionEvidenceRemoteAttempts, Page: 1, Limit: 50})
 				if readErr != nil || response.Total != 0 {
 					t.Fatalf("old action evidence leaked into new account: %#v %v", response, readErr)
@@ -138,6 +164,9 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 				}
 				if calls.Load() != 2 {
 					t.Fatalf("original action must use one verification and one targeted read, got %d", calls.Load())
+				}
+				if observers.Load() != calls.Load() || factories.Load() != 1 {
+					t.Fatalf("original factory/observer lost: factories=%d attempts=%d requests=%d", factories.Load(), observers.Load(), calls.Load())
 				}
 			}
 			if c.Operation == "pair" && !c.Rotate {
