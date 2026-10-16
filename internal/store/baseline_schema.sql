@@ -974,7 +974,17 @@ CREATE TABLE sessions (
     )
 ), active_generation_id TEXT, root_session_id TEXT, session_purpose TEXT, input_submission_count INTEGER CHECK(input_submission_count IS NULL OR (input_submission_count BETWEEN 0 AND 9007199254740991)), content_sweep_pending INTEGER NOT NULL DEFAULT 0 CHECK(content_sweep_pending IN (0,1)), thinking_level TEXT
   CHECK (thinking_level IS NULL OR thinking_level IN
-    ('off','minimal','low','medium','high','xhigh','max','ultra','ultracode')), thinking_level_raw TEXT, thinking_level_history TEXT) STRICT;
+    ('off','minimal','low','medium','high','xhigh','max','ultra','ultracode')), thinking_level_raw TEXT, thinking_level_history TEXT, latest_attempt_generation_id TEXT, latest_attempt_artifact_hash TEXT CHECK (
+    latest_attempt_artifact_hash IS NULL OR (
+        length(latest_attempt_artifact_hash) = 64 AND latest_attempt_artifact_hash NOT GLOB '*[^0-9a-f]*'
+    )
+), latest_attempt_indexer_version INTEGER CHECK (
+    latest_attempt_indexer_version IS NULL OR latest_attempt_indexer_version > 0
+), latest_attempt_failure_code TEXT, latest_attempt_failure_message TEXT, latest_attempt_captured_at_ms INTEGER CHECK (
+    latest_attempt_captured_at_ms IS NULL OR latest_attempt_captured_at_ms >= 0
+), latest_attempt_stats_json TEXT CHECK (
+    latest_attempt_stats_json IS NULL OR json_valid(latest_attempt_stats_json)
+)) STRICT;
 
 CREATE TABLE target_kinds (
     id   INTEGER PRIMARY KEY,
@@ -1265,4 +1275,4 @@ DELETE FROM "session_search_fts_data";
 INSERT INTO "session_search_fts_data" ("id", "block") VALUES (1, X'');
 INSERT INTO "session_search_fts_data" ("id", "block") VALUES (10, X'00000000000000');
 
-PRAGMA user_version = 66;
+PRAGMA user_version = 67;

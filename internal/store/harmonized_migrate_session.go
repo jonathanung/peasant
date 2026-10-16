@@ -270,7 +270,7 @@ func (s *Store) migrateDataRollback(ctx context.Context, sessionID schema.Sessio
 // its captured stats, the stored hashes, the durable parent, and the
 // prior evidence. A session the legacy readers themselves cannot read is
 // a data rollback: the old representation is damaged, and re-indexing
-// from the retained transcripts is the fix.
+// from the stored transcripts is the fix.
 func (s *Store) readMigrateOracle(ctx context.Context, sessionID schema.SessionID, generationID string) (*migrateOracle, error) {
 	conn, err := s.pool.Take(ctx)
 	if err != nil {
@@ -563,7 +563,11 @@ func readMigrateOracleSessionOnConn(conn *sqlite.Conn, oracle *migrateOracle) er
 				// sessions hold the parent only in metadata_json. The row
 				// wins when set (no live session sets both differently);
 				// the document heals the rest, and the commit persists it
-				// so converted reads keep the parentage.
+				// so converted reads keep the parentage. A document parent
+				// that names no stored session cannot be persisted at all —
+				// the availability cache refuses an unstored parent — so the
+				// commit refuses that conversion explicitly instead of
+				// dropping the linkage.
 				parent := string(*oracle.metadata.ParentUUID)
 				oracle.parentID = &parent
 			}
@@ -951,15 +955,38 @@ func (s *Store) commitMigrateSession(ctx context.Context, oracle *migrateOracle,
 	if oracle.parentID != nil {
 		// Persist the healed parentage before the verify: the harmonized
 		// snapshot readers rebuild the parent from sessions.parent_id, and
-		// the NULL guard never clobbers a linkage set after the oracle read.
-		if err := sqlitex.Execute(conn, `UPDATE sessions SET parent_id = ? WHERE session_id = ? AND parent_id IS NULL`, &sqlitex.ExecOptions{
-			Args: []any{*oracle.parentID, string(oracle.sessionID)},
+		// the writer's NULL guard never clobbers a linkage set after the
+		// oracle read. The availability cache cannot hold an unstored parent
+		// — the foreign key is its availability input — so a document parent
+		// that names no stored session is refused HERE, explicitly, instead of
+		// being silently dropped or surfacing later as a data mismatch in the
+		// shadow verify.
+		parent := ingest.SessionID(*oracle.parentID)
+		parentStored := false
+		if err := sqlitex.ExecuteTransient(conn, `SELECT 1 FROM sessions WHERE session_id = ? LIMIT 1`, &sqlitex.ExecOptions{
+			Args:       []any{string(parent)},
+			ResultFunc: func(*sqlite.Stmt) error { parentStored = true; return nil },
 		}); err != nil {
+			txnErr = fmt.Errorf("carry the parent linkage for session %s: check whether the captured document parent %s is stored: %w; the catalog transaction rolled back and the old representation is intact", oracle.sessionID, parent, err)
+			return false, nil, txnErr
+		}
+		if !parentStored {
+			txnErr = fmt.Errorf("carry the parent linkage for session %s: the captured document names parent %s, which is not stored (pruned or never selected); the availability cache cannot hold an unstored parent, so the conversion is refused and the old representation is intact; re-harvest the session after its parent is stored, or leave it unconverted", oracle.sessionID, parent)
+			return false, nil, txnErr
+		}
+		if err := writeParentCacheOnConn(conn, ingest.SessionID(oracle.sessionID), &parent); err != nil {
 			txnErr = fmt.Errorf("carry the parent linkage for session %s: %w; the catalog transaction rolled back and the old representation is intact", oracle.sessionID, err)
 			return false, nil, txnErr
 		}
 	}
-	if err := insertHarmonizedGenerationOnConn(conn, prepared, oracle.priorEvidence, oracle.installedAtMs); err != nil {
+	activated := oracle.activatedAtMs
+	if activated == nil {
+		// The migration installs the active generation, so it carries a stamp
+		// like any other install: the source activation stamp, falling back to
+		// the install instant when the predecessor row recorded none.
+		activated = &oracle.installedAtMs
+	}
+	if err := insertHarmonizedGenerationOnConn(conn, prepared, oracle.priorEvidence, oracle.installedAtMs, activated); err != nil {
 		txnErr = fmt.Errorf("install the harmonized generation: %w", err)
 		return false, nil, txnErr
 	}

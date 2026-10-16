@@ -7,3 +7,5 @@ requiredNames:
   - strike_unchanged
   - native_codex
   - native_opencode
+  - native_claude
+  - retained_claude_at_two

@@ -20,7 +20,7 @@ var _ ingest.StoredMetadataReader = (*Store)(nil)
 func (s *Store) ReadStoredMetadata(ctx context.Context, sid ingest.SessionID) ([]byte, error) {
 	conn, err := s.pool.Take(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("store: recover recorded metadata for session %s: %w; no retained files were changed; restore database access and retry harvest", sid, err)
+		return nil, fmt.Errorf("store: recover recorded metadata for session %s: %w; no stored files were changed; restore database access and retry harvest", sid, err)
 	}
 	defer s.pool.Put(conn)
 	var data []byte
@@ -29,7 +29,7 @@ func (s *Store) ReadStoredMetadata(ctx context.Context, sid ingest.SessionID) ([
 	// JSON object (or SQL NULL for unknown) is evidence.
 	err = sqlitex.ExecuteTransient(conn, `SELECT json_patch(json_object(
     'schemaVersion', s.schema_version,
-    'sessionId', s.session_id, 'parentUuid', s.parent_id,
+    'sessionId', s.session_id, 'parentUuid', `+LogicalParentSQL("s")+`,
     'harness', s.model_harness, 'model', s.model_id, 'version', s.tool_version,
     'hostSlug', h.host_slug,
     'timestamp', json_object('start', s.start_ms, 'end', s.end_ms, 'ingested', s.ingested_ms),
@@ -60,7 +60,7 @@ WHERE s.session_id = ?1`, &sqlitex.ExecOptions{
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("store: read recorded metadata for session %s before retained recovery: %w; no retained files were changed; restore valid stored metadata and retry harvest", sid, err)
+		return nil, fmt.Errorf("store: read recorded metadata for session %s before stored recovery: %w; no stored files were changed; restore valid stored metadata and retry harvest", sid, err)
 	}
 	return data, nil
 }

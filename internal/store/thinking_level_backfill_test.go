@@ -55,7 +55,7 @@ func TestStore_ThinkingLevelBackfillSelection(t *testing.T) {
 			inputSQL(t, s, sid, "UPDATE sessions SET index_version = ?, schema_version = ? WHERE session_id = ?", c.Indexer, 11)
 			targets := ingest.HarvesterVersionRegistry
 			if c.Native {
-				targets = ingest.NativeGenerationTargets(targets)
+				targets = ingest.GenerationTargets(targets)
 			}
 			assertSelected := func(want bool) {
 				t.Helper()

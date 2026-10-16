@@ -14,16 +14,18 @@ import (
 
 var _ ingest.OrphanParentReconciler = (*Store)(nil)
 
-// parentCacheLegacyLookupTemplate is the V1 half of the reverse lookup: the
+// parentCacheLegacyLookupTemplate is the legacy half of the reverse lookup: the
 // legacy publication metadata snapshot's retained parentUuid. The CROSS JOIN
 // keeps the target list as the fixed outer loop, so the query seeks the
 // parentUuid expression index by target rather than scanning the harness
 // population; it reads only the stored children that name a target. A session
-// with active managed-generation relationship authority is excluded entirely:
-// the legacy snapshot may predate the active generation and must never
-// resurrect a parent that generation cleared, marked unknown or conflicting, or
-// pointed elsewhere. The trailing %s is the harness placeholder list.
-const parentCacheLegacyLookupTemplate = `
+// whose generation carries relationship authority is excluded entirely:
+// the legacy snapshot may predate that generation and must never resurrect a
+// parent it cleared, marked unknown or conflicting, or pointed elsewhere. The
+// generation scope is the one shared spelling, so a session whose only
+// generation is the latest attempt is excluded on that attempt's evidence too.
+// The trailing %s is the harness placeholder list.
+var parentCacheLegacyLookupTemplate = `
 SELECT s.session_id, json_extract(p.metadata_json, '$.parentUuid')
 FROM json_each(?) AS target
 CROSS JOIN session_publication_metadata p
@@ -37,20 +39,22 @@ WHERE json_extract(p.metadata_json, '$.parentUuid') = target.value
   AND NOT EXISTS (
     SELECT 1 FROM session_relationship_evidence r
     WHERE r.session_id = s.session_id
-      AND r.generation_id = s.active_generation_id
+      AND r.generation_id = ` + parentGenerationScopeSQL("s") + `
   )`
 
-// parentCacheDurableLookupTemplate is the V2 half: the active generation's
-// started_by relationship evidence. Its CROSS JOIN likewise keeps the target
-// list as the fixed outer loop and seeks the relationship-evidence target
-// index. The trailing %s is the harness placeholder list.
-const parentCacheDurableLookupTemplate = `
+// parentCacheDurableLookupTemplate is the durable half: the started_by
+// relationship evidence of the session's generation (the active generation, or
+// the latest attempt when no active generation exists). Its CROSS JOIN likewise
+// keeps the target list as the fixed outer loop and seeks the
+// relationship-evidence target index. The trailing %s is the harness
+// placeholder list.
+var parentCacheDurableLookupTemplate = `
 SELECT r.session_id, r.target_local_id
 FROM json_each(?) AS target
 CROSS JOIN session_relationship_evidence r
 CROSS JOIN sessions s
 WHERE r.kind = 'started_by' AND r.target_local_id = target.value
-  AND s.session_id = r.session_id AND s.active_generation_id = r.generation_id
+  AND s.session_id = r.session_id AND r.generation_id = ` + parentGenerationScopeSQL("s") + `
   AND target.value IS NOT NULL
   AND r.target_local_id IS NOT NULL AND r.target_local_id <> ''
   AND r.target_state IN ('target_known','target_known_retained')
@@ -203,19 +207,19 @@ func (s *Store) ListUncachedChildrenOfParents(ctx context.Context, parents []ing
 	return updates, nil
 }
 
-// sqlHealParentCache sets one child's FK availability cache and resets its
-// origin watermark in the same statement, so the repaired row is re-judged by
-// the next origin resolve pass.
-const sqlHealParentCache = `UPDATE sessions SET parent_id = ?, origin_version = 0 WHERE session_id = ?`
-
 // sqlInvalidateStaleParentOrigins re-queues every settled, parent-linked,
 // independently admitted row whose verdict is still unknown at the current
-// origin rule version. The predicate is whole-population and idempotent: once a
-// row is reset to version 0 it no longer matches, and the resolve pass moves it
-// back to the rule version with its parent-link verdict.
-const sqlInvalidateStaleParentOrigins = `UPDATE sessions SET origin_version = 0
+// origin rule version. Its parent test is the session-level logical-parent
+// answer, rendered through LogicalParentSQL, not the raw availability cache: a
+// child whose generation carries started_by evidence is parent-linked even
+// while its cache is NULL, so the re-queue set is exactly the set the resolve
+// pass's own work list (sqlListStaleOriginSessions) treats as parent-linked.
+// The predicate is whole-population and idempotent: once a row is reset to
+// version 0 it no longer matches, and the resolve pass moves it back to the
+// rule version with its parent-link verdict.
+var sqlInvalidateStaleParentOrigins = `UPDATE sessions SET origin_version = 0
 WHERE session_origin = 'unknown'
-  AND parent_id IS NOT NULL
+  AND COALESCE(` + LogicalParentSQL("sessions") + `, '') <> ''
   AND origin_version = ?
   AND model_harness IN (?, ?)`
 
@@ -345,10 +349,8 @@ func (s *Store) ReconcileParentCache(ctx context.Context, updates []ingest.Paren
 		// The heal and the origin requeue move in ONE statement: a child can
 		// never be found with a repaired parent link still carrying the origin
 		// verdict judged before the link existed, so the next resolve pass
-		// re-judges it.
-		if execErr := sqlitex.ExecuteTransient(conn, sqlHealParentCache, &sqlitex.ExecOptions{
-			Args: []any{string(update.Parent), string(update.Child)},
-		}); execErr != nil {
+		// re-judges it. writeParentCacheOnConn is that statement.
+		if execErr := writeParentCacheOnConn(conn, update.Child, &parent); execErr != nil {
 			return fmt.Errorf("store: reconcile parent cache for child %s: %w; no cache update in this reconciliation was committed; retry harvest", update.Child, execErr)
 		}
 	}

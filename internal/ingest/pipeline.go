@@ -76,7 +76,7 @@ type DiffEntry struct {
 	retainedOnly bool // No current native discovery context accompanies this stored session.
 	// pairRepair marks a session whose saved pair is missing or damaged. It is
 	// re-ingested from its native source regardless of the database-first
-	// freshness verdict: there is no usable retained input to prefer.
+	// freshness verdict: there is no usable stored input to prefer.
 	pairRepair bool
 	// repairMetadataPath is the owned metadata locator the repair already
 	// resolved. The native write path stops there instead of falling back to a
@@ -285,18 +285,18 @@ type Pipeline struct {
 	store    SessionStore // nil = skip DB insert (backward compatible)
 	salt     salt.Salt    // per-installation HMAC salt for project hash derivation
 
-	// nativeGenerationIDs optionally assigns the installed identity of each
+	// generationIDs optionally assigns the installed identity of each
 	// managed generation candidate. Production leaves it nil and mints a fresh
 	// opaque identity per attempt; a deterministic caller injects its own.
-	nativeGenerationIDs func(DiscoveredSession) string
+	generationIDs func(DiscoveredSession) string
 
 	// resolvedVersions caches the effective harness targets once, after the
-	// store capability gate has decided whether native generations are enabled.
+	// store capability gate has decided whether managed generations are enabled.
 	// versionTargets is read in hot per-session loops, so the overlay is
 	// resolved once rather than on every lookup.
 	resolvedVersions map[Harness]HarvesterVersions
 
-	// contentRecoveries holds this run's completed retained-content repairs,
+	// contentRecoveries holds this run's completed stored-content repairs,
 	// keyed by session, so the index log and summary can report them.
 	contentRecoveries map[SessionID]contentRecovery
 	// pairRepairOwned names the candidates whose saved pair the pair-repair
@@ -450,12 +450,12 @@ func WithStore(s SessionStore) PipelineOption {
 	return func(p *Pipeline) { p.store = s }
 }
 
-// WithNativeGenerationID overrides the installed identity assigned to native
+// WithGenerationID overrides the installed identity assigned to
 // managed-generation candidates. Production leaves it unset so every attempt
 // mints a fresh opaque identity; a deterministic caller injects a stable
 // source. The identity must be a single confined path component.
-func WithNativeGenerationID(assign func(DiscoveredSession) string) PipelineOption {
-	return func(p *Pipeline) { p.nativeGenerationIDs = assign }
+func WithGenerationID(assign func(DiscoveredSession) string) PipelineOption {
+	return func(p *Pipeline) { p.generationIDs = assign }
 }
 
 // WithSalt injects a per-installation HMAC salt for project hash derivation.
@@ -479,11 +479,34 @@ func WithRedactor(r TextRedactor) PipelineOption {
 	return func(p *Pipeline) { p.redactor = r }
 }
 
-// WithIndexers injects per-provider TranscriptIndexers.
+// WithIndexers injects per-provider indexers for one pipeline.
+//
+// T is the caller's map element type, so the composed registry output
+// (map[Harness]Indexer) and a deliberately compatibility-typed map
+// (map[Harness]TranscriptIndexer) both compile unchanged. The pipeline's seam
+// stays compatibility-typed on purpose: every non-nil value is copied into the
+// pipeline's own map, so the pipeline never aliases the caller's map and a later
+// mutation of that map cannot change what a running pipeline dispatches to. A
+// nil map leaves the seam unset.
+//
 // When set (along with MetricsStore), transcripts are parsed into session_entries
 // after disk writes. Indexing errors are non-fatal.
-func WithIndexers(idx map[Harness]TranscriptIndexer) PipelineOption {
-	return func(p *Pipeline) { p.indexers = idx }
+func WithIndexers[T TranscriptIndexer](idx map[Harness]T) PipelineOption {
+	return func(p *Pipeline) {
+		if idx == nil {
+			p.indexers = nil
+			return
+		}
+		copied := make(map[Harness]TranscriptIndexer, len(idx))
+		for harness, indexer := range idx {
+			var seam TranscriptIndexer = indexer
+			if seam == nil {
+				continue
+			}
+			copied[harness] = seam
+		}
+		p.indexers = copied
+	}
 }
 
 // WithMaxJSONLRecordBytes sets the per-record read limit the pre-redaction
@@ -717,7 +740,7 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 			}
 			return nil, fmt.Errorf("pipeline discover: %w", err)
 		}
-		p.reportDiagnostic(DiagnosticEntry{ErrorType: "native_discovery_unavailable", Location: "native discovery", Message: err.Error() + "; continuing maintenance of usable retained sessions", Remediation: "Restore access to the configured harness sources and retry harvest to acquire unseen native changes."})
+		p.reportDiagnostic(DiagnosticEntry{ErrorType: "native_discovery_unavailable", Location: "native discovery", Message: err.Error() + "; continuing maintenance of usable stored sessions", Remediation: "Restore access to the configured harness sources and retry harvest to acquire unseen native changes."})
 	}
 	emitProgress(prog, ProgressEvent{Kind: KindEnd, Stage: StageDiscover, Done: len(allSessions), Total: len(allSessions)})
 	p.recordIndexProfileStage(StageDiscover, discoverProfileStart, len(allSessions), len(allSessions))
@@ -980,7 +1003,7 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 	toProcessEntries = p.appendStoredAdapterWork(ctx, toProcessEntries, allSessions)
 	// A stored session whose saved pair is missing or damaged is re-ingested
 	// from its native source here. The repair no longer waits for an explicit
-	// --force --session: a session with no usable retained input has nothing to
+	// --force --session: a session with no usable stored input has nothing to
 	// protect. The inventory is database-driven and reads only the selected
 	// sessions' own locators.
 	toProcessEntries = p.appendPairRepairWork(ctx, toProcessEntries, allSessions)
@@ -1302,7 +1325,7 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 				continue
 			}
 			// The session allowlist is the run's ingest scope, and it also gates
-			// retained-session maintenance here. Skip an out-of-scope session
+			// stored-session maintenance here. Skip an out-of-scope session
 			// before reading its pair: the run must not reconstruct or report
 			// refusals for a session it was never going to upgrade, and the
 			// report names the count instead.
@@ -1315,7 +1338,7 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 			reconstructed, startMs, transcriptPath, metadataErr := p.reconstructFromMetadata(ctx, sid)
 			if metadataErr != nil {
 				p.reportMetadataRefusal(string(sid), metadataErr)
-				slog.Warn("pipeline: retained metadata refused", "session_id", sid, "error", metadataErr)
+				slog.Warn("pipeline: stored metadata refused", "session_id", sid, "error", metadataErr)
 				continue // Unsupported is not missing: never bypass through DB source info.
 			}
 			if reconstructed == nil {
@@ -1376,12 +1399,12 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 	return p.indexComputeAndFinalize(ctx, indexSessions, drainIndexed, sessionResults, storeErr, start, append(drainIndexLogEntries, p.contentRecoveryLogEntries()...), IndexOutcomeIndexed, "pipeline", &drainDownstream, drainRefusedKinds)
 }
 
-// contentRecoveryReason labels a retained-content repair in the index log.
+// contentRecoveryReason labels a stored-content repair in the index log.
 // Recovery reuses the reindexed outcome with this reason: no new outcome
 // value and no new JSON shape, but the repair is visible and counted.
 const contentRecoveryReason = "content recovered from retained input"
 
-// contentRecoveryLogEntries reports this run's completed retained-content
+// contentRecoveryLogEntries reports this run's completed stored-content
 // repairs as index log entries, so a repair a preliminary sweep performed
 // does not disappear from the run's reported outcomes.
 func (p *Pipeline) contentRecoveryLogEntries() []IndexLogEntry {
@@ -1741,22 +1764,22 @@ type indexParseResult struct {
 	im              indexedMeta
 	input           *CapturedIndexInput
 	output          indexformat.Result
-	// nativeCandidate carries a validated managed-generation candidate with its
+	// generationCandidate carries a validated managed-generation candidate with its
 	// captured content when the harness's declared output format is a managed
 	// generation. The write path stages and activates it instead of committing
 	// a bare entry replacement.
-	nativeCandidate *NativeGenerationCandidate
-	entryCount      int
-	startedAt       int64
-	logEntry        IndexLogEntry
-	parseDuration   time.Duration
-	bytes           int64
+	generationCandidate *GenerationCandidate
+	entryCount          int
+	startedAt           int64
+	logEntry            IndexLogEntry
+	parseDuration       time.Duration
+	bytes               int64
 }
 
 // permanentRefusalCode names the refusal when this build can never clear it,
 // and ContentCaptureNoFailure when it might.
 //
-// A session whose retained transcript is marked as missing records is refused
+// A session whose stored transcript is marked as missing records is refused
 // for that reason whatever else the parser would have said, so it is checked
 // first: the strict parser stops at the omission before it can reach a record
 // it does not represent.
@@ -1863,14 +1886,14 @@ func indexResultWriteBytes(result indexformat.Result) int64 {
 		return fullEntryWriteBytes(v1.Entries)
 	}
 	if v2, ok := result.(indexformat.V2); ok {
-		return nativeCandidateWriteBytes(&NativeGenerationCandidate{Result: v2})
+		return generationCandidateWriteBytes(&GenerationCandidate{Result: v2})
 	}
 	return 0
 }
 
 func indexParseWriteBytes(result indexParseResult) int64 {
-	if result.nativeCandidate != nil {
-		return nativeCandidateWriteBytes(result.nativeCandidate)
+	if result.generationCandidate != nil {
+		return generationCandidateWriteBytes(result.generationCandidate)
 	}
 	return indexResultWriteBytes(result.output)
 }
@@ -2020,24 +2043,33 @@ func (p *Pipeline) parseIndexMeta(ctx context.Context, im indexedMeta, activePar
 		if p.capturedInputNeedsWork(input) {
 			parsed = true
 			// A harness whose declared output format is a managed generation is
-			// produced through its own native candidate exit, which carries the
-			// captured bytes and prior evidence the activation stages. Only the
-			// strict format-1 path keeps the retained parser dispatch.
-			usedNativeCandidate := false
+			// produced through its GenerationBuilder, which carries the captured
+			// bytes and prior evidence the activation stages. Only the strict
+			// format-1 path keeps the retained parser dispatch.
+			//
+			// An indexer that declares a managed format without implementing the
+			// builder keeps the versioned exit below: that combination is a REAL
+			// driver, not a refusal. A registered harness that declares format 2
+			// without a builder adopts the format through its own versioned result
+			// exit; the format-mismatch guard further down remains the backstop.
+			// Wrappers that embed a builder-bearing indexer promote the builder
+			// surface silently and change this dispatch, so a wrapper owns its
+			// optional surfaces explicitly.
+			usedGenerationCandidate := false
 			if declared != strictIndexFormat {
-				candidate, native, candidateErr := p.buildNativeCandidate(ctx, im, input, indexer)
-				if native {
-					usedNativeCandidate = true
+				candidate, builder, candidateErr := p.buildGenerationCandidate(ctx, input, indexer)
+				if builder {
+					usedGenerationCandidate = true
 					if candidateErr != nil {
 						err = candidateErr
 					} else {
 						candidateCopy := candidate
-						result.nativeCandidate = &candidateCopy
+						result.generationCandidate = &candidateCopy
 						output = candidate.Result
 					}
 				}
 			}
-			if !usedNativeCandidate {
+			if !usedGenerationCandidate {
 				output, err = parseCapturedIndexInput(ctx, indexer, input, declared)
 			}
 			// A refusal NOTHING ABOUT THIS BUILD CAN LIFT is not an empty store:
@@ -2047,7 +2079,7 @@ func (p *Pipeline) parseIndexMeta(ctx context.Context, im indexedMeta, activePar
 			// visible error.
 			//
 			// Two causes qualify. The strict parser met a well-formed record this
-			// build does not represent; or the retained transcript is KNOWN to be
+			// build does not represent; or the stored transcript is KNOWN to be
 			// missing records, because ingest removed a source record over the
 			// per-record limit before writing the artifact. Re-reading either one
 			// gives the same answer, and re-harvesting the same source omits the
@@ -2150,7 +2182,7 @@ func (p *Pipeline) parseIndexMeta(ctx context.Context, im indexedMeta, activePar
 		// heals parent-cache moves and changed-pair mirrors on later
 		// harvests. Genuine refusals still flow through the assessment via
 		// their Unaccounted flag and validated evidence.
-		if _, isV1 := output.(indexformat.V1); isV1 && result.nativeCandidate == nil && authoritative {
+		if _, isV1 := output.(indexformat.V1); isV1 && result.generationCandidate == nil && authoritative {
 			strictAuthoritative := authoritative && declared == strictIndexFormat
 			if assessment, assessErr := AssessCapture(V1CaptureFacts(
 				im.session.Harness, output, strictAuthoritative, im.session.ContentOmitted,
@@ -2212,10 +2244,10 @@ func (p *Pipeline) flushIndexParseResults(ctx context.Context, results []indexPa
 
 // flushIndexParseResultsWithProgress is flushIndexParseResults with an
 // optional per-result callback. emit runs exactly once for every result
-// position. Native candidates emit as soon as their own commit completes, not
+// position. Generation candidates emit as soon as their own commit completes, not
 // when the whole batch does, so progress keeps moving while a slow candidate
 // is still preparing. Other result kinds carry no such promise: they may emit
-// only after the native candidates in the same batch drain.
+// only after the managed-generation candidates in the same batch drain.
 func (p *Pipeline) flushIndexParseResultsWithProgress(ctx context.Context, results []indexParseResult, outcome IndexOutcome, logPrefix string, writeLane *storeWriteLane, emit func()) indexWriteFlush {
 	batchStore, ok := p.metricsStore.(SessionEntryBatchStore)
 	if !ok || len(results) == 0 {
@@ -2275,7 +2307,7 @@ func (p *Pipeline) flushIndexParseResultsBatch(ctx context.Context, results []in
 			record(i, indexedMeta{session: result.im.session, startMs: result.im.startMs}, result.logEntry, p.makeIndexProfileSession(result, result.logEntry, 0))
 			continue
 		}
-		if result.nativeCandidate != nil {
+		if result.generationCandidate != nil {
 			// Managed generations stage and activate their own files and rows;
 			// they never travel through the entry-replacement batch.
 			nativePositions = append(nativePositions, i)
@@ -2406,11 +2438,11 @@ func (p *Pipeline) flushIndexParseResultsBatch(ctx context.Context, results []in
 		}
 		flush.writeDuration = writeDuration
 	}
-	// Native candidates stage their content files before the serialized write
+	// Generation candidates stage their content files before the serialized write
 	// lane, and each candidate commits through the lane as soon as its own
 	// staging completes: a slow candidate no longer delays the commits of the
 	// others, and every commit reports its own progress immediately.
-	p.stageAndCommitNativeGenerations(ctx, results, nativePositions, outcome, logPrefix, writeLane, func(position int, indexed indexedMeta, logEntry IndexLogEntry, profileSession IndexProfileSession) {
+	p.stageAndCommitGenerations(ctx, results, nativePositions, outcome, logPrefix, writeLane, func(position int, indexed indexedMeta, logEntry IndexLogEntry, profileSession IndexProfileSession) {
 		flush.writeDuration += profileSession.WriteDuration
 		record(position, indexed, logEntry, profileSession)
 	})
@@ -2588,6 +2620,13 @@ func (p *Pipeline) discover(ctx context.Context) ([]DiscoveredSession, error) {
 		// persisted before trusting it.
 		if p.store != nil {
 			AttachSessionLocationLookup(adapter, p.store)
+			// The ancestor-cycle walk asks who the parent is, not which
+			// cached row exists, so it takes the evidence-first accessor when
+			// the store carries one; a store that does not leaves the walk
+			// reading only this run's own candidate edges.
+			if parentReader, ok := p.store.(LogicalParentReader); ok {
+				AttachLogicalParentLookup(adapter, parentReader)
+			}
 		}
 		sessions, err := adapter.Discover(ctx, cfg)
 		// Per-location discovery failures are collected whether or not the whole
@@ -2816,7 +2855,7 @@ func (p *Pipeline) classifyCapturedSession(ctx context.Context, session Discover
 		}
 		return DiffNew, nil
 	}
-	// Extraction from retained input preserves an unknown acquisition clock.
+	// Extraction from stored input preserves an unknown acquisition clock.
 	// Once its adapter revision is current, a discovered native file still needs acquisition: no
 	// previous ingest time proves that its content was already consumed.
 	unknownAcquisition := existingMeta != nil &&
@@ -2850,16 +2889,16 @@ func (p *Pipeline) classifyCapturedSession(ctx context.Context, session Discover
 		if captured == nil && status == DiffUpdated && needsPublicationRepair {
 			// Publication readiness is a repair hint, not change evidence.
 			// Before any capture it re-reads native input only for a session
-			// that has no retained artifact to hold its input: a legacy row
+			// that has no stored artifact to hold its input: a legacy row
 			// with nothing under the managed tree can be repaired from the
-			// native source alone. A session whose retained pair exists keeps
-			// its retained-first path: its clock, schema, cursor and captured
+			// native source alone. A session whose stored pair exists keeps
+			// its stored-first path: its clock, schema, cursor and captured
 			// evidence decide whether native input is read, and the ordinary
 			// index write binds publication once a capture exists.
 			//
 			// That binding needs a capture to bind. A row that never held a
 			// publication capture (a pre-capture legacy row, revision 0) cannot
-			// be settled from its retained pair: the retained metadata is not
+			// be settled from its stored pair: the stored metadata is not
 			// a source-proven capture and the index write records no lossy
 			// backfill from it, so the row would stay "needs ingest" on every
 			// harvest while the push error keeps promising that ingest repairs
@@ -3617,7 +3656,7 @@ func (p *Pipeline) processNativeSession(ctx context.Context, entry DiffEntry, wr
 	}
 
 	// DerivedAt is absent on the saved pair: the database is the source of
-	// truth for it, and the file is retained input the parsers read. Compute
+	// truth for it, and the file is stored input the parsers read. Compute
 	// MetadataHash after every content-bearing field is set.
 	meta.DerivedAt = nil
 	meta.MetadataHash = schema.ComputeMetadataHash(meta)
@@ -4274,7 +4313,7 @@ func (p *Pipeline) indexComputeAndFinalize(
 		}
 		p.recordIndexProfileStage(StageIndex, indexProfileStart, len(batchIndexed), len(indexSessions))
 	}
-	// A retained-content repair counts as indexed work once per session; a
+	// A stored-content repair counts as indexed work once per session; a
 	// session that was also indexed by the ordinary path is not counted twice.
 	if len(p.contentRecoveries) > 0 {
 		counted := make(map[SessionID]bool, len(successfullyIndexed))
@@ -4574,7 +4613,7 @@ type sessionMetadataResult struct {
 // readSessionMetadata reads and parses a metadata JSON file for a session in
 // the given host directory, reconstructing a DiscoveredSession. Missing metadata
 // or transcript returns nil. Incompatible versions and non-missing I/O failures
-// return errors; corrupt historic content can use validated retained recovery.
+// return errors; corrupt historic content can use validated stored recovery.
 //
 // The logPrefix parameter is used for structured log messages on parse errors.
 func (p *Pipeline) readSessionMetadata(hostDir string, sid SessionID, logPrefix string) (*sessionMetadataResult, error) {
@@ -4604,7 +4643,7 @@ func (p *Pipeline) readSessionMetadata(hostDir string, sid SessionID, logPrefix 
 		}
 		// Historic corrupt content can recover through the validated managed
 		// envelope and compatible DB state. It is not a compatibility refusal.
-		slog.Warn(logPrefix+": corrupt metadata; attempting retained recovery", "session_id", sid, "error", err)
+		slog.Warn(logPrefix+": corrupt metadata; attempting stored recovery", "session_id", sid, "error", err)
 		return nil, nil
 	}
 
@@ -4898,7 +4937,7 @@ func (p *Pipeline) reconstructFromSourceInfo(ctx context.Context, sid SessionID)
 //     - Default: stale producer or missing/changed captured input
 //     - With --force: all sessions matching the explicit harness/session/since filters
 //  3. For each targeted session:
-//     a. Index readable v9/v10 metadata from retained input without adapter refresh
+//     a. Index readable v9/v10 metadata from stored input without adapter refresh
 //     b. For older metadata, try EXTRACT+WRITE from the original source; if missing,
 //     warn and fall back to INDEX+COMPUTE from the existing transcript
 //     c. Run INDEX+COMPUTE
@@ -4975,7 +5014,7 @@ func (p *Pipeline) runReindex(ctx context.Context, start time.Time) (*PipelineRe
 			// Plan from recorded SQL evidence without reading full transcripts.
 			needsWork = target.pairRepair || p.dryRunIndexNeedsWork(ctx, target) || p.adapterTargetNeedsWork(ctx, target)
 		} else {
-			// A pair-repair target has no usable pair, so the retained-index
+			// A pair-repair target has no usable pair, so the stored-index
 			// selection cannot apply: its repair is the work.
 			needsWork = target.pairRepair || p.adapterTargetNeedsWork(ctx, target) || p.indexTargetNeedsWork(ctx, target)
 		}
@@ -5005,7 +5044,7 @@ func (p *Pipeline) runReindex(ctx context.Context, start time.Time) (*PipelineRe
 	filtered := targeted[:0]
 	for _, target := range targeted {
 		allowed := p.config.AllowedSessionIDs == nil || p.config.AllowedSessionIDs[target.session.SessionID]
-		// Retained metadata records the native session start. The managed file's
+		// Stored metadata records the native session start. The managed file's
 		// mtime is publication time, so it cannot establish a session's age.
 		if allowed && p.config.Since != nil {
 			allowed = !time.UnixMilli(target.startMs).Before(*p.config.Since)
@@ -5091,7 +5130,7 @@ func (p *Pipeline) runReindex(ctx context.Context, start time.Time) (*PipelineRe
 			continue
 		}
 		// A targeted session whose scanned pair is damaged cannot be indexed
-		// from retained input, whatever maintenance path would otherwise run:
+		// from stored input, whatever maintenance path would otherwise run:
 		// the repair is checked before the retained/adapter split. Only
 		// selected sessions are checked, so no tree is walked and no pair is
 		// read for work this run does not owe.
@@ -5104,9 +5143,9 @@ func (p *Pipeline) runReindex(ctx context.Context, start time.Time) (*PipelineRe
 		if !t.refreshMetadata && !p.adapterTargetNeedsWork(ctx, t) {
 			// harvest index --force is an explicit manual refresh: use a usable
 			// native capture when the recorded source is still there, and
-			// otherwise warn once and index from the retained input, keeping the
+			// otherwise warn once and index from the stored input, keeping the
 			// old artifact and adapter stamp. Routine version-driven indexing
-			// stays retained-first and never reacquires native input here.
+			// stays stored-first and never reacquires native input here.
 			// A native refresh needs the session as discovery saw it (workspace,
 			// worktree, commit context); a locator rebuilt from the retained
 			// sidecar alone would degrade attribution. Only a session this run
@@ -5121,7 +5160,7 @@ func (p *Pipeline) runReindex(ctx context.Context, start time.Time) (*PipelineRe
 				if !found {
 					p.reportSessionDiagnostic(t.session.SessionID, DiagnosticEntry{
 						ErrorType: "native_refresh_unavailable", Location: fmt.Sprintf("%s session %s forced refresh", t.session.Harness, t.session.SessionID),
-						Message:     fmt.Sprintf("forced refresh of session %s: native discovery did not offer the session (recorded source %q), so the retained input was indexed instead; the previous artifact and adapter stamp were preserved", t.session.SessionID, t.originalSourcePath),
+						Message:     fmt.Sprintf("forced refresh of session %s: native discovery did not offer the session (recorded source %q), so the stored input was indexed instead; the previous artifact and adapter stamp were preserved", t.session.SessionID, t.originalSourcePath),
 						Remediation: "Enable the harness source in the configuration and restore the original source, then rerun harvest index --force to refresh from native input.",
 					})
 				}
@@ -5304,7 +5343,7 @@ func (p *Pipeline) runReindex(ctx context.Context, start time.Time) (*PipelineRe
 			}
 		}
 
-		// Retained sessions need no EXTRACT+WRITE. Warn only when required native
+		// Stored sessions need no EXTRACT+WRITE. Warn only when required native
 		// refresh was unavailable, not for ordinary compatible metadata reuse.
 		fallbackExtractProfileStart := time.Now()
 		for _, t := range fallbackTargets {
@@ -5361,18 +5400,18 @@ func (p *Pipeline) runReindex(ctx context.Context, start time.Time) (*PipelineRe
 }
 
 // forcedNativeRefreshUsable decides whether harvest index --force re-reads a
-// discovered native source or indexes the retained input. Force is an
+// discovered native source or indexes the stored input. Force is an
 // explicit manual refresh, so the native source is captured when the retained
 // input cannot settle the session: the source shows change evidence against
-// the retained capture (a newer clock, a moved locator, a changed parent, an
-// advanced cursor), or the retained input is a directory tree, which has no
+// the stored capture (a newer clock, a moved locator, a changed parent, an
+// advanced cursor), or the stored input is a directory tree, which has no
 // byte proof against the publication capture and so cannot bind publication
 // when indexed on its own. A file source that shows no change is what the
-// retained artifact already consumed; re-reading it is the original-source
-// I/O the retained-first rule exists to avoid, so the retained input is
-// indexed with no native read. A retained artifact produced by a newer adapter
+// stored artifact already consumed; re-reading it is the original-source
+// I/O the stored-first rule exists to avoid, so the stored input is
+// indexed with no native read. A stored artifact produced by a newer adapter
 // than this build is never replaced from native input: the newer producer's
-// evidence is kept and its retained input is indexed as it is.
+// evidence is kept and its stored input is indexed as it is.
 func (p *Pipeline) forcedNativeRefreshUsable(ctx context.Context, target reindexTarget, discovered DiscoveredSession) bool {
 	metadata := p.adapterTargetMetadata(ctx, target)
 	if metadata == nil {
@@ -5385,7 +5424,7 @@ func (p *Pipeline) forcedNativeRefreshUsable(ctx context.Context, target reindex
 }
 
 // retainedInputKind reports the source kind the target's indexer reads for
-// its retained input, or the zero kind when no indexer is registered.
+// its stored input, or the zero kind when no indexer is registered.
 func (p *Pipeline) retainedInputKind(target reindexTarget) TranscriptSourceKind {
 	indexer, ok := p.indexers[target.session.Harness]
 	if !ok {

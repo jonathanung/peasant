@@ -25,6 +25,13 @@ publishes collectives-only: private, with no license, and each bound transcript 
 is shared with its rule's collectives. --visibility and --license are then refused. A
 session a paused rule covers, or whose transcript is already public, is not published.
 
+Last-good — a session may keep a newer incomplete attempt beside its last-good full
+generation. Such a session is refused by default: the incomplete attempt is never
+published as the session, and readiness stays not-ready so stale content is never sent
+automatically. --last-good publishes the last-good full transcript instead, as an
+explicit hand-run choice; it is refused together with --auto-publish-event and
+--require-auto-publish-rule, and no generated hook file carries it.
+
 Exit status — a caller that branches on it, including a generated Git hook, needs the
 one distinction it cannot read out of prose: whether anything was published at all.
 
@@ -50,6 +57,7 @@ peasant village push [flags]
       --force                         Re-push all sessions (including already-pushed ones)
   -h, --help                          help for push
       --json                          Output as JSON instead of human-readable
+      --last-good                     Publish the last-good full transcript when a newer incomplete attempt is kept beside it. A hand-run choice: it skips the push wizard (the wizard previews the newer attempt, while this flag publishes the last-good authority) and does not imply --non-interactive, so the public-consent prompt still applies. It is refused together with --auto-publish-event/--require-auto-publish-rule and is never written into a hook file, so an automatic publication never sends stale last-good content. The store resolves the last-good authority server-side, so no session or generation identifier is accepted
       --license string                Override the content license for this run (CC0-1.0, CC-BY-4.0, CC-BY-SA-4.0). Also relicenses every already-published session the run selects; a Creative Commons grant cannot be withdrawn. Without it an update keeps the license a transcript has on the village, except that a session with no publication receipt for this village account on this machine is sent the configured license
       --non-interactive               Run without the interactive wizard or public-consent prompt (for CI/scripts)
       --profile-output string         Write a local JSON v1 push profile to this file (local diagnostic only, mode 0600). Parent directory must exist. Enables profiling; prints path and bottleneck hints to stderr unless --quiet. Works with --json and --timing.

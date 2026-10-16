@@ -14,24 +14,24 @@ import (
 )
 
 var (
-	_ ingest.NativeGenerationBatchStager       = (*Store)(nil)
-	_ ingest.NativeGenerationBatchActivator    = (*Store)(nil)
-	_ ingest.NativeGenerationActivator         = (*Store)(nil)
-	_ ingest.NativeGenerationStager            = (*Store)(nil)
-	_ ingest.NativeGenerationPreparedActivator = (*Store)(nil)
-	_ ingest.NativeGenerationStaged            = (*PreparedGeneration)(nil)
-	_ ingest.NativeGenerationPriorReader       = (*Store)(nil)
+	_ ingest.GenerationBatchStager             = (*Store)(nil)
+	_ ingest.GenerationBatchActivator          = (*Store)(nil)
+	_ ingest.GenerationActivator               = (*Store)(nil)
+	_ ingest.GenerationStager                  = (*Store)(nil)
+	_ ingest.GenerationPreparedActivator       = (*Store)(nil)
+	_ ingest.GenerationStaged                  = (*PreparedGeneration)(nil)
+	_ ingest.GenerationPriorReader             = (*Store)(nil)
 	_ ingest.NativePriorCaptureAuthorityReader = (*Store)(nil)
 	_ ingest.ContentSweeper                    = (*Store)(nil)
 )
 
-func (s *Store) StageNativeGenerations(ctx context.Context, native []ingest.NativeGenerationActivation) ([]ingest.NativeGenerationStaged, []error) {
-	activations := make([]GenerationActivation, len(native))
-	for i, a := range native {
-		activations[i] = generationActivationFromNative(a)
+func (s *Store) StageGenerationCandidates(ctx context.Context, candidates []ingest.GenerationActivation) ([]ingest.GenerationStaged, []error) {
+	activations := make([]GenerationActivation, len(candidates))
+	for i, a := range candidates {
+		activations[i] = storeGenerationActivation(a)
 	}
 	handles, errs := s.StageGenerationBatch(ctx, activations)
-	staged := make([]ingest.NativeGenerationStaged, len(handles))
+	staged := make([]ingest.GenerationStaged, len(handles))
 	for i, h := range handles {
 		if h != nil {
 			staged[i] = h
@@ -40,10 +40,10 @@ func (s *Store) StageNativeGenerations(ctx context.Context, native []ingest.Nati
 	return staged, errs
 }
 
-func (s *Store) ActivateStagedNativeGenerations(ctx context.Context, native []ingest.NativeGenerationActivation, staged []ingest.NativeGenerationStaged) []ingest.NativeActivationResult {
-	activations := make([]GenerationActivation, len(native))
-	for i, a := range native {
-		activations[i] = generationActivationFromNative(a)
+func (s *Store) ActivateStagedGenerationCandidates(ctx context.Context, candidates []ingest.GenerationActivation, staged []ingest.GenerationStaged) []ingest.NativeActivationResult {
+	activations := make([]GenerationActivation, len(candidates))
+	for i, a := range candidates {
+		activations[i] = storeGenerationActivation(a)
 		if i < len(staged) {
 			activations[i].Prepared, _ = staged[i].(*PreparedGeneration)
 		}
@@ -56,10 +56,10 @@ func (s *Store) ActivateStagedNativeGenerations(ctx context.Context, native []in
 	return adapted
 }
 
-// generationActivationFromNative mirrors the ingest-owned activation envelope
+// storeGenerationActivation mirrors the ingest-owned activation envelope
 // into the store's own immutable activation. Both entry points (pre-staging and
 // activation) share it so their preconditions cannot drift.
-func generationActivationFromNative(activation ingest.NativeGenerationActivation) GenerationActivation {
+func storeGenerationActivation(activation ingest.GenerationActivation) GenerationActivation {
 	return GenerationActivation{
 		Generation:       activation.Generation,
 		Blobs:            activation.Blobs,
@@ -76,7 +76,7 @@ func generationActivationFromNative(activation ingest.NativeGenerationActivation
 	}
 }
 
-// ActivateNativeGeneration adapts the ingest-owned activation envelope to the
+// ActivateGenerationCandidate adapts the ingest-owned activation envelope to the
 // store's own immutable activation. It stages the content files and fsyncs the
 // manifest and the directory,
 // persists the opaque prior document, installs the generation, counts and
@@ -85,32 +85,32 @@ func generationActivationFromNative(activation ingest.NativeGenerationActivation
 // every other managed activation. The outcome carries the lock-derived
 // disposition for per-invocation counting; a post-commit repair failure
 // returns a GenerationRepairPendingError with committed authority.
-func (s *Store) ActivateNativeGeneration(ctx context.Context, activation ingest.NativeGenerationActivation) (ingest.ActivationOutcome, error) {
-	outcome, err := s.ActivateGeneration(ctx, generationActivationFromNative(activation))
+func (s *Store) ActivateGenerationCandidate(ctx context.Context, activation ingest.GenerationActivation) (ingest.ActivationOutcome, error) {
+	outcome, err := s.ActivateGeneration(ctx, storeGenerationActivation(activation))
 	return outcome, err
 }
 
-// StageNativeGeneration prepares one managed generation's content files in an
+// StageGenerationCandidate prepares one managed generation's content files in an
 // owned temporary directory without recording an activation intent or
 // installing anything, so independent sessions can write in
 // parallel while only the install and commit stay on the serialized writer.
-// The returned handle is consumed by ActivateStagedNativeGeneration; a handle
+// The returned handle is consumed by ActivateStagedGenerationCandidate; a handle
 // that is dropped (for example after the caller refuses stale input) can
 // never be activated by recovery.
-func (s *Store) StageNativeGeneration(ctx context.Context, activation ingest.NativeGenerationActivation) (ingest.NativeGenerationStaged, error) {
-	prepared, err := s.StageGeneration(ctx, generationActivationFromNative(activation))
+func (s *Store) StageGenerationCandidate(ctx context.Context, activation ingest.GenerationActivation) (ingest.GenerationStaged, error) {
+	prepared, err := s.StageGeneration(ctx, storeGenerationActivation(activation))
 	if err != nil {
 		return nil, err
 	}
 	return prepared, nil
 }
 
-// ActivateStagedNativeGeneration activates one candidate, installing the
-// files a prior StageNativeGeneration prepared when the handle belongs to this
+// ActivateStagedGenerationCandidate activates one candidate, installing the
+// files a prior StageGenerationCandidate prepared when the handle belongs to this
 // store and candidate. Any other handle is ignored and the candidate is
-// staged inline, exactly as ActivateNativeGeneration does.
-func (s *Store) ActivateStagedNativeGeneration(ctx context.Context, activation ingest.NativeGenerationActivation, staged ingest.NativeGenerationStaged) (ingest.ActivationOutcome, error) {
-	generationActivation := generationActivationFromNative(activation)
+// staged inline, exactly as ActivateGenerationCandidate does.
+func (s *Store) ActivateStagedGenerationCandidate(ctx context.Context, activation ingest.GenerationActivation, staged ingest.GenerationStaged) (ingest.ActivationOutcome, error) {
+	generationActivation := storeGenerationActivation(activation)
 	if prepared, ok := staged.(*PreparedGeneration); ok {
 		generationActivation.Prepared = prepared
 	}
@@ -148,44 +148,110 @@ func (s *Store) SweepFlaggedSessionsForHarvest(ctx context.Context) (int, []erro
 	return len(report.Sessions), report.Warnings, nil
 }
 
-// ReadNativeGenerationPrior loads the active generation's reusable evidence for
+// ReadGenerationPrior loads the active generation's reusable evidence for
 // one session: its committed metadata, the native-key aliases the projection
 // must reuse, whether a complete generation is already the last-good authority,
 // and the harness-owned prior document when one was persisted. A session with
-// no active generation returns (nil, nil), so a first discovery builds an empty
-// prior state instead of guessing. A harmonized active generation reads its
-// structured rows (the metadata rebuilds from the catalog row, the children,
-// and the stats row, with the durable parent from the session row); a
-// file-backed one reads the projection tables and the prior document file.
-func (s *Store) ReadNativeGenerationPrior(ctx context.Context, sessionID schema.SessionID) (*ingest.NativeGenerationPrior, error) {
+// no active generation and no latest attempt returns (nil, nil), so a first
+// discovery builds an empty prior state instead of guessing. A harmonized active
+// generation reads its structured rows (the metadata rebuilds from the catalog
+// row, the children, and the stats row, with the durable parent from the session
+// row); a file-backed one reads the projection tables and the prior document
+// file.
+//
+// When a latest attempt is kept beside the authority, its reusable aliases merge
+// into the authority's under the authority's identity: a key only the attempt
+// introduced is added, and a shared key whose refs disagree refuses rather than
+// silently rebinding either generation. The evidence authority stays the
+// authority's alone (its completeness and its prior document); the attempt
+// contributes identity, never proof. With no active generation (the
+// certificate-only state) the prior is the attempt's aliases and no evidence
+// document, so the caller still judges the candidate against the stored capture
+// certificate.
+func (s *Store) ReadGenerationPrior(ctx context.Context, sessionID schema.SessionID) (*ingest.GenerationPrior, error) {
 	if s.generationArtifacts == nil {
 		return nil, fmt.Errorf("store: managed generation support is not configured; the active generation's prior evidence cannot be loaded for session %s; open the store with WithGenerationArtifacts before refreshing", sessionID)
 	}
 	conn, err := s.pool.Take(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("store: take connection to read the native generation prior for session %s: %w; no candidate was produced; restore database access and retry", sessionID, err)
+		return nil, fmt.Errorf("store: take connection to read the managed-generation prior for session %s: %w; no candidate was produced; restore database access and retry", sessionID, err)
 	}
 	defer s.pool.Put(conn)
+	pointer, err := readLatestAttemptPointerOnConn(conn, sessionID)
+	if err != nil {
+		return nil, err
+	}
 	active, err := readActiveGenerationOnConn(conn, sessionID)
 	if err != nil {
 		return nil, err
 	}
 	if active == nil || *active == "" {
-		return nil, nil
+		if !pointer.found() {
+			return nil, nil
+		}
+		state, err := readGenerationAliasStateOnConn(conn, sessionID, pointer.generationID)
+		if err != nil {
+			return nil, err
+		}
+		return &ingest.GenerationPrior{Aliases: state}, nil
 	}
+	var prior *ingest.GenerationPrior
 	if generationIsHarmonized(conn, sessionID, *active) {
-		return readHarmonizedPriorOnConn(conn, sessionID, *active)
+		prior, err = readHarmonizedPriorOnConn(conn, sessionID, *active)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		prior, err = readGenerationPriorOnConn(conn, sessionID, *active)
+		if err != nil {
+			return nil, err
+		}
+		evidence, err := s.generationArtifacts.ReadPriorEvidence(ctx, sessionID, *active)
+		if err != nil {
+			return nil, err
+		}
+		prior.PriorEvidence = evidence
 	}
-	prior, err := readGenerationPriorOnConn(conn, sessionID, *active)
+	if !pointer.found() {
+		return prior, nil
+	}
+	attemptState, err := readGenerationAliasStateOnConn(conn, sessionID, pointer.generationID)
 	if err != nil {
 		return nil, err
 	}
-	evidence, err := s.generationArtifacts.ReadPriorEvidence(ctx, sessionID, *active)
+	merged, err := ingest.MergeLatestAttemptAliases(prior.Aliases, attemptState)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("store: merge the latest attempt's reusable identities for session %s: %w; no candidate was produced and the committed generation stays active", sessionID, err)
 	}
-	prior.PriorEvidence = evidence
+	prior.Aliases = merged
 	return prior, nil
+}
+
+// readGenerationAliasStateOnConn rebuilds one generation's reusable alias state
+// from its persisted alias rows and its harmonized main entries: an acceptance
+// alias recovers its submission ref from the first submitted block's
+// provenance, which only the entries carry. A latest attempt is always written
+// as a harmonized generation, so the harmonized entry reader is the one that
+// applies.
+func readGenerationAliasStateOnConn(conn *sqlite.Conn, sessionID schema.SessionID, generationID string) (ingest.ProjectionPriorState, error) {
+	aliases, err := readGenerationAliasesOnConn(conn, sessionID, generationID)
+	if err != nil {
+		return ingest.NewProjectionPriorState(), err
+	}
+	entries, err := readHarmonizedMainEntriesOnConn(conn, sessionID, generationID)
+	if err != nil {
+		return ingest.NewProjectionPriorState(), err
+	}
+	stub := indexformat.Generation{
+		ID:      generationID,
+		Aliases: aliases,
+		Main:    indexformat.Partition{Entries: entries},
+	}
+	state, err := ingest.PriorStateFromGeneration(stub)
+	if err != nil {
+		return ingest.NewProjectionPriorState(), fmt.Errorf("store: rebuild reusable identities for session %s generation %s: %w; no candidate was produced; the committed generation stays active", sessionID, generationID, err)
+	}
+	return state, nil
 }
 
 // ReadStoredCaptureAuthority reports the stored content-capture certificate
@@ -221,12 +287,13 @@ func (s *Store) ReadStoredCaptureAuthority(ctx context.Context, sessionID schema
 
 // readHarmonizedPriorOnConn loads the reusable evidence for a harmonized
 // active generation: the catalog row plus children, segments, sections, and
-// evidence rebuild the captured metadata beside the stats row (the durable
-// parent comes from the session row, since the catalog stores no ParentUUID),
-// the main entries hydrate from their body rows, and the alias table stays
-// the reusable-identity authority exactly as for file-backed generations.
-func readHarmonizedPriorOnConn(conn *sqlite.Conn, sessionID schema.SessionID, generationID string) (*ingest.NativeGenerationPrior, error) {
-	prior := &ingest.NativeGenerationPrior{
+// evidence rebuild the captured metadata beside the stats row (the logical
+// parent comes from the session-level parent answer, since the catalog stores
+// no ParentUUID), the main entries hydrate from their body rows, and the alias
+// table stays the reusable-identity authority exactly as for file-backed
+// generations.
+func readHarmonizedPriorOnConn(conn *sqlite.Conn, sessionID schema.SessionID, generationID string) (*ingest.GenerationPrior, error) {
+	prior := &ingest.GenerationPrior{
 		GenerationID: generationID,
 		Aliases:      ingest.NewProjectionPriorState(),
 	}
@@ -256,29 +323,19 @@ func readHarmonizedPriorOnConn(conn *sqlite.Conn, sessionID schema.SessionID, ge
 	if err != nil {
 		return nil, err
 	}
-	if parent := readSessionParentOnConn(conn, sessionID); parent != nil {
+	parent, err := readSessionParentOnConn(conn, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if parent != nil {
 		metadata.ParentUUID = parent
 	}
 	prior.Metadata = &metadata
 	prior.HasCompleteGeneration = view.record.Completeness == indexformat.GenerationCompletenessComplete
 	prior.PriorEvidence = view.record.PriorEvidence
-	aliases, err := readGenerationAliasesOnConn(conn, sessionID, generationID)
+	state, err := readGenerationAliasStateOnConn(conn, sessionID, generationID)
 	if err != nil {
 		return nil, err
-	}
-	entries, err := readHarmonizedMainEntriesOnConn(conn, sessionID, generationID)
-	if err != nil {
-		return nil, err
-	}
-	stub := indexformat.Generation{
-		ID:       generationID,
-		Aliases:  aliases,
-		Metadata: metadata,
-		Main:     indexformat.Partition{Entries: entries},
-	}
-	state, err := ingest.PriorStateFromGeneration(stub)
-	if err != nil {
-		return nil, fmt.Errorf("store: rebuild reusable identities for session %s generation %s: %w; no candidate was produced; the committed generation stays active", sessionID, generationID, err)
 	}
 	prior.Aliases = state
 	return prior, nil
@@ -300,11 +357,13 @@ func serializedMetadataToUnified(gen GenerationRecord, children GenerationChildr
 	return metadata, nil
 }
 
-// readSessionParentOnConn reads the durable parent target cache: the
-// started_by target when it names a stored session, else NULL.
-func readSessionParentOnConn(conn *sqlite.Conn, sessionID schema.SessionID) *schema.SessionID {
+// readSessionParentOnConn reads the session-level logical parent answer for the
+// prior document: the rendering of the parent rule, not the raw cache. It
+// returns the statement's error so a failed read surfaces instead of
+// masquerading as a nil the rule would treat as "no parent".
+func readSessionParentOnConn(conn *sqlite.Conn, sessionID schema.SessionID) (*schema.SessionID, error) {
 	var parent *schema.SessionID
-	_ = sqlitex.Execute(conn, `SELECT parent_id FROM sessions WHERE session_id = ?`, &sqlitex.ExecOptions{
+	if err := sqlitex.Execute(conn, `SELECT `+LogicalParentSQL("s")+` FROM sessions s WHERE s.session_id = ?`, &sqlitex.ExecOptions{
 		Args: []any{string(sessionID)},
 		ResultFunc: func(stmt *sqlite.Stmt) error {
 			if stmt.ColumnType(0) != sqlite.TypeNull {
@@ -313,8 +372,10 @@ func readSessionParentOnConn(conn *sqlite.Conn, sessionID schema.SessionID) *sch
 			}
 			return nil
 		},
-	})
-	return parent
+	}); err != nil {
+		return nil, fmt.Errorf("store: read the logical parent of session %s while rebuilding its prior document: %w; no prior evidence was produced; restore database access and retry", sessionID, err)
+	}
+	return parent, nil
 }
 
 // readHarmonizedMainEntriesOnConn hydrates the active generation's main
@@ -334,8 +395,8 @@ func readHarmonizedMainEntriesOnConn(conn *sqlite.Conn, sessionID schema.Session
 	return entries, nil
 }
 
-func readGenerationPriorOnConn(conn *sqlite.Conn, sessionID schema.SessionID, generationID string) (*ingest.NativeGenerationPrior, error) {
-	prior := &ingest.NativeGenerationPrior{
+func readGenerationPriorOnConn(conn *sqlite.Conn, sessionID schema.SessionID, generationID string) (*ingest.GenerationPrior, error) {
+	prior := &ingest.GenerationPrior{
 		GenerationID: generationID,
 		Aliases:      ingest.NewProjectionPriorState(),
 	}

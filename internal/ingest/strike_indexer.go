@@ -65,15 +65,15 @@ func (i *StrikeIndexer) IndexTranscriptBytes(_ context.Context, session Discover
 }
 
 var _ VersionedTranscriptIndexer = (*StrikeIndexer)(nil)
-var _ RetainedContentCapturer = (*StrikeIndexer)(nil)
+var _ StoredContentCapturer = (*StrikeIndexer)(nil)
 
-// CaptureRetainedContent reports the retained Strike transcript's own
+// CaptureStoredContent reports the retained Strike transcript's own
 // completeness. Ingest removes oversized records before the artifact is
 // written (filterStrikeOversizedRecords) and records that in the metadata
-// diagnostics, so a retained artifact carrying that mark is known to omit
+// diagnostics, so a stored artifact carrying that mark is known to omit
 // rows: it is captured as incomplete, never certified. A missing metadata
 // sidecar does not omit conversation rows and does not affect completeness.
-func (i *StrikeIndexer) CaptureRetainedContent(ctx context.Context, session DiscoveredSession) (ContentCaptureResult, error) {
+func (i *StrikeIndexer) CaptureStoredContent(ctx context.Context, session DiscoveredSession) (ContentCaptureResult, error) {
 	if err := ctx.Err(); err != nil {
 		return ContentCaptureResult{}, err
 	}
@@ -107,7 +107,7 @@ func (i *StrikeIndexer) IndexTranscriptResult(ctx context.Context, session Disco
 	return i.IndexTranscriptBytesResult(ctx, session, data)
 }
 
-// IndexTranscriptBytesResult verifies retained bytes, not native retention completeness.
+// IndexTranscriptBytesResult verifies stored bytes, not native retention completeness.
 func (i *StrikeIndexer) IndexTranscriptBytesResult(ctx context.Context, session DiscoveredSession, data []byte) (indexformat.Result, error) {
 	completion := &indexCompletion{ctx: ctx, session: session}
 	entries, err := i.parseWithCompletion(session.SessionID, data, completion)

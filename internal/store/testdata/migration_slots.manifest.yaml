@@ -65,6 +65,7 @@ requiredNames:
   - v64-ingest-run-outcomes
   - v65-claude-identity-proof
   - v66-session-thinking-level
+  - v67-latest-attempt-pointer
 requiredGuardNames:
   - deleted-required-slot
   - shared-needle

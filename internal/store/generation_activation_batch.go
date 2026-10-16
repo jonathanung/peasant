@@ -137,6 +137,13 @@ func (s *Store) ActivateGenerationBatch(ctx context.Context, activations []Gener
 		if commits[j].Err != nil {
 			continue
 		}
+		if commits[j].LatestAttemptPreview {
+			// A latest-attempt preview takes the Skipped-style position: the batch
+			// skips the post-commit seam and the converted-mirror pass for this
+			// item, because the active authority was not replaced.
+			results[i].Outcome.Disposition = ingest.ActivationLatestAttemptPreview
+			continue
+		}
 		results[i].Outcome.Disposition = ingest.ActivationCommittedNow
 		if commits[j].Skipped {
 			results[i].Outcome.Disposition = ingest.ActivationAlreadyCommitted

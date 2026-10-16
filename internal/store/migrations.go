@@ -268,6 +268,10 @@ var migrationV24 = createSessionCommands + ";\n" +
 // catalog, the mutable stats row, and the unified search store, with the
 // stats and sweep backfills. See schema_v62.go.
 
+// migrationV66 adds the session thinking-level columns. See schema_v66.go.
+// migrationV67 adds the latest-attempt pointer columns to sessions.
+// See schema_v67.go.
+
 // dbSchema is the sqlitemigration schema applied on Open().
 var dbSchema = sqlitemigration.Schema{
 	Migrations: []string{
@@ -337,6 +341,7 @@ var dbSchema = sqlitemigration.Schema{
 		migrationV64,
 		migrationV65,
 		migrationV66,
+		migrationV67,
 	},
 	// V16 rebuilds annotation tables with new FKs; disable FK checking during
 	// the migration transaction so renamed/recreated tables don't cause violations.
@@ -385,7 +390,7 @@ var dbSchema = sqlitemigration.Schema{
 		nil,                        // V52: full transcript content
 		{DisableForeignKeys: true}, // V53: widen the two harness CHECK mirrors
 		nil,                        // V54: nullable actual index representation evidence
-		nil,                        // V55: retained adapter and artifact evidence
+		nil,                        // V55: stored adapter and artifact evidence
 		nil,                        // V56: nullable consumed index input evidence
 		nil,                        // V57: nullable metrics input/output evidence
 		nil,                        // V58: retained annotation retirement
@@ -397,5 +402,6 @@ var dbSchema = sqlitemigration.Schema{
 		nil,                        // V64: payload-free per-run outcome ledger
 		nil,                        // V65: local Claude structural identity proof
 		nil,                        // V66: ALTER TABLE ADD COLUMN sessions.thinking_level + thinking_level_raw + thinking_level_history (no FKs)
+		nil,                        // V67: latest-attempt pointer columns (additive, no backfill)
 	},
 }

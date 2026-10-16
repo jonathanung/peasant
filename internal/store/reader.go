@@ -149,6 +149,35 @@ type SessionListFilter struct {
 // ---------------------------------------------------------------------------
 
 const (
+	// sqlDashboardAggregates is the dashboard aggregate query.
+	sqlDashboardAggregates = `SELECT
+    COALESCE(SUM(session_count), 0),
+    COALESCE(SUM(tokens_total), 0),
+    CASE WHEN COUNT(*) = 0 THEN 0.0
+         ELSE SUM(avg_duration_ms * session_count) / SUM(session_count)
+    END,
+    CASE WHEN COUNT(*) = 0 THEN 0.0
+         ELSE SUM(avg_turns * session_count) / SUM(session_count)
+    END,
+    COALESCE(SUM(tool_call_count), 0)
+FROM daily_summary`
+
+	sqlHarnessCounts = `SELECT model_harness, SUM(session_count)
+FROM daily_summary_harness
+GROUP BY model_harness`
+
+	sqlDailySummaries = `SELECT
+    date_utc, session_count, tokens_in, tokens_out, tokens_total,
+    avg_duration_ms, avg_turns, tool_call_count
+FROM daily_summary
+ORDER BY date_utc DESC`
+)
+
+// The list, row and reverse-filter statements render the logical-parent rule
+// instead of reading the availability cache, so every list surface answers the
+// same parent the accessor answers. They are vars, not consts, because the
+// rendering is spliced in.
+var (
 	// sqlAllSessions is the base query joining sessions, session_metrics, projects, host_slugs.
 	// Column order: session_id(0), model_harness(1), model_id(2), host_slug(3),
 	// project_hash(4), project_display_name(5), start_ms(6), end_ms(7), git_branch(8),
@@ -171,6 +200,10 @@ const (
 	// from the captured stats row; sessions without one keep the legacy
 	// metrics columns. Input tokens stay on the analysis record everywhere:
 	// they are peak context usage, not the harness-reported total.
+	//
+	// Column 29 is the logical-parent rule, not the raw cache: a child whose
+	// generation carries started_by evidence answers its target even while the
+	// availability cache is NULL.
 	sqlAllSessions = `SELECT
     s.session_id, s.model_harness, s.model_id, COALESCE(h.host_slug, s.opaque_host_id),
     s.project_hash, COALESCE(p.canonical_cwd, p.project_hash), s.start_ms, s.end_ms,
@@ -186,7 +219,7 @@ const (
     m.retry_loops, m.retry_tokens_wasted, m.within_session_reverts,
     m.signal_density, m.spec_quality_score, m.exploration_ratio,
     m.scope_breadth, m.discovery_turns,
-    s.parent_id,
+    ` + LogicalParentSQL("s") + `,
     p.canonical_remote,
     COALESCE(s.git_worktree, ''),
     s.session_origin,
@@ -200,28 +233,79 @@ LEFT JOIN session_captured_stats c ON c.session_id = s.session_id`
 
 	sqlSessionByID = sqlAllSessions + ` WHERE s.session_id = ?`
 
-	// sqlSessionDetailByID extends sqlAllSessions with extra columns for the detail view.
-	// Columns 0-36: same as sqlAllSessions (scanned by scanSessionRow), including
-	//               column 33 s.indexed_at and columns 34-36 the thinking level.
-	// Column 37: h.git_remote (nullable, from host_slugs JOIN on opaque_id)
-	// Column 38: s.pushed_at (nullable)
-	// Column 39: p.canonical_cwd (project working dir, replaces project_path)
-	sqlSessionDetailByID = `SELECT
+	// sqlChildSessions is the reverse filter: the children of one logical
+	// parent. It embeds the SAME rendering as every other parent answer, so the
+	// filter can never answer a parent the accessor would not. The plan is a
+	// bounded scan of sessions (a local table this read already touches) plus
+	// ONE correlated probe of session_relationship_evidence per row; the
+	// withdrawn two-arm OR form measured worse (two probes, and a scan of the
+	// evidence autoindex rather than a seek), so no index claim is made here.
+	sqlChildSessions = `SELECT s.session_id, s.start_ms, COALESCE(p.canonical_cwd, p.project_hash), COALESCE(p.canonical_remote, '')
+FROM sessions s
+JOIN projects p ON s.project_hash = p.project_hash
+WHERE ` + LogicalParentSQL("s") + ` = ?
+ORDER BY s.start_ms ASC`
+)
+
+// sqlSessionDetailByID extends sqlAllSessions with extra columns for the detail
+// view. Columns 0-36 are the sqlAllSessions shape (scanned by scanSessionRow),
+// including column 33 s.indexed_at and columns 34-36 the thinking level;
+// column 37 is h.git_remote (nullable, from the host_slugs JOIN on opaque_id);
+// column 38 is s.pushed_at (nullable); and column 39 is p.canonical_cwd (the
+// project working dir).
+var sqlSessionDetailByID = sqlSessionDetailByIDQuery(false)
+
+// sqlSessionDetailByIDLatestAttempt is the available-mode detail row for a session
+// that has a latest attempt. Its count columns resolve the latest
+// attempt's own producer stats document instead of the active authority's
+// captured stats row, so an available preview reports the latest attempt's
+// counts. Every other detail read uses sqlSessionDetailByID and keeps the
+// active authority's counts: the substitution is scoped to this one query and
+// never reaches a full, export or publication read of the same row.
+var sqlSessionDetailByIDLatestAttempt = sqlSessionDetailByIDQuery(true)
+
+// sqlSessionDetailByIDQuery builds the extended detail row. latestAttemptCounts
+// selects the available-mode count resolution described above.
+func sqlSessionDetailByIDQuery(latestAttemptCounts bool) string {
+	// The authority expressions are the dual-path CASE the stats drop guard
+	// recognizes: a managed active generation reads the captured stats row, and
+	// every other session reads the legacy analysis record.
+	turnAuthority := "CASE WHEN s.active_generation_id IS NOT NULL THEN c.turn_count ELSE m.turn_count END"
+	toolAuthority := "CASE WHEN s.active_generation_id IS NOT NULL THEN c.tool_call_count ELSE m.tool_calls END"
+	outAuthority := "CASE WHEN s.active_generation_id IS NOT NULL THEN c.tokens_out ELSE m.output_tokens END"
+	durationAuthority := "CASE WHEN s.active_generation_id IS NOT NULL THEN CAST(c.duration_ms AS REAL) / 60000.0 ELSE m.duration_minutes END"
+	latestAttemptExpr := func(key, fallback string) string {
+		if !latestAttemptCounts {
+			return fallback
+		}
+		return "CASE WHEN s.latest_attempt_generation_id IS NOT NULL THEN json_extract(s.latest_attempt_stats_json,'$." + key + "') ELSE " + fallback + " END"
+	}
+	turnCount := latestAttemptExpr("turnCount", turnAuthority)
+	toolCalls := latestAttemptExpr("toolCallCount", toolAuthority)
+	tokensOut := latestAttemptExpr("tokensOut", outAuthority)
+	// The latest attempt's producer stats record the attempt duration in
+	// milliseconds while this detail column carries minutes, so the
+	// latest-attempt branch converts exactly like the authority branch beside it.
+	duration := durationAuthority
+	if latestAttemptCounts {
+		duration = "CASE WHEN s.latest_attempt_generation_id IS NOT NULL THEN CAST(json_extract(s.latest_attempt_stats_json,'$.durationMs') AS REAL) / 60000.0 ELSE " + durationAuthority + " END"
+	}
+	return `SELECT
     s.session_id, s.model_harness, s.model_id, COALESCE(h.host_slug, s.opaque_host_id),
     s.project_hash, COALESCE(p.canonical_cwd, p.project_hash), s.start_ms, s.end_ms,
     s.git_branch, s.tool_version,
-    CASE WHEN s.active_generation_id IS NOT NULL THEN c.turn_count ELSE m.turn_count END,
-    CASE WHEN s.active_generation_id IS NOT NULL THEN c.tool_call_count ELSE m.tool_calls END,
+    ` + turnCount + `,
+    ` + toolCalls + `,
     m.input_tokens,
-    CASE WHEN s.active_generation_id IS NOT NULL THEN c.tokens_out ELSE m.output_tokens END,
-    COALESCE(m.input_tokens, 0) + COALESCE(CASE WHEN s.active_generation_id IS NOT NULL THEN c.tokens_out ELSE m.output_tokens END, 0),
-    CASE WHEN s.active_generation_id IS NOT NULL THEN CAST(c.duration_ms AS REAL) / 60000.0 ELSE m.duration_minutes END,
+    ` + tokensOut + `,
+    COALESCE(m.input_tokens, 0) + COALESCE(` + tokensOut + `, 0),
+    ` + duration + `,
     m.title, m.outcome, m.scope,
     m.files_touched, m.lines_changed,
     m.retry_loops, m.retry_tokens_wasted, m.within_session_reverts,
     m.signal_density, m.spec_quality_score, m.exploration_ratio,
     m.scope_breadth, m.discovery_turns,
-    s.parent_id,
+    ` + LogicalParentSQL("s") + `,
     p.canonical_remote,
     COALESCE(s.git_worktree, ''),
     s.session_origin,
@@ -234,35 +318,7 @@ JOIN projects p ON s.project_hash = p.project_hash
 LEFT JOIN host_slugs h ON s.opaque_host_id = h.opaque_id
 LEFT JOIN session_captured_stats c ON c.session_id = s.session_id
 WHERE s.session_id = ?`
-
-	sqlDashboardAggregates = `SELECT
-    COALESCE(SUM(session_count), 0),
-    COALESCE(SUM(tokens_total), 0),
-    CASE WHEN COUNT(*) = 0 THEN 0.0
-         ELSE SUM(avg_duration_ms * session_count) / SUM(session_count)
-    END,
-    CASE WHEN COUNT(*) = 0 THEN 0.0
-         ELSE SUM(avg_turns * session_count) / SUM(session_count)
-    END,
-    COALESCE(SUM(tool_call_count), 0)
-FROM daily_summary`
-
-	sqlHarnessCounts = `SELECT model_harness, SUM(session_count)
-FROM daily_summary_harness
-GROUP BY model_harness`
-
-	sqlDailySummaries = `SELECT
-    date_utc, session_count, tokens_in, tokens_out, tokens_total,
-    avg_duration_ms, avg_turns, tool_call_count
-FROM daily_summary
-ORDER BY date_utc DESC`
-
-	sqlChildSessions = `SELECT s.session_id, s.start_ms, COALESCE(p.canonical_cwd, p.project_hash), COALESCE(p.canonical_remote, '')
-FROM sessions s
-JOIN projects p ON s.project_hash = p.project_hash
-WHERE s.parent_id = ?
-ORDER BY s.start_ms ASC`
-)
+}
 
 // ChildSessionRow is a lightweight row for child (subagent) session references.
 type ChildSessionRow struct {
@@ -508,8 +564,20 @@ func (s *Store) SessionDetailByID(ctx context.Context, sessionID string) (*Sessi
 }
 
 func sessionDetailByIDOnConn(conn *sqlite.Conn, sessionID string) (*SessionDetailRow, error) {
+	return sessionDetailByIDOnConnMode(conn, sessionID, false)
+}
+
+// sessionDetailByIDOnConnMode reads the extended detail row. latestAttemptCounts
+// selects the available-mode variant whose count columns resolve the latest
+// attempt's own producer stats; it is set only by the available read
+// of a session that actually has an attempt.
+func sessionDetailByIDOnConnMode(conn *sqlite.Conn, sessionID string, latestAttemptCounts bool) (*SessionDetailRow, error) {
+	query := sqlSessionDetailByID
+	if latestAttemptCounts {
+		query = sqlSessionDetailByIDLatestAttempt
+	}
 	var row *SessionDetailRow
-	err := sqlitex.ExecuteTransient(conn, sqlSessionDetailByID, &sqlitex.ExecOptions{
+	err := sqlitex.ExecuteTransient(conn, query, &sqlitex.ExecOptions{
 		Args: []any{sessionID},
 		ResultFunc: func(stmt *sqlite.Stmt) error {
 			r := scanSessionDetailRow(stmt)
@@ -697,6 +765,10 @@ func (s *Store) SessionSourceInfo(ctx context.Context, sessionID string) (*Sessi
 // BulkLookupSessionLocations returns host_slug and parent_id for all given
 // session IDs in a single query. Sessions not found in the DB are omitted
 // from the returned map (not an error).
+//
+// As with LookupSessionLocation, the parent_id is the availability cache, not
+// the parent answer: it exists so callers can locate on-disk directories. A
+// consumer that answers a parent question reads the parent rule instead.
 func (s *Store) BulkLookupSessionLocations(ctx context.Context, sessionIDs []ingest.SessionID) (map[ingest.SessionID]ingest.SessionLocation, error) {
 	if len(sessionIDs) == 0 {
 		return map[ingest.SessionID]ingest.SessionLocation{}, nil
@@ -1311,7 +1383,7 @@ func scanSessionRow(stmt *sqlite.Stmt) SessionRow {
 		row.DiscoveryTurns = stmt.ColumnInt(28)
 	}
 
-	// Column 29: s.parent_id (nullable — set for subagent sessions)
+	// Column 29: the logical parent (nullable — set for subagent sessions).
 	if stmt.ColumnType(29) != sqlite.TypeNull {
 		v := stmt.ColumnText(29)
 		row.ParentID = &v
