@@ -22,8 +22,17 @@ func (c *VillageClient) readObservationJSON(ctx context.Context, operation, path
 	if err != nil {
 		return fmt.Errorf("%s: construct metadata request: %w; no observations changed; correct the Village URL and retry", operation, err)
 	}
+	if req.URL.Host == "" || (req.URL.Scheme != "http" && req.URL.Scheme != "https") {
+		return fmt.Errorf("%s: metadata request has no supported absolute HTTP URL; no Village request attempted; correct the selected Village URL before retrying", operation)
+	}
 	client := *c.httpClient
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("%s: metadata request cancelled before HTTP attempt: %w; prior observations retained; retry explicitly", operation, err)
+	}
+	if c.beforeRequest != nil {
+		c.beforeRequest()
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("%s: read Village metadata: %w; prior observations remain dated; verify connection and retry explicitly", operation, err)
