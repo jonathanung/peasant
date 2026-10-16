@@ -1,0 +1,109 @@
+requiredNames:
+  - metadata-write-fails
+  - index-project-fails
+  - replacement-before-switch
+  - replacement-after-switch-before-index
+  - restart-abandoned-staging
+  - forced-repull-repair
+  - backup-rename-completed-before-interruption
+  - journal-published-before-interruption
+  - index-committed-before-interruption
+  - backup-cleanup-interrupted
+  - journal-cleanup-interrupted
+  - same-hash-new-policy
+  - same-etag-new-name
+  - downloaded-same-hash-new-metadata
+  - metadata-only-write-fails
+  - replacement-before-backup
+  - forced-repull-damaged-previous
+  - metadata-before-atomic-replace
+  - metadata-after-atomic-replace
+  - metadata-backup-copy-interrupted
+  - metadata-backup-published-before-interruption
+  - metadata-journal-cleanup-interrupted
+cases:
+  - name: metadata-write-fails
+    operation: write
+    target: metadata
+  - name: index-project-fails
+    operation: index
+    target: index
+  - name: replacement-before-switch
+    operation: rename
+    target: publish
+  - name: replacement-after-switch-before-index
+    operation: rename
+    target: publish
+    after: true
+  - name: restart-abandoned-staging
+    operation: rename
+    target: journal
+  - name: forced-repull-repair
+    operation: index
+    target: index
+    forceRecovery: true
+  - name: backup-rename-completed-before-interruption
+    operation: rename
+    target: backup
+    after: true
+  - name: journal-published-before-interruption
+    operation: rename
+    target: journal
+    after: true
+  - name: index-committed-before-interruption
+    operation: index
+    target: index
+    after: true
+  - name: backup-cleanup-interrupted
+    operation: removeAll
+    target: backup
+  - name: journal-cleanup-interrupted
+    operation: remove
+    target: journal
+  - name: same-hash-new-policy
+    mode: hash
+    operation: index
+    target: index
+  - name: same-etag-new-name
+    mode: etag
+    operation: index
+    target: index
+  - name: downloaded-same-hash-new-metadata
+    mode: download
+    operation: index
+    target: index
+  - name: metadata-only-write-fails
+    mode: hash
+    operation: write
+    target: metadata
+  - name: replacement-before-backup
+    operation: rename
+    target: backup
+  - name: forced-repull-damaged-previous
+    operation: index
+    target: index
+    corruptPrevious: true
+    forceRecovery: true
+  - name: metadata-before-atomic-replace
+    mode: hash
+    operation: rename
+    target: metadataPublish
+  - name: metadata-after-atomic-replace
+    mode: hash
+    operation: rename
+    target: metadataPublish
+    after: true
+  - name: metadata-backup-copy-interrupted
+    mode: hash
+    operation: copy
+    target: metadataBackupTemp
+    after: true
+  - name: metadata-backup-published-before-interruption
+    mode: hash
+    operation: rename
+    target: metadataBackup
+    after: true
+  - name: metadata-journal-cleanup-interrupted
+    mode: hash
+    operation: remove
+    target: journal
