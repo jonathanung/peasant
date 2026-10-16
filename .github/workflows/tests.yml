@@ -780,6 +780,9 @@ jobs:
       - name: Run focused tests
         run: go test ./internal/defaults/... ./internal/config/... ./internal/proc/...
 
+      - name: Run credential commit guards
+        run: go test ./internal/auth/ -run 'TestCredential|TestNormalizeVillageURL|TestLogout|TestCancelledLogout|TestAlreadyCancelledLogout'
+
       # The Windows-specific behaviour this branch adds is named explicitly
       # instead of running these packages whole. internal/ingest has pre-existing
       # Windows failures unrelated to this work (80 at the time of writing, in the

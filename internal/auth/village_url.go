@@ -38,7 +38,9 @@ func NormalizeVillageURL(raw string) (string, error) {
 		}
 		port = strconv.Itoa(n)
 	}
-	if (u.Scheme == "https" && port == "443") || (u.Scheme == "http" && port == "80") {
+	defaultHTTPS := u.Scheme == "https" && port == "443"
+	defaultHTTP := u.Scheme == "http" && port == "80"
+	if defaultHTTPS || defaultHTTP {
 		port = ""
 	}
 	if ip != nil {
@@ -52,7 +54,9 @@ func NormalizeVillageURL(raw string) (string, error) {
 		u.Host = net.JoinHostPort(host, port)
 	}
 	basePath := strings.TrimRight(u.Path, "/")
-	if strings.Contains(basePath, "\\") || strings.Contains(basePath, "//") || (basePath != "" && path.Clean(basePath) != basePath) {
+	ambiguousPath := strings.Contains(basePath, "\\") || strings.Contains(basePath, "//")
+	uncleanPath := basePath != "" && path.Clean(basePath) != basePath
+	if ambiguousPath || uncleanPath {
 		return invalid()
 	}
 	// Encoded separators can be interpreted differently by proxies and routers.

@@ -40,6 +40,7 @@ Rules that keep the split reviewable:
 | Facility | unix | windows | Files |
 |----------|------|---------|-------|
 | Advisory file lock (session) | `flock(2)` | `LockFileEx` / `UnlockFileEx`, one-byte range | `internal/store/session_lock_{unix,windows}.go` |
+| Credential commit guard | `flock(2)` | `LockFileEx`, one-byte range, close releases | `internal/auth/credential_lock_{unix,windows}.go` |
 | Advisory file lock (shared package) | `flock(2)` | `LockFileEx` | `internal/filelock/flock_{unix,windows}.go` |
 | Directory fsync after a rename | `open(dir)` + `Sync` | no-op (no directory flush exists) | `internal/{auth,config,store}/syncdir_{unix,windows}.go` |
 | Background server detach | `Setsid` | `CREATE_NEW_PROCESS_GROUP \| DETACHED_PROCESS` | `cmd/peasant/procattr_{unix,windows}.go` |

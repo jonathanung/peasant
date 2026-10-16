@@ -118,3 +118,20 @@ func TestCancelledLogoutStillClearsSelectedCredentials(t *testing.T) {
 		t.Fatalf("cancelled logout retained credentials: %v", err)
 	}
 }
+
+func TestAlreadyCancelledLogoutStillClearsSelectedCredentials(t *testing.T) {
+	home := t.TempDir()
+	creds := observationCredentials()
+	if err := SaveCredentialsFrom(&creds, home); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := LogoutFrom(ctx, home); err == nil {
+		t.Fatal("cancelled remote revocation unexpectedly succeeded")
+	}
+	selected, err := LoadCredentialsFrom(home)
+	if err != nil || selected != nil {
+		t.Fatalf("cancelled logout retained credentials: %v", err)
+	}
+}

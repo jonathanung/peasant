@@ -19,7 +19,9 @@ func Logout(ctx context.Context) error {
 // LogoutFrom revokes and clears credentials only from the config directory
 // selected by xdgConfigHomeOverride.
 func LogoutFrom(ctx context.Context, xdgConfigHomeOverride string) error {
-	snapshot, err := CaptureCredentials(ctx, xdgConfigHomeOverride)
+	// Local sign-out still completes when remote revocation is cancelled. The
+	// credential lock has its own bounded wait; network work uses caller ctx.
+	snapshot, err := CaptureCredentials(context.WithoutCancel(ctx), xdgConfigHomeOverride)
 	if err != nil {
 		return fmt.Errorf("load credentials: %w", err)
 	}
