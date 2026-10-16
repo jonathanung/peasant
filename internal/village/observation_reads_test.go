@@ -7,9 +7,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/peasant-labs/schema"
 	"gopkg.in/yaml.v3"
@@ -19,13 +21,38 @@ import (
 var observationReadYAML []byte
 
 type observationReadFixture struct {
-	Name         string `yaml:"name"`
-	Method       string `yaml:"method"`
-	Path         string `yaml:"path"`
-	Body         string `yaml:"body"`
-	Status       int    `yaml:"status"`
-	PaddingBytes int    `yaml:"paddingBytes"`
-	Invalid      bool   `yaml:"invalid"`
+	Name             string                              `yaml:"name"`
+	Method           string                              `yaml:"method"`
+	Path             string                              `yaml:"path"`
+	Body             string                              `yaml:"body"`
+	Status           int                                 `yaml:"status"`
+	PaddingBytes     int                                 `yaml:"paddingBytes"`
+	Invalid          bool                                `yaml:"invalid"`
+	WantUser         *observationUserExpectation         `yaml:"wantUser"`
+	WantAssociations []observationAssociationExpectation `yaml:"wantAssociations"`
+	WantSubmissions  []observationSubmissionExpectation  `yaml:"wantSubmissions"`
+}
+
+type observationUserExpectation struct {
+	ID       schema.VillageUUID `yaml:"id"`
+	Username string             `yaml:"username"`
+}
+
+type observationAssociationExpectation struct {
+	ID              schema.VillageUUID `yaml:"id"`
+	Name            string             `yaml:"name"`
+	Description     *string            `yaml:"description"`
+	LinkedGithubOrg *string            `yaml:"linkedGithubOrg"`
+	SharedAt        time.Time          `yaml:"sharedAt"`
+}
+
+type observationSubmissionExpectation struct {
+	CollectiveID schema.VillageUUID        `yaml:"collectiveId"`
+	TranscriptID schema.TranscriptID       `yaml:"transcriptId"`
+	Title        *string                   `yaml:"title"`
+	EventNum     int32                     `yaml:"eventNum"`
+	Status       schema.VillageShareStatus `yaml:"status"`
+	RecordedAt   time.Time                 `yaml:"recordedAt"`
 }
 
 func loadObservationReadFixtures(t *testing.T) []observationReadFixture {
@@ -37,13 +64,42 @@ func loadObservationReadFixtures(t *testing.T) []observationReadFixture {
 		t.Fatal(err)
 	}
 	names := map[string]bool{}
+	statuses := map[schema.VillageShareStatus]bool{}
 	for _, fixture := range data.Cases {
 		if fixture.Name == "" || names[fixture.Name] {
 			t.Fatal("missing/duplicate observation fixture name")
 		}
 		names[fixture.Name] = true
+		if !fixture.Invalid {
+			switch fixture.Method {
+			case "user":
+				if fixture.WantUser == nil {
+					t.Fatalf("missing returned user expectation: %s", fixture.Name)
+				}
+			case "associations":
+				if fixture.WantAssociations == nil {
+					t.Fatalf("missing complete association expectation: %s", fixture.Name)
+				}
+			case "submissions":
+				if fixture.WantSubmissions == nil {
+					t.Fatalf("missing complete submission expectation: %s", fixture.Name)
+				}
+				for _, row := range fixture.WantSubmissions {
+					statuses[row.Status] = true
+				}
+			default:
+				t.Fatalf("unknown successful source method: %s", fixture.Method)
+			}
+		}
 	}
-	const required = "verified-stable-user-uuid username-without-stable-id-refused foreign-viewer-dedicated-associations-only known-empty-complete-associations missing-associations-not-empty null-associations-not-empty repeated-association-refused known-association-nondisclosure-preserves-status available-owned-pair-discovery cross-collective-pair-refused unknown-submission-status-refused null-discovery-not-complete complete-known-empty-discovery truncated-valid-json-prefix trailing-second-json-document-refused"
+	wantStatuses := map[schema.VillageShareStatus]bool{}
+	for _, status := range schema.AllVillageShareStatuses {
+		wantStatuses[status] = true
+	}
+	if !reflect.DeepEqual(statuses, wantStatuses) {
+		t.Fatalf("supported submission status membership = %v, want exact schema set %v", statuses, wantStatuses)
+	}
+	const required = "verified-stable-user-uuid username-without-stable-id-refused foreign-viewer-dedicated-associations-only known-empty-complete-associations missing-associations-not-empty null-associations-not-empty repeated-association-refused known-association-nondisclosure-preserves-status available-owned-pair-discovery approved-owned-pair-discovery rejected-owned-pair-discovery retracted-owned-pair-discovery revoked-owned-pair-discovery cross-collective-pair-refused unknown-submission-status-refused null-discovery-not-complete complete-known-empty-discovery truncated-valid-json-prefix trailing-second-json-document-refused"
 	for _, name := range strings.Fields(required) {
 		if !names[name] {
 			t.Fatalf("required fixture %s missing", name)
@@ -78,11 +134,44 @@ func TestObservationSourceCompleteReads(t *testing.T) {
 			var err error
 			switch fixture.Method {
 			case "user":
-				_, err = client.VerifyUser(context.Background())
+				var user schema.VillageUser
+				user, err = client.VerifyUser(context.Background())
+				if err == nil && fixture.WantUser != nil {
+					got := observationUserExpectation{ID: user.ID, Username: user.GithubUsername}
+					if got != *fixture.WantUser {
+						t.Fatalf("returned user = %#v, want %#v", got, *fixture.WantUser)
+					}
+				}
 			case "associations":
-				_, err = client.ReadTranscriptCollectives(context.Background(), schema.TranscriptID("22222222-2222-4222-8222-222222222222"))
+				var rows []schema.VillageTranscriptCollective
+				rows, err = client.ReadTranscriptCollectives(context.Background(), schema.TranscriptID("22222222-2222-4222-8222-222222222222"))
+				if err == nil {
+					if rows == nil {
+						t.Fatal("successful complete associations must be non-nil, including an empty set")
+					}
+					got := make([]observationAssociationExpectation, 0, len(rows))
+					for _, row := range rows {
+						got = append(got, observationAssociationExpectation{ID: row.ID, Name: row.Name, Description: row.Description, LinkedGithubOrg: row.LinkedGithubOrg, SharedAt: row.SharedAt})
+					}
+					if !reflect.DeepEqual(got, fixture.WantAssociations) {
+						t.Fatalf("complete returned associations = %#v, want %#v", got, fixture.WantAssociations)
+					}
+				}
 			case "submissions":
-				_, err = client.ReadOwnSubmissions(context.Background(), schema.VillageUUID("33333333-3333-4333-8333-333333333333"))
+				var rows []schema.VillageCollectiveSubmission
+				rows, err = client.ReadOwnSubmissions(context.Background(), schema.VillageUUID("33333333-3333-4333-8333-333333333333"))
+				if err == nil {
+					if rows == nil {
+						t.Fatal("successful complete submissions must be non-nil, including an empty set")
+					}
+					got := make([]observationSubmissionExpectation, 0, len(rows))
+					for _, row := range rows {
+						got = append(got, observationSubmissionExpectation{CollectiveID: row.GroupID, TranscriptID: row.TranscriptID, Title: row.Title, EventNum: row.EventNum, Status: row.Status, RecordedAt: row.RecordedAt})
+					}
+					if !reflect.DeepEqual(got, fixture.WantSubmissions) {
+						t.Fatalf("complete returned submissions = %#v, want %#v", got, fixture.WantSubmissions)
+					}
+				}
 			default:
 				t.Fatalf("unknown method %s", fixture.Method)
 			}

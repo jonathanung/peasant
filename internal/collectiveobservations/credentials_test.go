@@ -20,14 +20,23 @@ import (
 var credentialSelectionYAML []byte
 
 type credentialSelectionCase struct {
-	Name         string `yaml:"name"`
-	Online       bool   `yaml:"online"`
-	SavedUserID  string `yaml:"savedUserId"`
-	RemoteUserID string `yaml:"remoteUserId"`
-	Status       int    `yaml:"status"`
-	Rotate       bool   `yaml:"rotate"`
-	Invalid      bool   `yaml:"invalid"`
-	NoRequest    bool   `yaml:"noRequest"`
+	Name            string                          `yaml:"name"`
+	Online          bool                            `yaml:"online"`
+	SavedUserID     string                          `yaml:"savedUserId"`
+	RemoteUserID    string                          `yaml:"remoteUserId"`
+	Status          int                             `yaml:"status"`
+	Rotate          bool                            `yaml:"rotate"`
+	Invalid         bool                            `yaml:"invalid"`
+	NoRequest       bool                            `yaml:"noRequest"`
+	WantCredentials *credentialSelectionExpectation `yaml:"wantCredentials"`
+}
+
+type credentialSelectionExpectation struct {
+	APIKey      string `yaml:"apiKey"`
+	KeyID       string `yaml:"keyId"`
+	UserID      string `yaml:"userId"`
+	Username    string `yaml:"username"`
+	VillagePath string `yaml:"villagePath"`
 }
 
 func loadCredentialSelectionFixtures(t *testing.T) []credentialSelectionCase {
@@ -44,6 +53,9 @@ func loadCredentialSelectionFixtures(t *testing.T) []credentialSelectionCase {
 			t.Fatal("missing/duplicate credential fixture name")
 		}
 		names[fixture.Name] = true
+		if !fixture.Invalid && fixture.WantCredentials == nil {
+			t.Fatalf("missing selected credential expectation for %s", fixture.Name)
+		}
 	}
 	for _, required := range strings.Fields("offline-no-network online-stable-user-not-username username-reuse invalid-saved-stable-id authentication-refused credentials-rotated-during-authentication") {
 		if !names[required] {
@@ -83,13 +95,25 @@ func TestCredentialScopeSelection(t *testing.T) {
 			}
 			service := New(Dependencies{ConfigHome: home})
 			var err error
+			var snapshot auth.CredentialSnapshot
 			if fixture.Online {
-				_, err = service.AuthenticatedCredentials(context.Background())
+				snapshot, err = service.AuthenticatedCredentials(context.Background())
 			} else {
-				_, err = service.SelectedCredentials(context.Background())
+				snapshot, err = service.SelectedCredentials(context.Background())
 			}
 			if (err != nil) != fixture.Invalid {
 				t.Fatalf("invalid=%v err=%v", fixture.Invalid, err)
+			}
+			if err == nil {
+				expected := fixture.WantCredentials
+				want := auth.Credentials{APIKey: expected.APIKey, KeyID: expected.KeyID, UserID: expected.UserID, Username: expected.Username, VillageURL: server.URL + expected.VillagePath}
+				if snapshot.Credentials() != want {
+					t.Fatal("returned credentials do not match the exact selected profile")
+				}
+				committed := false
+				if err := snapshot.WithCurrent(context.Background(), func() error { committed = true; return nil }); err != nil || !committed {
+					t.Fatalf("selected snapshot did not execute its current-generation callback: committed=%v err=%v", committed, err)
+				}
 			}
 			if fixture.Rotate && !errors.Is(err, auth.ErrCredentialsChanged) {
 				t.Fatalf("credential generation was not checked after auth/me: %v", err)
