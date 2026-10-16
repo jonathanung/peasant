@@ -35,6 +35,12 @@ requiredNames:
   - metadata-backup-directory-sync-fails
   - metadata-publication-directory-sync-fails
   - metadata-moved-stage-directory-sync-fails
+  - replacement-new-annotation-index-recovery
+replacementAnnotations:
+  - hash: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+    id: replacement-annotation
+    authorUserId: foreign-replacement-author
+    authorUsername: replacement-author
 barrierOrder: [ancestor, stagedBlob, stagedMetadata, stagedManifest, journalFile, journalDirectory, publicationDirectory]
 cases:
   - name: metadata-write-fails
@@ -140,3 +146,4 @@ cases:
   - {name: metadata-backup-directory-sync-fails, mode: hash, operation: sync, target: metadataBackupDirectory}
   - {name: metadata-publication-directory-sync-fails, mode: hash, operation: sync, target: publicationDirectory, recoveryOnly: true}
   - {name: metadata-moved-stage-directory-sync-fails, mode: hash, operation: sync, target: metadataMovedStage, recoveryOnly: true}
+  - {name: replacement-new-annotation-index-recovery, operation: index, target: index, recoveryOnly: true}

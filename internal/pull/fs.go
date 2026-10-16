@@ -26,6 +26,9 @@ type FileSystem struct {
 
 var _ ingest.FileSystem = (*FileSystem)(nil)
 
+// NewFileSystem creates a lazy adapter. The root's parent is the existing data
+// anchor established by Store initialization; pull never creates that anchor or
+// requires read permission on unchanged configuration ancestors above it.
 func NewFileSystem(root string) *FileSystem {
 	abs, err := filepath.Abs(root)
 	return &FileSystem{root: abs, err: err}
@@ -66,67 +69,25 @@ func directoryChild(parent *os.Root, name string) (*os.Root, error) {
 	return child, nil
 }
 
-// createDirectory walks down from the first existing configured ancestor.
-// Mkdir is atomic; an existing path is accepted only after bounded validation.
+// The Store establishes the existing data anchor before constructing a pull.
+// Open it before creating the artifact root: unchanged configuration ancestors
+// need traversal permission, not directory-read permission. Atomic Mkdir plus
+// bounded validation accepts concurrent creators without an ownership census.
 func createDirectory(path string) error {
-	ancestor := filepath.Clean(path)
-	for {
-		_, err := os.Lstat(ancestor)
-		if err == nil {
-			break
-		}
-		if !errors.Is(err, fs.ErrNotExist) {
-			return err
-		}
-		parent := filepath.Dir(ancestor)
-		if parent == ancestor {
-			return err
-		}
-		ancestor = parent
+	root, err := os.OpenRoot(filepath.Dir(path))
+	if err != nil {
+		return fmt.Errorf("pull filesystem: open existing data anchor before artifact creation: %w; initialize the local Store and check data-directory access before retrying", err)
 	}
-	info, err := os.Lstat(ancestor)
+	defer root.Close()
+	name := filepath.Base(path)
+	if err := root.Mkdir(name, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
+		return err
+	}
+	child, err := directoryChild(root, name)
 	if err != nil {
 		return err
 	}
-	if ancestor != path && info.Mode()&os.ModeSymlink != 0 {
-		// A pre-existing configured ancestor (for example an XDG-home link) is
-		// trusted configuration. Links within the artifact root are never trusted.
-		info, err = os.Stat(ancestor)
-		if err != nil {
-			return err
-		}
-	}
-	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("pull filesystem: configured ancestor is not a real directory")
-	}
-	root, err := os.OpenRoot(ancestor)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = root.Close() }()
-	opened, err := root.Stat(".")
-	if err != nil || !os.SameFile(info, opened) {
-		return fmt.Errorf("pull filesystem: configured ancestor changed while opening")
-	}
-	rel, err := filepath.Rel(ancestor, path)
-	if err != nil {
-		return err
-	}
-	if rel == "." {
-		return nil
-	}
-	for _, name := range strings.Split(rel, string(filepath.Separator)) {
-		if err := root.Mkdir(name, 0o700); err != nil && !errors.Is(err, fs.ErrExist) {
-			return err
-		}
-		child, err := directoryChild(root, name)
-		if err != nil {
-			return err
-		}
-		_ = root.Close()
-		root = child
-	}
-	return nil
+	return child.Close()
 }
 
 func (f *FileSystem) open() (*os.Root, error) {
@@ -380,14 +341,14 @@ func (f *FileSystem) WalkDir(path string, fn fs.WalkDirFunc) error {
 	})
 }
 
-// Sync also accepts ancestors of the configured root: persisting a newly created
-// root entry requires flushing its existing parent, not merely the root itself.
+// Sync also accepts the established data anchor: persisting the artifact root
+// entry requires flushing that parent, never unrelated configuration ancestors.
 func (f *FileSystem) Sync(path string) error {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
-	if rel, err := filepath.Rel(abs, f.root); err == nil && filepath.IsLocal(rel) && abs != f.root {
+	if abs == filepath.Dir(f.root) {
 		return syncContentPath(abs)
 	}
 	parent, name, err := f.parent(path)

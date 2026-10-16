@@ -41,5 +41,9 @@ File data and directory publication barriers are flushed on supported local
 filesystems. Windows flushes file data but has no portable directory-flush API
 through Go's `os.File`; process-interruption recovery still applies. Filesystem
 or hardware durability guarantees remain platform-dependent.
-First-pull creation flushes the ancestor entry chain as well, including any
-directories created by lock setup, before committing the derived index.
+First-pull creation flushes the entry chain through the existing Store data
+directory, including directories created by lock setup, before committing the
+derived index. That established data directory is opened before creating the
+pull namespace. Unchanged configuration ancestors above it need traversal
+permission only; a search-only ancestor does not prevent a valid pull. Every
+required namespace barrier still fails the command if it cannot be flushed.

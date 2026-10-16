@@ -194,6 +194,37 @@ func loadContentInstallFixtures(t *testing.T) []installCase {
 	return corpus.Cases
 }
 
+func loadReplacementAnnotations(t *testing.T) []schema.PullAnnotation {
+	t.Helper()
+	var corpus struct {
+		Annotations []struct {
+			Hash           string `yaml:"hash"`
+			ID             string `yaml:"id"`
+			AuthorUserID   string `yaml:"authorUserId"`
+			AuthorUsername string `yaml:"authorUsername"`
+		} `yaml:"replacementAnnotations"`
+	}
+	if err := yaml.Unmarshal(contentInstallYAML, &corpus); err != nil {
+		t.Fatal(err)
+	}
+	if len(corpus.Annotations) == 0 {
+		t.Fatal("replacement annotation fixture must introduce new foreign evidence")
+	}
+	annotations := make([]schema.PullAnnotation, 0, len(corpus.Annotations))
+	for _, fixture := range corpus.Annotations {
+		if fixture.Hash == "" || fixture.ID == "" ||
+			fixture.AuthorUserID == "" || fixture.AuthorUsername == "" {
+			t.Fatal("incomplete replacement annotation fixture")
+		}
+		a := foreignAnnotation(fixture.Hash)
+		a.ID = fixture.ID
+		a.AuthorUserID = fixture.AuthorUserID
+		a.AuthorUsername = fixture.AuthorUsername
+		annotations = append(annotations, a)
+	}
+	return annotations
+}
+
 var errInstallInjected = errors.New("injected filesystem/index interruption")
 
 // This decorator faults actual OS operations, never the pipeline under test.
@@ -409,6 +440,19 @@ func TestContentInstallRestartRecovery(t *testing.T) {
 				reader.ContentBody = []byte(`{"updated":true}`)
 				reader.ContentETag = quotedETag(schema.ComputeTranscriptHash(reader.ContentBody))
 				reader.Meta.ContentHash = schema.ComputeTranscriptHash(reader.ContentBody)
+				for _, annotation := range loadReplacementAnnotations(t) {
+					initial, err := db.ListPulledAnnotationHashesByTranscript(ctx, testutil.TestVillageHost)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for _, hash := range initial[ref.ID] {
+						if annotation.ContentHash != nil && hash == *annotation.ContentHash {
+							t.Fatal("replacement fixture must be absent from the initial annotation projection")
+						}
+					}
+					reader.Annotations = append(reader.Annotations, annotation)
+				}
+				reader.Meta.AnnotationCount = len(reader.Annotations)
 			}
 			switch fixture.Mode {
 			case "etag":
@@ -493,6 +537,7 @@ func TestContentInstallRestartRecovery(t *testing.T) {
 			retry.Meta = reader.Meta
 			retry.ContentBody = reader.ContentBody
 			retry.ContentETag = reader.ContentETag
+			retry.Annotations = reader.Annotations
 			if fixture.RecoveryOnly {
 				metaCopy := *reader.Meta
 				metaCopy.ContentHash = schema.ComputeTranscriptHash(reader.ContentBody)

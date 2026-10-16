@@ -69,23 +69,32 @@ func (p *Pipeline) syncInstallMove(root, final string) error {
 	return errors.Join(p.syncInstall(root), p.syncInstall(filepath.Dir(final)))
 }
 
-// Flush the directory entry chain, including ancestors lock setup may just have
-// created. Flushing an existing directory's parent is safe and avoids relying on
-// a racy pre-creation existence census across processes. Path depth bounds work.
+// Flush entries beneath the established data anchor, including directories lock
+// setup may have created. Flush every parent in that bounded namespace, whether
+// this process or a peer created it; no racy creation/ownership census is needed.
+// Unchanged ancestors above the Store's data anchor require traversal only.
 func (p *Pipeline) syncInstallAncestors(path string) error {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
+	configuredRoot, err := filepath.Abs(p.pullsRoot)
+	if err != nil {
+		return err
+	}
+	anchor := filepath.Dir(configuredRoot)
+	rel, err := filepath.Rel(anchor, abs)
+	if err != nil || !filepath.IsLocal(rel) {
+		return fmt.Errorf("pull installation: creation barriers must remain beneath the established data anchor")
+	}
 	for {
 		if err := p.syncInstall(abs); err != nil {
 			return err
 		}
-		parent := filepath.Dir(abs)
-		if parent == abs {
+		if abs == anchor {
 			return nil
 		}
-		abs = parent
+		abs = filepath.Dir(abs)
 	}
 }
 

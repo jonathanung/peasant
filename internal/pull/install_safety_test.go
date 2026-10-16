@@ -17,6 +17,8 @@ import (
 	"github.com/peasant-labs/peasant/internal/store"
 	"github.com/peasant-labs/peasant/internal/store/storetest"
 	"github.com/peasant-labs/peasant/internal/testutil"
+	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite"
+	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite/sqlitex"
 	"github.com/peasant-labs/schema"
 	"gopkg.in/yaml.v3"
 )
@@ -141,6 +143,47 @@ func assertInstalledContent(t *testing.T, db *store.Store, final string, reader 
 	if !reflect.DeepEqual(actual, expectedHashes) {
 		t.Fatalf("annotation index differs: %v != %v", actual, expectedHashes)
 	}
+	projection := readAnnotationProjection(t, filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(canonical))), "index.db"))
+	for _, a := range reader.Annotations {
+		payload, err := json.Marshal(a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actual, ok := projection[manifest.VillageHost+"|"+*a.ContentHash]
+		expected := store.PulledAnnotationRow{VillageHost: manifest.VillageHost, ContentHash: *a.ContentHash, TranscriptID: manifest.TranscriptID, LocalSessionID: manifest.LocalSessionID, AuthorUserID: a.AuthorUserID, AuthorUsername: a.AuthorUsername, Payload: string(payload), PulledAt: manifest.PulledAt}
+		if !ok || !reflect.DeepEqual(actual, expected) {
+			t.Fatalf("stored annotation payload/authorship differs for %s: actual=%+v expected=%+v", *a.ContentHash, actual, expected)
+		}
+	}
+}
+
+// Read the real persisted projection without extending production Store APIs
+// merely for a test. The caller supplies only its golden-copy sandbox database.
+func readAnnotationProjection(t *testing.T, path string) map[string]store.PulledAnnotationRow {
+	t.Helper()
+	conn, err := sqlite.OpenConn(path, sqlite.OpenReadOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	rows := map[string]store.PulledAnnotationRow{}
+	err = sqlitex.Execute(conn, `SELECT village_host,content_hash,transcript_id,COALESCE(local_session_id,''),author_user_id,author_username,payload,pulled_at,retracted_at FROM pulled_annotations ORDER BY village_host,content_hash`, &sqlitex.ExecOptions{ResultFunc: func(stmt *sqlite.Stmt) error {
+		id, err := schema.NewTranscriptID(stmt.ColumnText(2))
+		if err != nil {
+			return err
+		}
+		row := store.PulledAnnotationRow{VillageHost: stmt.ColumnText(0), ContentHash: stmt.ColumnText(1), TranscriptID: id, LocalSessionID: stmt.ColumnText(3), AuthorUserID: stmt.ColumnText(4), AuthorUsername: stmt.ColumnText(5), Payload: stmt.ColumnText(6), PulledAt: stmt.ColumnInt64(7)}
+		if stmt.ColumnType(8) != sqlite.TypeNull {
+			value := stmt.ColumnInt64(8)
+			row.RetractedAt = &value
+		}
+		rows[row.VillageHost+"|"+row.ContentHash] = row
+		return nil
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rows
 }
 
 // Snapshot no-follow file/link evidence, not targets outside the test namespace.
@@ -336,6 +379,8 @@ func TestContentInstallSafety(t *testing.T) {
 				return
 			}
 			switch c.Target {
+			case "version":
+				journal["version"] = json.RawMessage(`99`)
 			case "corrupt":
 				data = []byte("{broken")
 			case "digest":
@@ -439,6 +484,7 @@ func TestContentInstallSafety(t *testing.T) {
 				t.Fatal(err)
 			}
 			before := snapshotInstallTree(t, pulls)
+			beforeAnnotations := readAnnotationProjection(t, filepath.Join(filepath.Dir(pulls), "index.db"))
 			oldRow, err := db.GetPulledTranscript(ctx, testutil.TestVillageHost, ref.ID)
 			if err != nil {
 				t.Fatal(err)
@@ -448,6 +494,9 @@ func TestContentInstallSafety(t *testing.T) {
 			}
 			if !reflect.DeepEqual(before, snapshotInstallTree(t, pulls)) {
 				t.Fatal("refused pending installation changed/deleted files")
+			}
+			if !reflect.DeepEqual(beforeAnnotations, readAnnotationProjection(t, filepath.Join(filepath.Dir(pulls), "index.db"))) {
+				t.Fatal("refused journal mutated annotation projection")
 			}
 			row, err := db.GetPulledTranscript(ctx, testutil.TestVillageHost, ref.ID)
 			if err != nil || !reflect.DeepEqual(oldRow, row) {

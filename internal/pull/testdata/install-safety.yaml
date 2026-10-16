@@ -29,6 +29,8 @@ requiredNames:
   - force-refuses-projection-mismatch
   - force-refuses-wrong-stage-owner
   - force-refuses-stage-symlink
+  - pending-journal-unsupported-version
+  - force-refuses-unsupported-journal-version
 cases:
   - {name: damaged-metadata-normal-then-force, kind: force, target: metadata.json}
   - {name: damaged-blob-normal-then-force, kind: force, target: transcript.jsonl}
@@ -60,3 +62,5 @@ cases:
   - {name: force-refuses-projection-mismatch, kind: pending, target: projection, force: true}
   - {name: force-refuses-wrong-stage-owner, kind: pending, target: owner-wrong, force: true}
   - {name: force-refuses-stage-symlink, kind: pending, target: stage-link, force: true}
+  - {name: pending-journal-unsupported-version, kind: pending, target: version}
+  - {name: force-refuses-unsupported-journal-version, kind: pending, target: version, force: true}
