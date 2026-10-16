@@ -105,12 +105,12 @@ tables:
   - type_origins
   - value_domain_kinds
 indexes:
-  - collective_observation_versions_current
-  - transcript_collective_evidence_current
-  - local_contribution_receipts_order
-  - local_contribution_receipts_collective
-  - local_operation_diagnostics_order
-  - local_operation_diagnostics_collective
+  - idx_collective_observation_versions_current
+  - idx_transcript_collective_evidence_current
+  - idx_local_contribution_receipts_order
+  - idx_local_contribution_receipts_collective
+  - idx_local_operation_diagnostics_order
+  - idx_local_operation_diagnostics_collective
   - idx_ann_annotator
   - idx_ann_content_hash
   - idx_ann_created_at

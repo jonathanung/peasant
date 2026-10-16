@@ -330,7 +330,17 @@ func (v *CollectiveVillage) recordLocked(transcript schema.TranscriptID, id sche
 		v.events[transcript] = map[schema.VillageUUID][]schema.VillageShareEvent{}
 	}
 	history := v.events[transcript][id]
-	v.events[transcript][id] = append(history, schema.VillageShareEvent{EventNum: int32(len(history) + 1), Status: status, RecordedAt: villageDoubleTime})
+	event := schema.VillageShareEvent{EventNum: int32(len(history) + 1), Status: status, RecordedAt: villageDoubleTime}
+	// Use the canonical wire actor capacity, not a second fixture-only rule.
+	// Deliberately invalid scripted statuses remain invalid for refusal tests.
+	if actor, err := schema.VillageContributionAttemptActor(status); err == nil {
+		event.DecidedByActor = actor
+		if actor != schema.VillageShareEventActorNone {
+			decision := villageDoubleTime
+			event.DecidedAt = &decision
+		}
+	}
+	v.events[transcript][id] = append(history, event)
 	if v.transcripts[transcript] == nil {
 		v.transcripts[transcript] = map[schema.VillageUUID]schema.VillageShareStatus{}
 	}

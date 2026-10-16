@@ -53,8 +53,8 @@ CREATE TABLE local_contribution_receipts (
     PRIMARY KEY(village_url,user_id,receipt_id),
     FOREIGN KEY(village_url,user_id) REFERENCES collective_observation_scopes(village_url,user_id)
 ) WITHOUT ROWID;
-CREATE INDEX local_contribution_receipts_order ON local_contribution_receipts(village_url,user_id,confirmed_at,receipt_id);
-CREATE INDEX local_contribution_receipts_collective ON local_contribution_receipts(village_url,user_id,collective_id,confirmed_at,receipt_id);
+CREATE INDEX idx_local_contribution_receipts_order ON local_contribution_receipts(village_url,user_id,confirmed_at,receipt_id);
+CREATE INDEX idx_local_contribution_receipts_collective ON local_contribution_receipts(village_url,user_id,collective_id,confirmed_at,receipt_id);
 CREATE TABLE local_operation_diagnostics (
     village_url TEXT NOT NULL, user_id TEXT NOT NULL, operation_id TEXT NOT NULL,
     operation TEXT NOT NULL CHECK(operation IN ('publish','share','fetch','pull')),
@@ -65,8 +65,8 @@ CREATE TABLE local_operation_diagnostics (
     PRIMARY KEY(village_url,user_id,operation_id),
     FOREIGN KEY(village_url,user_id) REFERENCES collective_observation_scopes(village_url,user_id)
 ) WITHOUT ROWID;
-CREATE INDEX local_operation_diagnostics_order ON local_operation_diagnostics(village_url,user_id,attempted_at,operation_id);
-CREATE INDEX local_operation_diagnostics_collective ON local_operation_diagnostics(village_url,user_id,collective_id,attempted_at,operation_id);
+CREATE INDEX idx_local_operation_diagnostics_order ON local_operation_diagnostics(village_url,user_id,attempted_at,operation_id);
+CREATE INDEX idx_local_operation_diagnostics_collective ON local_operation_diagnostics(village_url,user_id,collective_id,attempted_at,operation_id);
 CREATE TABLE transcript_collective_observations (
     village_url TEXT NOT NULL, user_id TEXT NOT NULL, transcript_id TEXT NOT NULL,
     installed_seq INTEGER NOT NULL DEFAULT 0, attempt_seq INTEGER NOT NULL DEFAULT 0,
@@ -86,7 +86,7 @@ CREATE TABLE transcript_collective_evidence (
     PRIMARY KEY(village_url,user_id,transcript_id,collective_id,version),
     FOREIGN KEY(village_url,user_id,transcript_id) REFERENCES transcript_collective_observations(village_url,user_id,transcript_id)
 ) WITHOUT ROWID;
-CREATE UNIQUE INDEX transcript_collective_evidence_current ON transcript_collective_evidence(village_url,user_id,transcript_id,collective_id) WHERE current=1;
+CREATE UNIQUE INDEX idx_transcript_collective_evidence_current ON transcript_collective_evidence(village_url,user_id,transcript_id,collective_id) WHERE current=1;
 CREATE TABLE collective_observation_versions (
     village_url TEXT NOT NULL,user_id TEXT NOT NULL,collective_id TEXT NOT NULL,
     version INTEGER NOT NULL CHECK(version>0),name TEXT NOT NULL,description TEXT,
@@ -97,7 +97,7 @@ CREATE TABLE collective_observation_versions (
     PRIMARY KEY(village_url,user_id,collective_id,version),
     FOREIGN KEY(village_url,user_id) REFERENCES collective_observation_scopes(village_url,user_id)
 ) WITHOUT ROWID;
-CREATE UNIQUE INDEX collective_observation_versions_current ON collective_observation_versions(village_url,user_id,collective_id) WHERE current=1;
+CREATE UNIQUE INDEX idx_collective_observation_versions_current ON collective_observation_versions(village_url,user_id,collective_id) WHERE current=1;
 CREATE TABLE collective_relevance_observations (
     village_url TEXT NOT NULL,user_id TEXT NOT NULL,collective_id TEXT NOT NULL,
     reason TEXT NOT NULL CHECK(reason IN ('membership','contribution','organization','explicit')),

@@ -1137,8 +1137,6 @@ CREATE TABLE value_domain_kinds (
     name TEXT NOT NULL UNIQUE
 ) STRICT;
 
-CREATE UNIQUE INDEX collective_observation_versions_current ON collective_observation_versions(village_url,user_id,collective_id) WHERE current=1;
-
 CREATE INDEX idx_ann_annotator ON annotations(annotator_id);
 
 CREATE INDEX idx_ann_content_hash ON annotations(content_hash) WHERE content_hash IS NOT NULL;
@@ -1175,6 +1173,8 @@ CREATE INDEX idx_anntype_family_id ON annotation_types(family_id);
 
 CREATE INDEX idx_anntype_status ON annotation_types(status_id);
 
+CREATE UNIQUE INDEX idx_collective_observation_versions_current ON collective_observation_versions(village_url,user_id,collective_id) WHERE current=1;
+
 CREATE INDEX idx_daily_project_hash ON daily_summary_by_project(project_hash);
 
 CREATE INDEX idx_entries_ext_key ON session_entries_ext(key);
@@ -1200,6 +1200,14 @@ CREATE INDEX idx_lessons_annotation ON lessons(episode_annotation_id);
 CREATE UNIQUE INDEX idx_lessons_dedup ON lessons(topic, rule, failure_mode);
 
 CREATE INDEX idx_lessons_session ON lessons(session_id);
+
+CREATE INDEX idx_local_contribution_receipts_collective ON local_contribution_receipts(village_url,user_id,collective_id,confirmed_at,receipt_id);
+
+CREATE INDEX idx_local_contribution_receipts_order ON local_contribution_receipts(village_url,user_id,confirmed_at,receipt_id);
+
+CREATE INDEX idx_local_operation_diagnostics_collective ON local_operation_diagnostics(village_url,user_id,collective_id,attempted_at,operation_id);
+
+CREATE INDEX idx_local_operation_diagnostics_order ON local_operation_diagnostics(village_url,user_id,attempted_at,operation_id);
 
 CREATE INDEX idx_models_family ON models(family) WHERE family IS NOT NULL;
 
@@ -1253,15 +1261,7 @@ CREATE INDEX idx_sessions_start ON sessions(start_ms);
 
 CREATE INDEX idx_sessions_sweep_pending ON sessions(session_id) WHERE content_sweep_pending = 1;
 
-CREATE INDEX local_contribution_receipts_collective ON local_contribution_receipts(village_url,user_id,collective_id,confirmed_at,receipt_id);
-
-CREATE INDEX local_contribution_receipts_order ON local_contribution_receipts(village_url,user_id,confirmed_at,receipt_id);
-
-CREATE INDEX local_operation_diagnostics_collective ON local_operation_diagnostics(village_url,user_id,collective_id,attempted_at,operation_id);
-
-CREATE INDEX local_operation_diagnostics_order ON local_operation_diagnostics(village_url,user_id,attempted_at,operation_id);
-
-CREATE UNIQUE INDEX transcript_collective_evidence_current ON transcript_collective_evidence(village_url,user_id,transcript_id,collective_id) WHERE current=1;
+CREATE UNIQUE INDEX idx_transcript_collective_evidence_current ON transcript_collective_evidence(village_url,user_id,transcript_id,collective_id) WHERE current=1;
 
 CREATE VIEW annotations_with_target AS
 SELECT
