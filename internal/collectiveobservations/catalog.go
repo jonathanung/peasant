@@ -93,6 +93,19 @@ func referenceIdentity(base, ref string) (schema.VillageUUID, bool, error) {
 }
 
 func (s *Service) ResolveReference(ctx context.Context, ref string, online bool) (schema.VillageUUID, error) {
+	original, err := s.SelectedCredentials(ctx)
+	if err != nil {
+		return "", err
+	}
+	return s.ResolveReferenceFor(ctx, original, ref, online)
+}
+
+// ResolveReferenceFor selects an exact reference in the original action scope.
+// It never reselects a profile after a content action captured its credentials.
+func (s *Service) ResolveReferenceFor(ctx context.Context, snapshot auth.CredentialSnapshot, ref string, online bool) (schema.VillageUUID, error) {
+	if err := snapshot.WithCurrent(ctx, func() error { return nil }); err != nil {
+		return "", err
+	}
 	if online {
 		var cancel context.CancelFunc
 		ctx, cancel = s.operationContext(ctx)
@@ -101,10 +114,6 @@ func (s *Service) ResolveReference(ctx context.Context, ref string, online bool)
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
 		return "", &ReferenceError{Message: "Collective reference is empty; no selection made; provide an exact name, UUID or collective URL"}
-	}
-	snapshot, err := s.SelectedCredentials(ctx)
-	if err != nil {
-		return "", err
 	}
 	creds := snapshot.Credentials()
 	base, err := auth.NormalizeVillageURL(creds.VillageURL)
@@ -115,7 +124,7 @@ func (s *Service) ResolveReference(ctx context.Context, ref string, online bool)
 		if err != nil || !online {
 			return id, err
 		}
-		_, source, err := s.AuthenticatedSource(ctx)
+		_, source, err := s.AuthenticatedSourceFor(ctx, snapshot)
 		if err != nil {
 			return "", err
 		}
@@ -129,7 +138,7 @@ func (s *Service) ResolveReference(ctx context.Context, ref string, online bool)
 	}
 	ids := []schema.VillageUUID{}
 	if online {
-		_, source, err := s.AuthenticatedSource(ctx)
+		_, source, err := s.AuthenticatedSourceFor(ctx, snapshot)
 		if err != nil {
 			return "", err
 		}
@@ -172,12 +181,22 @@ func observationFromDetail(row schema.VillageGroupDetailRecord, reasons []schema
 // Track verifies online visibility BEFORE beginning any local preference write.
 // This is neither joining a collective nor consenting to publication.
 func (s *Service) Track(ctx context.Context, id schema.VillageUUID) (schema.CollectiveObservationResponse, error) {
+	original, err := s.SelectedCredentials(ctx)
+	if err != nil {
+		return schema.CollectiveObservationResponse{}, err
+	}
+	return s.TrackFor(ctx, original, id)
+}
+
+// TrackFor verifies visibility and commits only under the original action's
+// captured generation. No credential lock is held across its network reads.
+func (s *Service) TrackFor(ctx context.Context, original auth.CredentialSnapshot, id schema.VillageUUID) (schema.CollectiveObservationResponse, error) {
 	ctx, cancel := s.operationContext(ctx)
 	defer cancel()
 	if s.store == nil {
 		return schema.CollectiveObservationResponse{}, fmt.Errorf("track collective: local Store is not configured; no preference written; configure the observation Store")
 	}
-	snapshot, source, err := s.AuthenticatedSource(ctx)
+	snapshot, source, err := s.AuthenticatedSourceFor(ctx, original)
 	if err != nil {
 		return schema.CollectiveObservationResponse{}, err
 	}

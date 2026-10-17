@@ -25,12 +25,13 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 	var fixtures struct {
 		RequiredNames []string `yaml:"requiredNames"`
 		Cases         []struct {
-			Name         string `yaml:"name"`
-			Operation    string `yaml:"operation"`
-			Rotate       bool   `yaml:"rotate"`
-			OtherProfile bool   `yaml:"otherProfile"`
-			SameAccount  bool   `yaml:"sameAccount"`
-			SwitchBack   bool   `yaml:"switchBack"`
+			Name               string `yaml:"name"`
+			Operation          string `yaml:"operation"`
+			Rotate             bool   `yaml:"rotate"`
+			OtherProfile       bool   `yaml:"otherProfile"`
+			SameAccount        bool   `yaml:"sameAccount"`
+			SwitchBack         bool   `yaml:"switchBack"`
+			RotateDuringDetail bool   `yaml:"rotateDuringDetail"`
 		} `yaml:"cases"`
 	}
 	decoder := yaml.NewDecoder(strings.NewReader(string(actionSnapshotsYAML)))
@@ -59,6 +60,7 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 			const collective schema.VillageUUID = "33333333-3333-4333-8333-333333333333"
 			const transcript schema.TranscriptID = "22222222-2222-4222-8222-222222222222"
 			creds := auth.Credentials{APIKey: "original-key", KeyID: "original-id", UserID: "11111111-1111-4111-8111-111111111111", Username: "original"}
+			var rotateDuringDetail func()
 			remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
 				if r.Method != http.MethodGet || r.Header.Get("Authorization") != "Bearer original-key" || r.Header.Get("X-Fixture-Selected-Source") != "yes" {
@@ -71,6 +73,9 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 				case "/api/v1/auth/me":
 					value = schema.VillageUser{ID: schema.VillageUUID(creds.UserID)}
 				case "/api/v1/collectives/" + collective.String():
+					if c.RotateDuringDetail {
+						rotateDuringDetail()
+					}
 					value = schema.VillageGroupDetailResponse{Group: schema.VillageGroupDetailRecord{ID: collective, Name: "Original", AcceptanceMode: "open", DataAccess: "public"}}
 				case "/api/v1/transcripts/" + transcript.String() + "/collectives":
 					value = schema.VillageTranscriptCollectivesResponse{Collectives: []schema.VillageTranscriptCollective{}}
@@ -95,6 +100,11 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 			selectedHome := home
 			other := creds
 			other.APIKey, other.KeyID, other.UserID, other.Username = "different-key", "different-id", "44444444-4444-4444-8444-444444444444", "different"
+			rotateDuringDetail = func() {
+				if err := auth.SaveCredentialsFrom(&other, home); err != nil {
+					t.Error(err)
+				}
+			}
 			if c.Rotate {
 				if c.SameAccount {
 					other = creds
@@ -141,22 +151,55 @@ func TestActionAdaptersKeepOriginalSnapshot(t *testing.T) {
 				if err == nil && metadata.State != schema.PullAssociationMetadataObserved {
 					t.Fatalf("wrong association metadata %#v", metadata)
 				}
+			case "track":
+				var response schema.CollectiveObservationResponse
+				response, err = service.TrackFor(t.Context(), original, collective)
+				if err == nil && (response.Scope.UserID.String() != creds.UserID || len(response.Collectives) != 1 || response.Collectives[0].ID != collective) {
+					t.Fatalf("tracking used wrong original scope: %#v", response)
+				}
+			case "resolve":
+				var id schema.VillageUUID
+				id, err = service.ResolveReferenceFor(t.Context(), original, collective.String(), true)
+				if err == nil && id != collective {
+					t.Fatalf("wrong resolved identity %s", id)
+				}
 			default:
 				t.Fatal("unknown original action operation")
 			}
-			if c.Rotate {
+			if c.Rotate || c.RotateDuringDetail {
 				if !errors.Is(err, auth.ErrCredentialsChanged) {
 					t.Fatalf("rotated action used current account: %v", err)
 				}
-				if calls.Load() != 0 {
+				if c.Rotate && calls.Load() != 0 {
 					t.Fatalf("rotated original action made %d remote requests", calls.Load())
 				}
-				if observers.Load() != 0 || factories.Load() != 0 {
+				if c.Rotate && (observers.Load() != 0 || factories.Load() != 0) {
 					t.Fatal("rotated original action constructed a client or reported fictional HTTP attempts")
 				}
 				response, readErr := service.History(t.Context(), schema.LocalContributionHistoryQuery{Kind: schema.LocalContributionEvidenceRemoteAttempts, Page: 1, Limit: 50})
 				if readErr != nil || response.Total != 0 {
 					t.Fatalf("old action evidence leaked into new account: %#v %v", response, readErr)
+				}
+				if c.Operation == "track" {
+					current, err := service.SelectedCredentials(t.Context())
+					if err != nil {
+						t.Fatal(err)
+					}
+					ids, err := db.CollectiveTrackingIDs(t.Context(), current)
+					if err != nil || len(ids) != 0 {
+						t.Fatalf("tracking leaked into new account: %v %v", ids, err)
+					}
+					if err := auth.SaveCredentialsFrom(&creds, home); err != nil {
+						t.Fatal(err)
+					}
+					restored, err := auth.CaptureCredentials(t.Context(), home)
+					if err != nil {
+						t.Fatal(err)
+					}
+					ids, err = db.CollectiveTrackingIDs(t.Context(), restored)
+					if err != nil || len(ids) != 0 {
+						t.Fatalf("rotated original action committed preference: %v %v", ids, err)
+					}
 				}
 			} else {
 				if err != nil {
