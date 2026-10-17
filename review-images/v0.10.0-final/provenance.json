@@ -1,0 +1,149 @@
+{
+  "sourceHead": "6c008cb916be60b6257ef951189c58fa94c85322",
+  "binarySha256": "d7fab899ef7935f2cee6e0d68b136b09cbaed569f2b2010f111e28b14c7a7d82",
+  "packagePins": {
+    "fairtrade": "0.0.29",
+    "schema": "0.29.1"
+  },
+  "home": {
+    "runner": "web/scripts/visual/root-page-visual.mjs",
+    "servedProvenance": "provenance chunks=web/out/_next/static/chunks/app/page-02f9682049d8d130.js,web/out/_next/static/chunks/app/page-02f9682049d8d130.js,web/out/_next/static/chunks/app/page-02f9682049d8d130.js,web/out/_next/static/chunks/app/page-02f9682049d8d130.js,web/out/_next/static/chunks/3f594ba2-91224df6a4eec39b.js served=true",
+    "outcomes": [
+      "OK dark/desktop counts={\"all\":14,\"not-published\":8,\"published\":6,\"auto\":4}",
+      "OK dark/phone counts={\"all\":14,\"not-published\":8,\"published\":6,\"auto\":4}",
+      "OK light/desktop counts={\"all\":14,\"not-published\":8,\"published\":6,\"auto\":4}",
+      "OK light/phone counts={\"all\":14,\"not-published\":8,\"published\":6,\"auto\":4}"
+    ],
+    "states": "filters, grouped and nested children, search, selection recovery, empty install"
+  },
+  "publish": {
+    "runner": "web/scripts/visual/publish-states-shoot.mjs",
+    "fixture": "web/src/app/share/testdata/publish-popup-states.yaml",
+    "servedChunk": {
+      "path": "/_next/static/chunks/app/projects/%5B%5B...segments%5D%5D/page-7f285d7ff22c6be7.js",
+      "sha256": "9ffd9ebcfbd7aa14c38a96074642f7734c1180c3fa9804d0d491c058e21a6084"
+    },
+    "captures": [
+      {
+        "state": "scan-failed",
+        "theme": "dark",
+        "size": "desktop",
+        "probes": {
+          "themes": {
+            "data-theme": "dark",
+            "data-tb-theme": "dark"
+          },
+          "body": "atkinsonHyperlegible, \"atkinsonHyperlegible Fallback\", ui-sans-serif, system-ui, -apple-system, sans-serif",
+          "barLabel": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "barLabelSize": "14px",
+          "actionRadius": "0px",
+          "dialogRadius": "0px",
+          "dialogBody": "16px",
+          "dialogHeadingWeight": "700",
+          "dialogHeadingFamily": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "atkinson": true
+        }
+      },
+      {
+        "state": "ready-to-publish",
+        "theme": "dark",
+        "size": "desktop",
+        "probes": {
+          "themes": {
+            "data-theme": "dark",
+            "data-tb-theme": "dark"
+          },
+          "body": "atkinsonHyperlegible, \"atkinsonHyperlegible Fallback\", ui-sans-serif, system-ui, -apple-system, sans-serif",
+          "barLabel": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "barLabelSize": "14px",
+          "actionRadius": "0px",
+          "dialogRadius": "0px",
+          "dialogBody": "16px",
+          "dialogHeadingWeight": "700",
+          "dialogHeadingFamily": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "atkinson": true
+        }
+      },
+      {
+        "state": "ready-to-publish",
+        "theme": "dark",
+        "size": "mobile",
+        "probes": {
+          "themes": {
+            "data-theme": "dark",
+            "data-tb-theme": "dark"
+          },
+          "body": "atkinsonHyperlegible, \"atkinsonHyperlegible Fallback\", ui-sans-serif, system-ui, -apple-system, sans-serif",
+          "barLabel": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "barLabelSize": "14px",
+          "actionRadius": "0px",
+          "dialogRadius": "0px",
+          "dialogBody": "16px",
+          "dialogHeadingWeight": "700",
+          "dialogHeadingFamily": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "atkinson": true
+        }
+      },
+      {
+        "state": "scan-failed",
+        "theme": "light",
+        "size": "desktop",
+        "probes": {
+          "themes": {
+            "data-theme": "light",
+            "data-tb-theme": "light"
+          },
+          "body": "atkinsonHyperlegible, \"atkinsonHyperlegible Fallback\", ui-sans-serif, system-ui, -apple-system, sans-serif",
+          "barLabel": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "barLabelSize": "14px",
+          "actionRadius": "0px",
+          "dialogRadius": "0px",
+          "dialogBody": "16px",
+          "dialogHeadingWeight": "700",
+          "dialogHeadingFamily": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "atkinson": true
+        }
+      },
+      {
+        "state": "ready-to-publish",
+        "theme": "light",
+        "size": "desktop",
+        "probes": {
+          "themes": {
+            "data-theme": "light",
+            "data-tb-theme": "light"
+          },
+          "body": "atkinsonHyperlegible, \"atkinsonHyperlegible Fallback\", ui-sans-serif, system-ui, -apple-system, sans-serif",
+          "barLabel": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "barLabelSize": "14px",
+          "actionRadius": "0px",
+          "dialogRadius": "0px",
+          "dialogBody": "16px",
+          "dialogHeadingWeight": "700",
+          "dialogHeadingFamily": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "atkinson": true
+        }
+      },
+      {
+        "state": "ready-to-publish",
+        "theme": "light",
+        "size": "mobile",
+        "probes": {
+          "themes": {
+            "data-theme": "light",
+            "data-tb-theme": "light"
+          },
+          "body": "atkinsonHyperlegible, \"atkinsonHyperlegible Fallback\", ui-sans-serif, system-ui, -apple-system, sans-serif",
+          "barLabel": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "barLabelSize": "14px",
+          "actionRadius": "0px",
+          "dialogRadius": "0px",
+          "dialogBody": "16px",
+          "dialogHeadingWeight": "700",
+          "dialogHeadingFamily": "atkinsonHyperlegibleMono, \"atkinsonHyperlegibleMono Fallback\", ui-monospace, Menlo, Consolas, monospace",
+          "atkinson": true
+        }
+      }
+    ]
+  }
+}
