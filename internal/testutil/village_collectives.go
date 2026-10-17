@@ -237,8 +237,9 @@ func (v *CollectiveVillage) SetPullTranscript(transcript schema.TranscriptID, bl
 //
 // The owner names the village account that contributed the transcript, so a
 // listing narrowed to one contributor has more than one account to select
-// between.
-func (v *CollectiveVillage) SetPullTranscriptOwnedBy(transcript schema.TranscriptID, blob []byte, annotations []schema.PullAnnotation, ownerUserID, ownerUsername string) {
+// between. An optional localSessionID preserves the original recorded-session
+// correlation for fixtures with annotations on that session.
+func (v *CollectiveVillage) SetPullTranscriptOwnedBy(transcript schema.TranscriptID, blob []byte, annotations []schema.PullAnnotation, ownerUserID, ownerUsername string, localSessionID ...string) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	cp := append([]byte(nil), blob...)
@@ -258,6 +259,11 @@ func (v *CollectiveVillage) SetPullTranscriptOwnedBy(transcript schema.Transcrip
 		PublishedAt:     villageDoubleTime.UnixMilli(),
 		UpdatedAt:       villageDoubleTime.UnixMilli(),
 		AnnotationCount: len(anns),
+	}
+	if len(localSessionID) > 0 {
+		info := v.pullInfos[transcript]
+		info.LocalID = localSessionID[0]
+		v.pullInfos[transcript] = info
 	}
 }
 
@@ -416,6 +422,43 @@ func (v *CollectiveVillage) serve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	path := r.URL.Path
 	switch {
+	case r.Method == http.MethodGet && path == "/api/v1/collectives/search":
+		v.mu.Lock()
+		rows := []schema.VillageCollectiveSearchResult{}
+		for _, id := range v.order {
+			group := v.collectives[id]
+			if strings.EqualFold(group.Name, r.URL.Query().Get("q")) {
+				rows = append(rows, schema.VillageCollectiveSearchResult{ID: id, Name: group.Name})
+			}
+		}
+		v.mu.Unlock()
+		_ = json.NewEncoder(w).Encode(schema.VillageCollectiveSearchResponse{Collectives: rows})
+	case r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/collectives/"):
+		id := schema.VillageUUID(strings.TrimPrefix(path, "/api/v1/collectives/"))
+		v.mu.Lock()
+		group, ok := v.collectives[id]
+		v.mu.Unlock()
+		if !ok {
+			http.Error(w, "not visible", http.StatusNotFound)
+			return
+		}
+		if group.Acceptance == "" {
+			group.Acceptance = schema.VillageGroupAcceptanceOpen
+		}
+		_ = json.NewEncoder(w).Encode(schema.VillageGroupDetailResponse{Group: schema.VillageGroupDetailRecord{ID: id, Name: group.Name, AcceptanceMode: group.Acceptance, DataAccess: schema.VillageGroupDataAccessMembersOnly, CreatedAt: villageDoubleTime, UpdatedAt: villageDoubleTime}})
+	case r.Method == http.MethodGet && path == "/api/v1/auth/me":
+		_ = json.NewEncoder(w).Encode(schema.VillageUser{ID: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", GithubUsername: "owneruser"})
+	case r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/transcripts/") && strings.HasSuffix(path, "/collectives"):
+		id := schema.TranscriptID(strings.TrimSuffix(strings.TrimPrefix(path, "/api/v1/transcripts/"), "/collectives"))
+		v.mu.Lock()
+		rows := []schema.VillageTranscriptCollective{}
+		for collective, status := range v.transcripts[id] {
+			if status == schema.VillageShareStatusApproved {
+				rows = append(rows, schema.VillageTranscriptCollective{ID: collective, Name: v.collectives[collective].Name, SharedAt: villageDoubleTime})
+			}
+		}
+		v.mu.Unlock()
+		_ = json.NewEncoder(w).Encode(schema.VillageTranscriptCollectivesResponse{Collectives: rows})
 	case r.Method == http.MethodGet && path == "/api/v1/schema/version":
 		window := schema.SchemaVersionResponse{
 			MinPushContractVersion: "0.1.0",

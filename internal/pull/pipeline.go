@@ -83,14 +83,15 @@ func (c Credentials) IsLoggedIn() bool {
 // *store.Store) and with MemFS + a stub reader in tests — the Pipeline itself is
 // never mocked.
 type Pipeline struct {
-	reader      VillageReader
-	fs          ingest.FileSystem
-	store       PullStore
-	clock       Clock
-	creds       Credentials
-	pullsRoot   string // resolved village-pulls/ root (defaults.VillagePullsDirPath)
-	lockInstall func(context.Context, string, schema.TranscriptID) (func() error, error)
-	syncInstall func(string) error
+	reader              VillageReader
+	fs                  ingest.FileSystem
+	store               PullStore
+	clock               Clock
+	creds               Credentials
+	pullsRoot           string // resolved village-pulls/ root (defaults.VillagePullsDirPath)
+	lockInstall         func(context.Context, string, schema.TranscriptID) (func() error, error)
+	syncInstall         func(string) error
+	associationObserver AssociationObserver
 }
 
 // NewPipeline constructs a pull Pipeline from its dependencies. pullsRoot is the
@@ -119,6 +120,17 @@ func NewPipeline(reader VillageReader, fs ingest.FileSystem, st PullStore, clock
 
 // PipelineOption injects a dependency into the pull pipeline.
 type PipelineOption func(*Pipeline)
+
+// AssociationObserver is the optional metadata dependency, invoked only after
+// independently authorized content success. The command adapter binds it to the
+// original action account through the canonical observation service.
+type AssociationObserver interface {
+	ObserveAssociations(context.Context, schema.TranscriptID) (schema.PullAssociationMetadataResult, error)
+}
+
+func WithAssociationObserver(observer AssociationObserver) PipelineOption {
+	return func(p *Pipeline) { p.associationObserver = observer }
+}
 
 // WithInstallLock supplies filesystem ownership for an injected filesystem.
 // Production defaults to the existing cross-process OS advisory locker.
@@ -177,7 +189,14 @@ func classifyStatus(err error) PullStatus {
 // until index projection succeeds. An interrupted install is validated and
 // reprojected under cross-process ownership on the next non-dry invocation.
 // A database failure reports retained files and repair, never false rollback.
-func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts PullOptions) (*PullResult, error) {
+func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts PullOptions) (result *PullResult, pullErr error) {
+	// Register before filesystem ownership: its release runs first, so optional
+	// network metadata never holds the content publication lock.
+	defer func() {
+		if pullErr == nil {
+			p.ObservePulledAssociations(ctx, result)
+		}
+	}()
 	// --- AUTH-CHECK (RESOLVE already done by ParseTranscriptRef at the CLI) ---
 	if !p.creds.IsLoggedIn() {
 		return &PullResult{Ref: ref, Status: PullStatusNotLoggedIn}, fmt.Errorf(
@@ -395,6 +414,28 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 		AnnotationCount: len(annotations),
 		License:         meta.License,
 	}, nil
+}
+
+// ObservePulledAssociations completes independently authorized successful
+// content, including the bulk skip-gate path that never calls PullTranscript.
+// Optional source/persistence failure is carried only in the shared metadata
+// result. Required content errors remain the responsibility of the caller.
+func (p *Pipeline) ObservePulledAssociations(ctx context.Context, result *PullResult) {
+	if p.associationObserver == nil || result == nil || result.DryRun {
+		return
+	}
+	if result.Status != PullStatusPulled && result.Status != PullStatusUpToDate {
+		return
+	}
+	metadata, err := p.associationObserver.ObserveAssociations(ctx, result.Ref.ID)
+	if invalid := metadata.Validate(); invalid != nil || (err != nil && metadata.Warning == nil) {
+		metadata = schema.PullAssociationMetadataResult{State: schema.PullAssociationMetadataUnknown, Warning: &schema.OperationIssue{
+			Code: schema.OperationIssueContract, Operation: schema.CollectiveOperationPull,
+			Message: "The optional association source returned an invalid result after the content pull succeeded; no fresh metadata can be reported.",
+			Retry:   "Run peasant village collectives fetch explicitly after checking the selected account and Village connection.",
+		}}
+	}
+	result.AssociationMetadata = &metadata
 }
 
 // validatePulledAnnotations applies the schema's canonical response target

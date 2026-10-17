@@ -13,9 +13,12 @@ to, named by a collective name, its UUID, or its /groups/<uuid> page URL, and
 pages to the end so the listing matches what a pull would take. --user keeps only
 the transcripts one village account contributed: combine it with --collective for
 a single collective, or pass it alone to span every collective you can pull from.
-With --local, --user filters already-pulled transcripts by their stored owner
-username, without login or network access. --limit sets the remote page size;
---collective and --limit apply to the remote listing only.
+With --local, --user filters stored owner usernames without credentials or network.
+--collective instead selects saved per-row viewer disclosures in the selected
+account scope, still offline. Collective values are ORed, then --user intersects.
+Missing or invalidated disclosures never match; stale disclosures keep their
+original date. Signed-out collective filtering explains how to use accountless
+inventory instead. --limit sets the remote page size only.
 
 ```
 peasant village transcripts list [flags]
