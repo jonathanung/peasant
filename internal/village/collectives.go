@@ -202,11 +202,26 @@ func (c *VillageClient) TranscriptVisibility(ctx context.Context, id schema.Tran
 // share of the transcript, and also when another request shared it at the same
 // moment.
 func (c *VillageClient) ShareTranscript(ctx context.Context, id schema.TranscriptID, collective schema.VillageUUID) error {
-	body, err := json.Marshal(schema.VillageShareTranscriptRequest{GroupIDs: []schema.VillageUUID{collective}})
-	if err != nil {
-		return fmt.Errorf("share transcript %s with collective %s: encode request: %w", id, collective, err)
+	return c.ShareTranscriptCollectives(ctx, id, []schema.VillageUUID{collective})
+}
+
+// ShareTranscriptCollectives sends the caller's complete requested target set
+// in one mutation. Village must validate all targets under its transaction;
+// splitting this request into one call per target would lose that atomicity.
+func (c *VillageClient) ShareTranscriptCollectives(ctx context.Context, id schema.TranscriptID, collectives []schema.VillageUUID) error {
+	if len(collectives) == 0 {
+		return fmt.Errorf("share transcript %s: no collective targets were requested; no mutation was sent; explicitly choose at least one collective", id)
 	}
-	return c.changeShare(ctx, http.MethodPost, "share transcript "+id.String()+" with collective "+collective.String(), transcriptSharePath(id), body)
+	for _, collective := range collectives {
+		if !IsCollectiveID(collective) {
+			return fmt.Errorf("share transcript %s: a requested collective identifier is malformed; no mutation was sent; choose canonical collective UUIDs", id)
+		}
+	}
+	body, err := json.Marshal(schema.VillageShareTranscriptRequest{GroupIDs: collectives})
+	if err != nil {
+		return fmt.Errorf("share transcript %s with requested collectives: encode request: %w", id, err)
+	}
+	return c.changeShare(ctx, http.MethodPost, fmt.Sprintf("share transcript %s with requested collectives %v", id, collectives), transcriptSharePath(id), body)
 }
 
 // UnshareTranscript takes one owned transcript back from one collective

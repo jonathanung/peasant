@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -22,6 +23,7 @@ import (
 
 	"github.com/peasant-labs/peasant/internal/animation"
 	"github.com/peasant-labs/peasant/internal/auth"
+	"github.com/peasant-labs/peasant/internal/collectiveobservations"
 	"github.com/peasant-labs/peasant/internal/config"
 	"github.com/peasant-labs/peasant/internal/defaults"
 	"github.com/peasant-labs/peasant/internal/githooks"
@@ -39,6 +41,23 @@ import (
 
 // BuildPushCommand constructs the fully wired push cobra command.
 func BuildPushCommand() *cobra.Command {
+	return buildPushCommand(pushCommandDependencies{})
+}
+
+// These dependencies keep transport construction and the upload clock boundary
+// explicit. Defaults are the normal Village client and context deadline.
+type pushCommandDependencies struct {
+	newVillageClient func(string, string, *http.Client) *village.VillageClient
+	uploadTimeout    func(context.Context, time.Duration) (context.Context, context.CancelFunc)
+}
+
+func buildPushCommand(deps pushCommandDependencies) *cobra.Command {
+	if deps.newVillageClient == nil {
+		deps.newVillageClient = village.NewVillageClient
+	}
+	if deps.uploadTimeout == nil {
+		deps.uploadTimeout = context.WithTimeout
+	}
 	var (
 		dryRun                 bool
 		force                  bool
@@ -197,7 +216,7 @@ func BuildPushCommand() *cobra.Command {
 				// client whenever its concurrency fits that pool and builds a wider
 				// one when it does not.
 				run.sharedClientPoolSize = push.DefaultConcurrencyForCPU(runtime.NumCPU())
-				run.sharedClient = village.NewVillageClient(creds.VillageURL, creds.APIKey,
+				run.sharedClient = deps.newVillageClient(creds.VillageURL, creds.APIKey,
 					village.NewPooledHTTPClient(creds.VillageURL, run.sharedClientPoolSize))
 				run.sharedClientBaseURL = creds.VillageURL
 				run.sharedClientAPIKey = creds.APIKey
@@ -208,7 +227,7 @@ func BuildPushCommand() *cobra.Command {
 
 			if timeout > 0 {
 				var cancelBudget context.CancelFunc
-				ctx, cancelBudget = context.WithTimeout(ctx, timeout)
+				ctx, cancelBudget = deps.uploadTimeout(ctx, timeout)
 				defer cancelBudget()
 			}
 
@@ -565,12 +584,13 @@ func BuildPushCommand() *cobra.Command {
 					// No client was built ahead of the clock, or the credentials or
 					// the requested parallelism differ from what it was built for:
 					// build one sized to the concurrency, exactly as before.
-					client = village.NewVillageClient(creds.VillageURL, creds.APIKey,
+					client = deps.newVillageClient(creds.VillageURL, creds.APIKey,
 						village.NewPooledHTTPClient(creds.VillageURL, resolvedConcurrency))
 				}
 				client.SetRequestObserver(run.markVillageRequest)
 				runCfg.UpdateHold = autoPublish.updateHold(db, creds, client)
-				pipeline, err := push.NewPipeline(db, client, creds, cfg, fs, runCfg, pushRedactor, cmd.ErrOrStderr())
+				observations := collectiveobservations.New(collectiveobservations.Dependencies{Store: db, ConfigHome: configDirOverride(cmd), NewIdentityReader: func(auth.Credentials) collectiveobservations.IdentityReader { return client }})
+				pipeline, err := push.NewPipeline(db, client, creds, cfg, fs, runCfg, pushRedactor, cmd.ErrOrStderr(), push.WithObservations(observations, time.Now))
 				if err != nil {
 					return fmt.Errorf("create push pipeline: %w", err)
 				}
@@ -716,7 +736,7 @@ func BuildPushCommand() *cobra.Command {
 				var shared []schema.SyncPushSessionResult
 				var shareErr error
 				if len(autoPublish.collectives) > 0 && !dryRun {
-					shared, shareErr = push.RuleShare{Store: db, Village: client, Creds: creds, Retry: run.repositoryCommand() + " --force"}.Run(runCtx, result, autoPublish.collectives)
+					shared, shareErr = push.RuleShare{Store: db, Village: pipeline.CollectiveSharer(client), Creds: creds, Retry: run.repositoryCommand() + " --force"}.Run(runCtx, result, autoPublish.collectives)
 				}
 
 				// Close the profile run span over the measured stages. A failed

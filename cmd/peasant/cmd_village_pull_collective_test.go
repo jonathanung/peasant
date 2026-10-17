@@ -128,10 +128,12 @@ func pullCollectiveTestBlob(t *testing.T, id schema.TranscriptID) []byte {
 // collectives, for bulk pull tests to resolve `--collective` names against.
 func newPullCollectiveDouble(t *testing.T) *testutil.CollectiveVillage {
 	t.Helper()
-	return testutil.NewCollectiveVillage(t,
+	server := testutil.NewCollectiveVillage(t,
 		testutil.VillageCollective{ID: pullCollectiveAID, Name: pullCollectiveAName, Member: true},
 		testutil.VillageCollective{ID: pullCollectiveBID, Name: pullCollectiveBName, Member: true},
 	)
+	server.SetAuthenticatedUser(schema.VillageUUID(stubOwnerUserID), "owneruser")
+	return server
 }
 
 // seedPullTranscripts stores pull data for each id and shares it approved with

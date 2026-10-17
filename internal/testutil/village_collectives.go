@@ -56,7 +56,8 @@ type CollectiveVillage struct {
 	collectives map[schema.VillageUUID]VillageCollective
 	order       []schema.VillageUUID
 
-	mu sync.Mutex
+	mu                sync.Mutex
+	authenticatedUser schema.VillageUser
 	// transcripts holds each transcript's current share rows by collective.
 	transcripts map[schema.TranscriptID]map[schema.VillageUUID]schema.VillageShareStatus
 	// events holds each (transcript, collective) pair's share history.
@@ -105,18 +106,19 @@ type CollectiveVillage struct {
 func NewCollectiveVillage(t testing.TB, collectives ...VillageCollective) *CollectiveVillage {
 	t.Helper()
 	v := &CollectiveVillage{
-		t:               t,
-		collectives:     map[schema.VillageUUID]VillageCollective{},
-		transcripts:     map[schema.TranscriptID]map[schema.VillageUUID]schema.VillageShareStatus{},
-		events:          map[schema.TranscriptID]map[schema.VillageUUID][]schema.VillageShareEvent{},
-		public:          map[schema.TranscriptID]bool{},
-		failShare:       map[schema.VillageUUID]bool{},
-		conflictShare:   map[schema.VillageUUID]bool{},
-		pullBlobs:       map[schema.TranscriptID][]byte{},
-		pullAnnotations: map[schema.TranscriptID][]schema.PullAnnotation{},
-		pullInfos:       map[schema.TranscriptID]schema.PullTranscriptInfo{},
-		failPullContent: map[schema.TranscriptID]bool{},
-		contentCalls:    map[schema.TranscriptID]int{},
+		t:                 t,
+		authenticatedUser: schema.VillageUser{ID: VillageFixtureAccountID, GithubUsername: "owneruser"},
+		collectives:       map[schema.VillageUUID]VillageCollective{},
+		transcripts:       map[schema.TranscriptID]map[schema.VillageUUID]schema.VillageShareStatus{},
+		events:            map[schema.TranscriptID]map[schema.VillageUUID][]schema.VillageShareEvent{},
+		public:            map[schema.TranscriptID]bool{},
+		failShare:         map[schema.VillageUUID]bool{},
+		conflictShare:     map[schema.VillageUUID]bool{},
+		pullBlobs:         map[schema.TranscriptID][]byte{},
+		pullAnnotations:   map[schema.TranscriptID][]schema.PullAnnotation{},
+		pullInfos:         map[schema.TranscriptID]schema.PullTranscriptInfo{},
+		failPullContent:   map[schema.TranscriptID]bool{},
+		contentCalls:      map[schema.TranscriptID]int{},
 	}
 	for _, collective := range collectives {
 		v.collectives[collective.ID] = collective
@@ -132,6 +134,14 @@ func (v *CollectiveVillage) URL() string { return v.server.URL }
 
 // Close stops the double, so every later request fails to connect.
 func (v *CollectiveVillage) Close() { v.server.Close() }
+
+// SetAuthenticatedUser selects this test world's verified identity explicitly.
+// It never derives an account from request headers or query parameters.
+func (v *CollectiveVillage) SetAuthenticatedUser(id schema.VillageUUID, githubUsername string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.authenticatedUser = schema.VillageUser{ID: id, GithubUsername: githubUsername}
+}
 
 // FailShare makes sharing any transcript with the collective answer 500.
 func (v *CollectiveVillage) FailShare(id schema.VillageUUID) {
@@ -341,7 +351,7 @@ func (v *CollectiveVillage) recordLocked(transcript schema.TranscriptID, id sche
 	// Deliberately invalid scripted statuses remain invalid for refusal tests.
 	if actor, err := schema.VillageContributionAttemptActor(status); err == nil {
 		event.DecidedByActor = actor
-		if actor != schema.VillageShareEventActorNone {
+		if status != schema.VillageShareStatusPending && status != schema.VillageShareStatusApproved {
 			decision := villageDoubleTime
 			event.DecidedAt = &decision
 		}
@@ -447,7 +457,10 @@ func (v *CollectiveVillage) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = json.NewEncoder(w).Encode(schema.VillageGroupDetailResponse{Group: schema.VillageGroupDetailRecord{ID: id, Name: group.Name, AcceptanceMode: group.Acceptance, DataAccess: schema.VillageGroupDataAccessMembersOnly, CreatedAt: villageDoubleTime, UpdatedAt: villageDoubleTime}})
 	case r.Method == http.MethodGet && path == "/api/v1/auth/me":
-		_ = json.NewEncoder(w).Encode(schema.VillageUser{ID: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", GithubUsername: "owneruser"})
+		v.mu.Lock()
+		user := v.authenticatedUser
+		v.mu.Unlock()
+		_ = json.NewEncoder(w).Encode(user)
 	case r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/transcripts/") && strings.HasSuffix(path, "/collectives"):
 		id := schema.TranscriptID(strings.TrimSuffix(strings.TrimPrefix(path, "/api/v1/transcripts/"), "/collectives"))
 		v.mu.Lock()
@@ -536,7 +549,19 @@ func (v *CollectiveVillage) transcript(w http.ResponseWriter, r *http.Request, r
 			return
 		}
 		if status, live := v.transcripts[transcript][id]; live && (status == schema.VillageShareStatusPending || status == schema.VillageShareStatusApproved) {
-			v.recordLocked(transcript, id, schema.VillageShareStatusRetracted)
+			if status == schema.VillageShareStatusPending {
+				// The real withdrawal SQL decides pending in place; only an
+				// approved contribution's withdrawal opens a new ordinal.
+				history := v.events[transcript][id]
+				event := &history[len(history)-1]
+				event.Status = schema.VillageShareStatusRetracted
+				event.DecidedByActor, _ = schema.VillageContributionAttemptActor(event.Status)
+				decision := villageDoubleTime
+				event.DecidedAt = &decision
+				delete(v.transcripts[transcript], id)
+			} else {
+				v.recordLocked(transcript, id, schema.VillageShareStatusRetracted)
+			}
 		}
 		v.mu.Unlock()
 		_ = json.NewEncoder(w).Encode(schema.VillageStatusResponse{Status: "unshared"})
@@ -599,8 +624,8 @@ func (v *CollectiveVillage) publish(w http.ResponseWriter, r *http.Request) {
 
 func (v *CollectiveVillage) share(w http.ResponseWriter, r *http.Request, transcript schema.TranscriptID) {
 	var request schema.VillageShareTranscriptRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil || len(request.GroupIDs) != 1 {
-		v.t.Errorf("share request %+v, %v: the client shares with one collective per request", request, err)
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil || len(request.GroupIDs) == 0 {
+		v.t.Errorf("share request %+v, %v: the client must send an explicit target set", request, err)
 		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
 		return
 	}
@@ -615,7 +640,6 @@ func (v *CollectiveVillage) share(w http.ResponseWriter, r *http.Request, transc
 			return
 		}
 	}
-	id := request.GroupIDs[0]
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	shares, exists := v.transcripts[transcript]
@@ -623,26 +647,35 @@ func (v *CollectiveVillage) share(w http.ResponseWriter, r *http.Request, transc
 		http.Error(w, `{"error":"Transcript not found"}`, http.StatusNotFound)
 		return
 	}
-	if v.failShare[id] {
-		http.Error(w, `{"error":"Could not record the submission of this transcript"}`, http.StatusInternalServerError)
-		return
-	}
-	if v.conflictShare[id] {
-		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(schema.VillageErrorResponse{Error: "Transcript was submitted to this collective by another request at the same moment as this one. Nothing was submitted to that collective. Share it again."})
-		return
-	}
-	if status, live := shares[id]; live && (status == schema.VillageShareStatusPending || status == schema.VillageShareStatusApproved) {
-		w.WriteHeader(http.StatusConflict)
-		_ = json.NewEncoder(w).Encode(schema.VillageErrorResponse{Error: "This transcript is already submitted to 1 collective"})
-		return
-	}
-	if collective, known := v.collectives[id]; known && collective.Member {
-		status := schema.VillageShareStatusApproved
-		if collective.Acceptance == schema.VillageGroupAcceptanceCurated {
-			status = schema.VillageShareStatusPending
+	for _, id := range request.GroupIDs {
+		if v.failShare[id] {
+			http.Error(w, `{"error":"Could not record the submission of this transcript"}`, http.StatusInternalServerError)
+			return
 		}
-		v.recordLocked(transcript, id, status)
+		if v.conflictShare[id] {
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(schema.VillageErrorResponse{Error: "Transcript was submitted to this collective by another request at the same moment as this one. Nothing was submitted to that collective. Share it again."})
+			return
+		}
+		if status, live := shares[id]; live && (status == schema.VillageShareStatusPending || status == schema.VillageShareStatusApproved) {
+			w.WriteHeader(http.StatusConflict)
+			_ = json.NewEncoder(w).Encode(schema.VillageErrorResponse{Error: "This transcript is already submitted to 1 collective"})
+			return
+		}
+		if collective, known := v.collectives[id]; len(request.GroupIDs) > 1 && (!known || !collective.Member) {
+			w.WriteHeader(http.StatusForbidden)
+			_ = json.NewEncoder(w).Encode(schema.VillageErrorResponse{Error: "A requested target no longer accepts this contribution; the complete share request was refused"})
+			return
+		}
+	}
+	for _, id := range request.GroupIDs {
+		if collective, known := v.collectives[id]; known && collective.Member {
+			status := schema.VillageShareStatusApproved
+			if collective.Acceptance == schema.VillageGroupAcceptanceCurated {
+				status = schema.VillageShareStatusPending
+			}
+			v.recordLocked(transcript, id, status)
+		}
 	}
 	rows := make([]schema.VillageTranscriptShare, 0, len(shares))
 	for shared := range shares {
@@ -985,6 +1018,10 @@ func (v *CollectiveVillage) pullTranscript(w http.ResponseWriter, r *http.Reques
 
 // villageDoubleTime is the one time the double reports for its rows.
 var villageDoubleTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+
+// VillageFixtureAccountID is the stable synthetic authenticated user, shared
+// by mounted publication fixtures and the consented hook world.
+const VillageFixtureAccountID schema.VillageUUID = "11111111-1111-4111-8111-111111111111"
 
 func multipartPart(r *http.Request, name string) string {
 	_, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
