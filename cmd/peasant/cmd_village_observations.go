@@ -16,11 +16,15 @@ import (
 )
 
 func villageObservationService(cmd *cobra.Command) (*collectiveobservations.Service, func(), error) {
+	fetchTimeout, err := collectiveobservations.RuntimeFetchTimeout()
+	if err != nil {
+		return nil, func() {}, err
+	}
 	db, closeDB, err := openDB(cmd)
 	if err != nil {
 		return nil, closeDB, err
 	}
-	return collectiveobservations.New(collectiveobservations.Dependencies{Store: db, ConfigHome: configDirOverride(cmd), LocallyHeldTranscriptIDs: observationinventory.Held(db)}), closeDB, nil
+	return collectiveobservations.New(collectiveobservations.Dependencies{Store: db, ConfigHome: configDirOverride(cmd), LocallyHeldTranscriptIDs: observationinventory.Held(db), FetchTimeout: fetchTimeout}), closeDB, nil
 }
 
 func printCollectiveObservations(cmd *cobra.Command, response schema.CollectiveObservationResponse, jsonOutput bool) error {

@@ -154,6 +154,10 @@ func NewServer(cfg ServerConfig) *Server {
 // and sets up routes. After Listen returns, Addr() returns the bound address.
 // Call Serve to start accepting connections.
 func (s *Server) Listen(ctx context.Context) error {
+	fetchTimeout, err := collectiveobservations.RuntimeFetchTimeout()
+	if err != nil {
+		return err
+	}
 	// The settings catalog derives from the Config type and the `peasant
 	// config` registry. A defect there is a build defect: fail the start
 	// rather than the first settings request.
@@ -245,7 +249,7 @@ func (s *Server) Listen(ctx context.Context) error {
 	}
 	mux.HandleFunc("GET "+defaults.RoutePublications.String(), ph.handlePublications)
 	mux.HandleFunc("GET "+defaults.RouteVillageCollectives.String(), ph.handleVillageCollectives)
-	observations := &collectiveObservationHandler{service: collectiveobservations.New(collectiveobservations.Dependencies{Store: s.cfg.Store, ConfigHome: s.cfg.ConfigHome, LocallyHeldTranscriptIDs: observationinventory.Held(s.cfg.Store)})}
+	observations := &collectiveObservationHandler{service: collectiveobservations.New(collectiveobservations.Dependencies{Store: s.cfg.Store, ConfigHome: s.cfg.ConfigHome, LocallyHeldTranscriptIDs: observationinventory.Held(s.cfg.Store), FetchTimeout: fetchTimeout})}
 	observations.register(mux)
 
 	// Auto-publish rules: save or remove a rule, and install its hooks in one

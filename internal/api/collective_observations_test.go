@@ -17,6 +17,7 @@ import (
 
 	"github.com/peasant-labs/peasant/internal/api"
 	"github.com/peasant-labs/peasant/internal/auth"
+	"github.com/peasant-labs/peasant/internal/collectiveobservations"
 	"github.com/peasant-labs/peasant/internal/store/storetest"
 	"github.com/peasant-labs/peasant/internal/testutil"
 	"github.com/peasant-labs/schema"
@@ -141,6 +142,9 @@ func TestMountedCollectiveObservationRoutes(t *testing.T) {
 			Status       int    `yaml:"status"`
 			RemoteStatus int    `yaml:"remoteStatus"`
 			CloseStore   bool   `yaml:"closeStore"`
+			Timeout      string `yaml:"timeout"`
+			StallHistory bool   `yaml:"stallHistory"`
+			StartupError bool   `yaml:"startupError"`
 			Origin       string `yaml:"origin"`
 			Network      bool   `yaml:"network"`
 			Shape        string `yaml:"shape"`
@@ -165,6 +169,11 @@ func TestMountedCollectiveObservationRoutes(t *testing.T) {
 	}
 	for _, c := range fixture.Cases {
 		t.Run(c.Name, func(t *testing.T) {
+			timeout := c.Timeout
+			if timeout == "" {
+				timeout = "2m"
+			}
+			t.Setenv(collectiveobservations.EnvFetchTimeout, timeout)
 			db := storetest.Open(t)
 			home := t.TempDir()
 			var calls atomic.Int32
@@ -189,6 +198,15 @@ func TestMountedCollectiveObservationRoutes(t *testing.T) {
 					value = []schema.VillageMetadataUserOrganization{}
 				case "/api/v1/users/me/collectives/contributions":
 					value = schema.VillageContributedCollectivesResponse{Collectives: []schema.VillageContributedCollective{}}
+					if c.StallHistory {
+						value = schema.VillageContributedCollectivesResponse{Collectives: []schema.VillageContributedCollective{{ID: "33333333-3333-4333-8333-333333333333", Name: "Visible", PendingCount: 1}}}
+					}
+				case "/api/v1/users/me/collectives/33333333-3333-4333-8333-333333333333/submissions":
+					if !c.StallHistory {
+						t.Error("unexpected owner history source")
+					}
+					<-r.Context().Done()
+					return
 				case "/api/v1/collectives/33333333-3333-4333-8333-333333333333":
 					value = schema.VillageGroupDetailResponse{Group: schema.VillageGroupDetailRecord{ID: "33333333-3333-4333-8333-333333333333", Name: "Visible", AcceptanceMode: "open", DataAccess: "public"}}
 				default:
@@ -203,8 +221,23 @@ func TestMountedCollectiveObservationRoutes(t *testing.T) {
 			if err := auth.SaveCredentialsFrom(&creds, home); err != nil {
 				t.Fatal(err)
 			}
+			if c.StallHistory {
+				snapshot, err := auth.CaptureCredentials(t.Context(), home)
+				if err != nil {
+					t.Fatal(err)
+				}
+				testutil.SeedCollectiveEvidence(t, t.Context(), db, snapshot, testutil.LoadCollectiveEvidenceFixtures(t))
+			}
 			ctx, cancel := context.WithCancel(t.Context())
 			server := api.NewServer(api.ServerConfig{Port: 0, Store: db, ConfigHome: home})
+			if c.StartupError {
+				err := server.Listen(ctx)
+				cancel()
+				if err == nil || !strings.Contains(err.Error(), collectiveobservations.EnvFetchTimeout) || server.Addr() != nil || calls.Load() != 0 {
+					t.Fatalf("invalid runtime config reached startup/I/O: %v requests=%d", err, calls.Load())
+				}
+				return
+			}
 			if err := server.Listen(ctx); err != nil {
 				cancel()
 				t.Fatal(err)
@@ -268,6 +301,23 @@ func TestMountedCollectiveObservationRoutes(t *testing.T) {
 				}
 				if schema.CollectiveFetchHTTPStatus(value) != c.Status {
 					t.Fatal("report/status precedence mismatch")
+				}
+				if c.StallHistory {
+					if value.Domains[0].State != schema.CollectiveFetchStateComplete || value.Domains[1].State != schema.CollectiveFetchStateCancelled || value.Domains[1].Issue == nil || value.Domains[1].Issue.Code != schema.OperationIssueDeadline {
+						t.Fatalf("real local deadline lost independent effects: %#v", value)
+					}
+					snapshot, err := auth.CaptureCredentials(t.Context(), home)
+					if err != nil {
+						t.Fatal(err)
+					}
+					saved, err := db.ReadCollectiveObservations(t.Context(), snapshot)
+					if err != nil || len(saved.Collectives) != 1 || saved.Collectives[0].Name != "Visible" || saved.Fetch.LastCompletedFetchAt != nil {
+						t.Fatalf("deadline lost catalog or fabricated full completion: %#v %v", saved, err)
+					}
+					history, err := db.ReadContributionHistory(t.Context(), snapshot, schema.LocalContributionHistoryQuery{Kind: schema.LocalContributionEvidenceRemoteAttempts, Page: 1, Limit: 200})
+					if err != nil || history.Total != 7 {
+						t.Fatalf("deadline replaced old history: %#v %v", history, err)
+					}
 				}
 			case "error":
 				var value map[string]any

@@ -59,7 +59,7 @@ func New(deps Dependencies) *Service {
 	}
 	timeout := deps.FetchTimeout
 	if timeout <= 0 {
-		timeout = 2 * time.Minute
+		timeout = DefaultFetchTimeout
 	}
 	budget := deps.SourceBudgetBytes
 	if budget <= 0 {
