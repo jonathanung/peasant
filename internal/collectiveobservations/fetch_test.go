@@ -22,26 +22,28 @@ import (
 var fetchFixtureYAML []byte
 
 type fetchCase struct {
-	Name                string                               `yaml:"name"`
-	MembershipEmpty     bool                                 `yaml:"membershipEmpty"`
-	ContributionEmpty   bool                                 `yaml:"contributionEmpty"`
-	Org                 bool                                 `yaml:"org"`
-	Track               bool                                 `yaml:"track"`
-	FailPath            string                               `yaml:"failPath"`
-	FailStatus          int                                  `yaml:"failStatus"`
-	Cancel              bool                                 `yaml:"cancel"`
-	DiscoveryBody       string                               `yaml:"discoveryBody"`
-	AssociationFailure  bool                                 `yaml:"associationFailure"`
-	RotateDuringHistory bool                                 `yaml:"rotateDuringHistory"`
-	RotateBeforeAuth    bool                                 `yaml:"rotateBeforeAuth"`
-	HistoryOnly         bool                                 `yaml:"historyOnly"`
-	HistoryStatus       schema.VillageShareStatus            `yaml:"historyStatus"`
-	WantReasons         []schema.CollectiveObservationReason `yaml:"wantReasons"`
-	WantCoverage        schema.CollectiveEvidenceCoverage    `yaml:"wantCoverage"`
-	AwaitHistory        bool                                 `yaml:"awaitHistory"`
-	WantStatus          int                                  `yaml:"wantStatus"`
-	WantName            string                               `yaml:"wantName"`
-	WantEvent           schema.VillageShareStatus            `yaml:"wantEvent"`
+	Name                 string                               `yaml:"name"`
+	MembershipEmpty      bool                                 `yaml:"membershipEmpty"`
+	ContributionEmpty    bool                                 `yaml:"contributionEmpty"`
+	Org                  bool                                 `yaml:"org"`
+	Track                bool                                 `yaml:"track"`
+	FailPath             string                               `yaml:"failPath"`
+	FailStatus           int                                  `yaml:"failStatus"`
+	Cancel               bool                                 `yaml:"cancel"`
+	DiscoveryBody        string                               `yaml:"discoveryBody"`
+	AssociationFailure   bool                                 `yaml:"associationFailure"`
+	RotateDuringHistory  bool                                 `yaml:"rotateDuringHistory"`
+	RotateBeforeAuth     bool                                 `yaml:"rotateBeforeAuth"`
+	HistoryOnly          bool                                 `yaml:"historyOnly"`
+	HistoryStatus        schema.VillageShareStatus            `yaml:"historyStatus"`
+	WantReasons          []schema.CollectiveObservationReason `yaml:"wantReasons"`
+	WantCoverage         schema.CollectiveEvidenceCoverage    `yaml:"wantCoverage"`
+	AwaitHistory         bool                                 `yaml:"awaitHistory"`
+	WantStatus           int                                  `yaml:"wantStatus"`
+	WantName             string                               `yaml:"wantName"`
+	WantEvent            schema.VillageShareStatus            `yaml:"wantEvent"`
+	RetainedDomain       schema.CollectiveFetchDomain         `yaml:"retainedDomain"`
+	WantObservationState schema.CollectiveObservationState    `yaml:"wantObservationState"`
 }
 
 func TestFetchIndependentCompleteDomains(t *testing.T) {
@@ -252,6 +254,14 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 			if err != nil {
 				t.Fatalf("initial full fetch: %v %#v", err, before)
 			}
+			previousCatalog, err := service.List(t.Context())
+			if err != nil {
+				t.Fatal(err)
+			}
+			previousHistory, err := service.History(t.Context(), schema.LocalContributionHistoryQuery{Kind: schema.LocalContributionEvidenceRemoteAttempts, Page: 1, Limit: 50})
+			if err != nil {
+				t.Fatal(err)
+			}
 			phase.Store(1)
 			at = at.Add(time.Hour)
 			report, err := service.Fetch(operation)
@@ -310,6 +320,39 @@ func TestFetchIndependentCompleteDomains(t *testing.T) {
 			}
 			if c.WantCoverage != "" && history.Coverage != c.WantCoverage {
 				t.Fatalf("unavailable history range was called empty/available: %#v", history)
+			}
+			if c.WantObservationState != "" && catalog.Collectives[0].State != c.WantObservationState {
+				t.Fatalf("catalog observation state=%s want=%s", catalog.Collectives[0].State, c.WantObservationState)
+			}
+			if c.RetainedDomain != "" {
+				retained, completed := report.Domains[0], report.Domains[1]
+				oldDomain, savedDomain := previousCatalog.Fetch.Catalog, catalog.Fetch.Catalog
+				if c.RetainedDomain == schema.CollectiveFetchDomainHistory {
+					retained, completed = completed, retained
+					oldDomain, savedDomain = previousCatalog.Fetch.History, catalog.Fetch.History
+					if !reflect.DeepEqual(history, previousHistory) {
+						t.Fatalf("history lookup failure changed saved payload, coverage or category token: before=%#v after=%#v", previousHistory, history)
+					}
+				} else if !reflect.DeepEqual(catalog.Collectives, previousCatalog.Collectives) {
+					t.Fatalf("detail lookup failure changed saved catalog payload or availability: before=%#v after=%#v", previousCatalog.Collectives, catalog.Collectives)
+				}
+				if retained.Domain != c.RetainedDomain || retained.Commit != schema.CollectiveFetchCommitRetained || retained.State != schema.CollectiveFetchStateFailed || retained.CompletedAt != nil {
+					t.Fatalf("failed lookup was reported as a completed availability decision: %#v", retained)
+				}
+				if retained.Issue == nil || retained.Issue.Code != schema.OperationIssueRemote {
+					t.Fatalf("lookup failure lost its remote issue: %#v", retained)
+				}
+				datesRetained := reflect.DeepEqual(retained.LastCompletedAt, oldDomain.LastCompletedAt) && reflect.DeepEqual(savedDomain.LastCompletedAt, oldDomain.LastCompletedAt)
+				revisionRetained := reflect.DeepEqual(savedDomain.LastInstalledRevision, oldDomain.LastInstalledRevision)
+				if !datesRetained || savedDomain.Coverage != oldDomain.Coverage || !revisionRetained {
+					t.Fatalf("lookup failure changed last-good domain evidence: before=%#v report=%#v saved=%#v", oldDomain, retained, savedDomain)
+				}
+				if completed.State != schema.CollectiveFetchStateComplete || completed.Commit != schema.CollectiveFetchCommitUpdated || completed.LastCompletedAt == nil || !completed.LastCompletedAt.Equal(at) {
+					t.Fatalf("independent complete domain did not commit at the injected clock: %#v", completed)
+				}
+				if !reflect.DeepEqual(catalog.Fetch.LastCompletedFetchAt, previousCatalog.Fetch.LastCompletedFetchAt) || report.Outcome != schema.CollectiveFetchOutcomePartial {
+					t.Fatalf("lookup failure falsely advanced global completion: %#v", catalog.Fetch)
+				}
 			}
 			if c.WantStatus != 200 && catalog.Fetch.LastCompletedFetchAt != nil && !catalog.Fetch.LastCompletedFetchAt.Equal(before.Domains[0].CompletedAt.UTC()) {
 				t.Fatal("partial fetch advanced all-complete timestamp")
