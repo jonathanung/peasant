@@ -36,7 +36,7 @@ export async function verifyServed(origin, out, binary, pid) {
   const html = await fetch(`${origin}/village`, { signal: AbortSignal.timeout(3000) });
   if (!html.ok) throw new Error('The owned binary did not serve /village');
   const bytes = Buffer.from(await html.arrayBuffer());
-  if (hash(bytes) !== hash(readFileSync(join(out, 'village.html')))) throw new Error('Served /village HTML differs from this export; refusing stale-server captures');
+  if (hash(bytes) !== hash(readFileSync(join(out, 'village/index.html')))) throw new Error('Served /village HTML differs from this export; refusing stale-server captures');
   const text = bytes.toString();
   if (!text.includes('village-page') || !text.includes('village observations')) throw new Error('The actual exported /village body is absent; nav-only proof is refused');
   if (hash(readFileSync(`/proc/${pid}/exe`)) !== hash(readFileSync(binary)) || realpathSync(`/proc/${pid}/exe`) !== realpathSync(binary)) throw new Error('The serving process is not the absolute binary built by this runner');

@@ -33,7 +33,7 @@ for (const row of f.cases) test(row.name, { timeout: 5000 }, async t => {
   mkdirSync(join(root, '_next'));
   const html = `<html>${row.mode === 'body' ? '' : 'village-page village observations'}<script src="/_next/app.js"></script></html>`;
   const asset = 'village-page /village';
-  writeFileSync(join(root, 'village.html'), html); writeFileSync(join(root, '_next/app.js'), asset);
+  mkdirSync(join(root, 'village')); writeFileSync(join(root, 'village/index.html'), html); writeFileSync(join(root, '_next/app.js'), asset);
   const server = createServer((req, res) => { res.end(req.url === '/village' ? (row.mode === 'stale' ? 'old body' : html) : (row.mode === 'asset' ? 'old asset' : asset)); });
   t.after(async () => { server.closeAllConnections(); await new Promise(done => server.close(done)); });
   await new Promise(done => server.listen(0, '127.0.0.1', done));
