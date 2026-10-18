@@ -1,0 +1,11 @@
+.village-page {
+  max-width: var(--maxw);
+  padding: var(--sp-6) var(--gutter);
+  margin-inline: auto;
+}
+.village-page-filter {
+  display: grid;
+  gap: var(--sp-3);
+  margin-block: var(--sp-5);
+  max-width: var(--measure-prose);
+}

@@ -25,10 +25,21 @@ const ACTIVE_CASES = (() => {
   const rows = root.cases.map((row, index) => requireRecord(row, `section active fixture.cases[${index}]`));
   rows.forEach((row, index) => requireExactRequiredFields(row, ['name', 'section', 'pathname', 'active'], `section active fixture.cases[${index}]`));
   requireUniqueNames(rows, 'section active fixture.cases');
-  const required = ['home-on-root', 'home-not-on-a-section-page', 'section-on-its-page-with-trailing-slash', 'section-below-its-page', 'section-not-on-a-lookalike-path'];
+  const required = ['home-on-root', 'home-not-on-a-section-page', 'section-on-its-page-with-trailing-slash', 'section-below-its-page', 'section-not-on-a-lookalike-path', 'village-direct-active', 'village-not-lookalike'];
   const missing = required.filter((name) => !rows.some((row) => row.name === name));
   if (missing.length) throw new Error(`section active fixture is missing required cases: ${missing.join(', ')}`);
   return rows as Array<{ name: string; section: string; pathname: string; active: boolean }>;
+})();
+
+const NAV_EXPECTATIONS = (() => {
+  const path = resolve(process.cwd(), 'src/lib/nav/testdata/village_adoption.yaml');
+  const root = requireRecord(parseStrictYAML(readFileSync(path, 'utf8'), 'village adoption fixture'), 'village adoption fixture');
+  requireExactRequiredFields(root, ['navRoutes', 'headerIds'], 'village adoption fixture');
+  if (!Array.isArray(root.navRoutes) || root.navRoutes.some(row => !Array.isArray(row) || row.length !== 2 || row.some(value => typeof value !== 'string')) ||
+      !Array.isArray(root.headerIds) || root.headerIds.some(id => typeof id !== 'string')) throw new Error('village adoption fixture requires named routes and header ids');
+  const navRoutes = root.navRoutes as [string, string][];
+  if (!navRoutes.some(([id, href]) => id === 'village' && href === '/village')) throw new Error('required village route missing from adoption fixture');
+  return { navRoutes, headerIds: root.headerIds as string[] };
 })();
 
 afterEach(() => {
@@ -44,11 +55,10 @@ describe('local app sections', () => {
     );
   });
 
-  it('link the header to the shipped home and settings pages', () => {
-    expect(NAV_SECTIONS.map((section) => [section.id, section.href])).toEqual([['home', '/'], ['settings', '/settings']]);
-    expect(visibleNavSections(new Set(['code_map_navigation_v1'])).map((section) => section.id)).toEqual(['home', 'settings']);
-    // Home is the brand link; settings is the other canonical nav section.
-    expect(headerNavSections(new Set(['code_map_navigation_v1'])).map((section) => section.id)).toEqual(['settings']);
+  it('links every canonical navigation section to its mounted page', () => {
+    expect(NAV_SECTIONS.map((section) => [section.id, section.href])).toEqual(NAV_EXPECTATIONS.navRoutes);
+    expect(visibleNavSections(new Set(['code_map_navigation_v1'])).map((section) => section.id)).toEqual(NAV_EXPECTATIONS.navRoutes.map(([id]) => id));
+    expect(headerNavSections(new Set(['code_map_navigation_v1'])).map((section) => section.id)).toEqual(NAV_EXPECTATIONS.headerIds);
   });
 
   it('keep analytics, changes and the code map on their routes, by URL only', () => {

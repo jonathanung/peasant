@@ -13,8 +13,8 @@ import (
 
 // ReadObservationMemberships reads the complete membership input from the
 // canonical route, without changing the existing live suggestion API.
-func (c *VillageClient) ReadObservationMemberships(ctx context.Context) ([]schema.VillageUserGroup, error) {
-	var rows []schema.VillageUserGroup
+func (c *VillageClient) ReadObservationMemberships(ctx context.Context) ([]schema.VillageUserCollective, error) {
+	var rows []schema.VillageUserCollective
 	if err := c.readObservationJSON(ctx, "read complete collective memberships", "/api/v1/collectives", &rows); err != nil {
 		return nil, err
 	}
@@ -40,26 +40,26 @@ func (c *VillageClient) ReadObservationMemberships(ctx context.Context) ([]schem
 // ReadObservationCollective returns only the permitted collective projection.
 // Rosters, transcript lists and organization members from the detail response
 // are transport-local and never become observation-cache discovery inputs.
-func (c *VillageClient) ReadObservationCollective(ctx context.Context, id schema.VillageUUID) (schema.VillageGroupDetailRecord, error) {
+func (c *VillageClient) ReadObservationCollective(ctx context.Context, id schema.VillageUUID) (schema.VillageCollectiveDetailRecord, error) {
 	if !IsCollectiveID(id) {
-		return schema.VillageGroupDetailRecord{}, fmt.Errorf("read collective metadata: invalid collective UUID; no request sent; resolve an exact canonical collective ID and retry")
+		return schema.VillageCollectiveDetailRecord{}, fmt.Errorf("read collective metadata: invalid collective UUID; no request sent; resolve an exact canonical collective ID and retry")
 	}
-	var response schema.VillageGroupDetailResponse
+	var response schema.VillageCollectiveDetailResponse
 	path := "/api/v1/collectives/" + url.PathEscape(id.String())
 	if err := c.readObservationJSON(ctx, "read visible collective metadata", path, &response); err != nil {
-		return schema.VillageGroupDetailRecord{}, err
+		return schema.VillageCollectiveDetailRecord{}, err
 	}
 	row := response.Group
 	if row.ID != id || row.Name == "" {
-		return schema.VillageGroupDetailRecord{}, fmt.Errorf("read visible collective metadata: missing metadata or wrong collective identity; no metadata can be installed; correct the Village response and retry")
+		return schema.VillageCollectiveDetailRecord{}, fmt.Errorf("read visible collective metadata: missing metadata or wrong collective identity; no metadata can be installed; correct the Village response and retry")
 	}
 	if err := validateObservationPolicy(row.AcceptanceMode, row.DataAccess); err != nil {
-		return schema.VillageGroupDetailRecord{}, err
+		return schema.VillageCollectiveDetailRecord{}, err
 	}
 	return row, nil
 }
 
-func validateObservationPolicy(acceptance schema.VillageGroupAcceptanceMode, access schema.VillageGroupDataAccess) error {
+func validateObservationPolicy(acceptance schema.VillageCollectiveAcceptanceMode, access schema.VillageCollectiveDataAccess) error {
 	if !slices.Contains(schema.AllVillageGroupAcceptanceModes, acceptance) || !slices.Contains(schema.AllVillageGroupDataAccessPolicies, access) {
 		return fmt.Errorf("read collective metadata: unknown acceptance or data-access policy; no policy observation can be installed; update the client or correct the Village response before retrying")
 	}

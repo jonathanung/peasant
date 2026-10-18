@@ -16,8 +16,8 @@ import (
 // parallel private wire model. History validation remains schema-owned.
 type Source interface {
 	IdentityReader
-	ReadObservationMemberships(context.Context) ([]schema.VillageUserGroup, error)
-	ReadObservationCollective(context.Context, schema.VillageUUID) (schema.VillageGroupDetailRecord, error)
+	ReadObservationMemberships(context.Context) ([]schema.VillageUserCollective, error)
+	ReadObservationCollective(context.Context, schema.VillageUUID) (schema.VillageCollectiveDetailRecord, error)
 	ReadOwnSubmissions(context.Context, schema.VillageUUID) ([]schema.VillageCollectiveSubmission, error)
 	ReadOwnShareEvents(context.Context, schema.TranscriptID, schema.VillageUUID) ([]schema.VillageShareEvent, error)
 	ReadObservationOrganizations(context.Context) ([]schema.VillageMetadataUserOrganization, error)

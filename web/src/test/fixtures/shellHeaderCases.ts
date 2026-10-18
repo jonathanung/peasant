@@ -14,7 +14,7 @@ export interface ShellHeaderCases {
   paletteCapabilities: Array<{ name: string; tokens: string[] }>;
 }
 
-const REQUIRED_PAGES = ['home', 'analytics', 'changes', 'code-map', 'transcript', 'share'];
+const REQUIRED_PAGES = ['home', 'village', 'analytics', 'changes', 'code-map', 'transcript', 'share'];
 const REQUIRED_CAPABILITY_SETS = ['none', 'code-map-token'];
 
 function rows(value: unknown, path: string, fields: readonly string[], required: readonly string[]) {

@@ -39,6 +39,10 @@ show:
     text: settings
     icon: true
     page: src/app/settings/page.tsx
+  village:
+    selector: 'header a[href="/village"]'
+    text: village
+    page: src/app/village/page.tsx
 hide:
   connection-pill:
     selector: 'header .cx-pill'
@@ -66,6 +70,7 @@ palette:
     - 'proj-map:'
   require:
     - 'nav:/'
+    - 'nav:/village'
     - 'action:theme'
 # What the notice's always-mounted live region says (LocalOfflineNotice.tsx's
 # OFFLINE_ANNOUNCEMENTS must equal these; the offline gate listens for them and

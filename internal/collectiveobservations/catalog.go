@@ -185,7 +185,7 @@ func (s *Service) ResolveReferenceFor(ctx context.Context, snapshot auth.Credent
 	return ids[0], nil
 }
 
-func observationFromDetail(row schema.VillageGroupDetailRecord, reasons []schema.CollectiveObservationReason, s *Service) schema.CollectiveObservation {
+func observationFromDetail(row schema.VillageCollectiveDetailRecord, reasons []schema.CollectiveObservationReason, s *Service) schema.CollectiveObservation {
 	acceptance, access := row.AcceptanceMode, row.DataAccess
 	return schema.CollectiveObservation{ID: row.ID, Name: row.Name, Description: row.Description, AcceptanceMode: &acceptance, DataAccess: &access, Reasons: reasons, ObservedAt: s.now().UTC(), State: schema.CollectiveObservationStateObserved}
 }
@@ -253,7 +253,7 @@ func (s *Service) UntrackFor(ctx context.Context, snapshot auth.CredentialSnapsh
 // VerifyTargets fetches only named action sources, not full business history.
 // The returned policies are observations, not a second permission engine: the
 // final Village mutation must still authorize every requested target atomically.
-func (s *Service) VerifyTargets(ctx context.Context, transcript schema.TranscriptID, ids []schema.VillageUUID) ([]schema.VillageGroupDetailRecord, error) {
+func (s *Service) VerifyTargets(ctx context.Context, transcript schema.TranscriptID, ids []schema.VillageUUID) ([]schema.VillageCollectiveDetailRecord, error) {
 	ctx, cancel := s.operationContext(ctx)
 	defer cancel()
 	original, err := s.SelectedCredentials(ctx)
@@ -265,7 +265,7 @@ func (s *Service) VerifyTargets(ctx context.Context, transcript schema.Transcrip
 
 // VerifyTargetsFor obtains only named target projections with the ORIGINAL
 // action snapshot; observations never replace final Village authorization.
-func (s *Service) VerifyTargetsFor(ctx context.Context, original auth.CredentialSnapshot, transcript schema.TranscriptID, ids []schema.VillageUUID) ([]schema.VillageGroupDetailRecord, error) {
+func (s *Service) VerifyTargetsFor(ctx context.Context, original auth.CredentialSnapshot, transcript schema.TranscriptID, ids []schema.VillageUUID) ([]schema.VillageCollectiveDetailRecord, error) {
 	ctx, cancel := s.operationContext(ctx)
 	defer cancel()
 	if _, err := schema.NewTranscriptID(transcript.String()); err != nil {
@@ -278,7 +278,7 @@ func (s *Service) VerifyTargetsFor(ctx context.Context, original auth.Credential
 	if err != nil {
 		return nil, err
 	}
-	rows := make([]schema.VillageGroupDetailRecord, 0, len(ids))
+	rows := make([]schema.VillageCollectiveDetailRecord, 0, len(ids))
 	seen := map[schema.VillageUUID]bool{}
 	for _, id := range ids {
 		if seen[id] {

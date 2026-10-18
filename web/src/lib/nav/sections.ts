@@ -10,7 +10,7 @@ import { UI_CAPABILITY, type UICapabilityToken } from '@/lib/capabilities/tokens
  *
  * WHICH sections exist, their order, their labels, and whether each one is
  * listed in the navigation come from @peasant-labs/fairtrade/graph's
- * LOCAL_APP_SECTIONS: `home` and `settings` are nav sections; `analytics`,
+ * LOCAL_APP_SECTIONS: `home`, `village` and `settings` are nav sections; `analytics`,
  * `changes` and `code map` are reached by route only. This module adds only
  * the local route each id owns. `/share` is not a section: it stays outside
  * this registry.
@@ -38,7 +38,7 @@ export interface LocalSection extends NavSection {
   inNav: boolean;
 }
 
-type LocalSectionId = 'home' | 'settings' | 'analytics' | 'changes' | 'map';
+type LocalSectionId = 'home' | 'village' | 'settings' | 'analytics' | 'changes' | 'map';
 
 type SectionRoute = Omit<NavSection, 'id' | 'label' | 'icon'>;
 
@@ -51,6 +51,10 @@ const ROUTES: Record<LocalSectionId, SectionRoute | null> = {
   home: {
     href: '/',
     title: 'Your projects and the sessions recorded in them.',
+  },
+  village: {
+    href: '/village',
+    title: 'Inspect saved collective observations and dated contribution evidence.',
   },
   settings: {
     href: '/settings',

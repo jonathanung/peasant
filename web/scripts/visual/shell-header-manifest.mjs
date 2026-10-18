@@ -18,11 +18,11 @@ export const SHELL_HEADER_FIXTURE = join(HERE, 'testdata', 'shell-header.yaml')
 
 /** The names the manifest must carry. A row deleted from the fixture fails the loader. */
 export const REQUIRED_NAMES = Object.freeze({
-  show: Object.freeze(['brand', 'search', 'theme', 'settings']),
+  show: Object.freeze(['brand', 'search', 'theme', 'settings', 'village']),
   hide: Object.freeze(['connection-pill', 'share-button', 'section-nav']),
   routes: Object.freeze(['/analytics', '/review', '/map']),
   paletteForbid: Object.freeze(['proj-changes:', 'proj-map:']),
-  paletteRequire: Object.freeze(['nav:/', 'action:theme']),
+  paletteRequire: Object.freeze(['nav:/', 'nav:/village', 'action:theme']),
 })
 
 /**
