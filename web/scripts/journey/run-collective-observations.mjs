@@ -76,6 +76,7 @@ async function publishedPackage(name, lock) {
 }
 
 try {
+  if (Number(process.versions.node.split('.')[0]) < 26) throw new Error('The built journey requires Node >=26 for the runner and browser worker; enter the repository Nix shell before running the documented command');
   life = await acquireLifecycle(join(web, '.collective-observations-owner'));
   if (stopping) { await life.cleanup(); throw new Error('Journey cancelled during ownership acquisition'); }
   const ui = await import(pathToFileURL(require.resolve('@peasant-labs/fairtrade/ui')));
@@ -107,7 +108,7 @@ try {
   const exported = JSON.parse(await capture(seeder, ['--action', 'fixture'], { env }));
   const config = parse(readFileSync(join(web, 'scripts/journey/testdata/collective-observations.yaml'), 'utf8'));
   let appURL = `http://127.0.0.1:${await freePort()}`;
-  const manifest = { sourceCommit, sourceFiles, lockHash: hash(readFileSync(join(web, 'pnpm-lock.yaml'))), packages, binary, binaryHash: hash(readFileSync(binary)), webAssets: inventory(out), fetchTimeout: env.PEASANT_COLLECTIVE_FETCH_TIMEOUT, served: [], appURL };
+  const manifest = { sourceCommit, sourceFiles, lockHash: hash(readFileSync(join(web, 'pnpm-lock.yaml'))), packages, binary, binaryHash: hash(readFileSync(binary)), webAssets: inventory(out), nodeExecutable: process.execPath, nodeVersion: process.version, fetchTimeout: env.PEASANT_COLLECTIVE_FETCH_TIMEOUT, served: [], appURL };
   const saveManifest = () => writeFileSync(join(artifacts, 'build-manifest.json'), JSON.stringify(manifest, null, 2));
   async function startApp() {
     app = launch(binary, ['web', 'start', '--foreground', '--no-browser', '--port', new URL(appURL).port], { env });
@@ -166,7 +167,9 @@ try {
   await seed('seed'); await startApp(); saveManifest();
   writeFileSync(join(artifacts, 'fixture-export.json'), JSON.stringify(exported)); // synthetic public fixtures only, no saved credentials
   const journeyEnv = { ...env, CHROME_PATH: chrome, OBSERVATIONS_APP_URL: appURL, OBSERVATIONS_REMOTE_URL: remote.origin, OBSERVATIONS_CONTROL_TOKEN: control.token, OBSERVATIONS_ARTIFACTS: artifacts };
-  await bounded(launch('pnpm', ['--dir', web, 'exec', 'playwright', 'test', '--config', 'playwright.collective-observations.config.mjs'], { env: journeyEnv }).done, 300000, 'collective observations mounted suite');
+  // Resolve the installed CLI before entering isolated HOME. A package-manager
+  // launcher may otherwise try to read its user's Corepack cache from that HOME.
+  await bounded(launch(process.execPath, [require.resolve('@playwright/test/cli'), 'test', '--config', 'playwright.collective-observations.config.mjs'], { cwd: web, env: journeyEnv }).done, 300000, 'collective observations mounted suite');
   writeFileSync(join(artifacts, 'fixture-requests.json'), JSON.stringify(remote.requests, null, 2));
   console.log(`Inspect retained full-shell evidence in ${artifacts}; generation alone is not visual acceptance.`);
 } catch (error) { console.error(error.message); process.exitCode = 1; }
