@@ -117,6 +117,8 @@ func TestCollectiveLatestIssuedReadFences(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				// Retain ownership on fatal exits before the explicit durability close below.
+				defer writer.Close()
 			}
 			newer := begin(writer)
 			if err := writer.IssueCollectiveReads(t.Context(), newer, plan(c.Newer), at); err != nil {
