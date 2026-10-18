@@ -1,0 +1,187 @@
+{
+  "sourceCommit": "cb326ed583487d3afa5f9560acd96243aa903e41",
+  "sourceTree": "8d37c1e87e52fbb05bd59af4941e25344dda6fe5",
+  "villageMergedRef": "46acb2e65a3e5db277853d6c8a96d5082de0fc52",
+  "villageMergedTree": "5dedcba9f2128253642ac37d52d127fb056956c5",
+  "binarySha256": "1d6ade2b3012ce005ba882ca625f594b5f35b26e958a704d8d06341b71f1fe79",
+  "nodeVersion": "v26.7.0",
+  "lockHash": "a1ff79ed2ac55c45aa12cab987cf8fffa692ad10de60d145c7830ae2f9e80274",
+  "webAssets": {
+    ".gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "404/index.html": "3297135c287f172fa51045d6946cc26f6ac82fd7b051858046dc458d3139d25d",
+    "404.html": "3297135c287f172fa51045d6946cc26f6ac82fd7b051858046dc458d3139d25d",
+    "_next/static/XyzAXn1lu055Zj6cwYnRD/_buildManifest.js": "c276a329a8f30af346534712800c6ad2941f145db6b4f1a6c99355bc803f3d54",
+    "_next/static/XyzAXn1lu055Zj6cwYnRD/_ssgManifest.js": "bc26f9a6c2169ef236a5d0379bc4736238b4b1c6b311d0c07392ebd4825c66da",
+    "_next/static/chunks/127.7bca8fb8721cd197.js": "a2730c678a45ca9d438a67c570bd8204fbdf2e8ef0739e1ce2125282615015e8",
+    "_next/static/chunks/1581e093-8c10d8fda25e64da.js": "6f32bec79940dcda9de557637333082145d20e7145211ab4070d8d997b64c773",
+    "_next/static/chunks/160-cb9e73df8e3fe556.js": "1c5bf0d3ccd377a031015cc11adfc611e62039348ad1bfc0e67ccf898f7db651",
+    "_next/static/chunks/216.85c7c649d94990e7.js": "635b643342ef333b3892247ee6a617ad70dce0f23394fa54bbd8d2b88de7c1a1",
+    "_next/static/chunks/291-cbea61442011fe6a.js": "77fc9cb83a504b6070428b4b3ff75405119b4dfb88cdaa7f51b52cf64764a547",
+    "_next/static/chunks/350-0ff7cc4ca83869b8.js": "1b36bcec52724ffba80beebd84f5896387aa2cdeeab3c40b9c6fc051b1484b95",
+    "_next/static/chunks/419-93989649d9df9ef4.js": "fe4b6763058cbc370f625d49949055e708c4013d67bd29a4ebb2a1da6c1337ab",
+    "_next/static/chunks/461-b889b50d110e1923.js": "add6e50420c9cff2b253f0067c3eff8984f7dd5b45ff9fea306e320fe085b498",
+    "_next/static/chunks/547-9164182972c43434.js": "988eb6f33127706f490cc4c2f24eb71aa63b70d8751a9e6a657f9ad3b45db1fe",
+    "_next/static/chunks/595-0006e0b7637f3d91.js": "1a21b291a30f115039211567eff223256b01ec7021f11afd201a57c17ca43946",
+    "_next/static/chunks/648-41796404c4276325.js": "e8b14b558476aaf7fe0ed1af630c6d16d8a06aa2f600da138300ef8d13d40862",
+    "_next/static/chunks/6731e678-ff555addd8836544.js": "7ab002075da1a78e9229d5e991a6097cd91b98dbc58fbe668388f8b1c0b24b03",
+    "_next/static/chunks/693-e0243856a3d0c2e0.js": "303eba1d74cf5ce78a5b4414f2a9e9811b850cbc6eafa56efc8fdb776f726e8b",
+    "_next/static/chunks/700-a417173164f4308f.js": "2274695f97487838a8b970ba73717029700cbbeaee826bd17db26dc2430240bf",
+    "_next/static/chunks/778-f28eb5687013475b.js": "e5784b4b71f8f784494bbfeb844cc37d674849c50cc762a54efdf07c4c85d1ef",
+    "_next/static/chunks/863-5785d6704d30339f.js": "158482c59b261ecb8f078d1ae071b92a40bee6eaeefb514ca9970aadab4b9b1b",
+    "_next/static/chunks/868-75f66d9a07b24a26.js": "a8e80ba460cd3674b686512c15a2bdc77ac0c79eab8b531f5cb69763422da3d3",
+    "_next/static/chunks/8c8a7c9b-9a630525915a7e2f.js": "b1793ab3feca9f11ea61a2ee7f910207910eb95af3068fe2f54dbb5f4a1fb07c",
+    "_next/static/chunks/917-a4da0bd1fc2cebfc.js": "d1d4c487fb7e0e0d756789f73bcd9c0d9c53d7a7b787da9c6c9da94b3be02d89",
+    "_next/static/chunks/941-95d25a358bf70639.js": "ded1b20f1043d4379695eb59b9fbfa76ef13180fb13c7485e7d805392ea44d0c",
+    "_next/static/chunks/960-ffda08d62829f19f.js": "fcc170956286adf515b9103aa8a6c8352dba7c0c8d334e67f08c62d5f740e0f7",
+    "_next/static/chunks/991-7256a8bbb7f68d0d.js": "9a818621a32ab77f50fc30381b7dd37486db9ae1172c75e75f5505d4299312db",
+    "_next/static/chunks/997-acaf7cf298876160.js": "46d7122a90d363b025555af4758d7c0b65ad0da1359f9badc4f69aa0540b13e3",
+    "_next/static/chunks/app/_not-found/page-43fdfa9af156cc89.js": "1058d5bce8765b2fe0beae4da49ba6569e67613b47a05a94019f0bc61af46925",
+    "_next/static/chunks/app/analytics/page-4486154cf6054faa.js": "a0861f6daa7f7009e742ebbe904903595138c64c06fd21524f7de565bceb7aba",
+    "_next/static/chunks/app/dev/changes-harness/page-fa196fe3a2dbdc60.js": "a511cb9bf25fd538ef272688e71c71dac1714536f504000e7ea8abbfe1d72d21",
+    "_next/static/chunks/app/dev/visual-harness/page-6deb13b48bca866a.js": "51a5d42664e00f6d58fab9ab6a7409b59ce6d21d38c9c0bfca6abb387d7965b0",
+    "_next/static/chunks/app/layout-d5ecf180e51b8b52.js": "14514e6114a1f759c8e91194ac75f0560df20432537da33bbe4b8f59262f16c3",
+    "_next/static/chunks/app/loading-06f111ae0d39cccb.js": "aa525235c63e211fb8d0e765331d8abc20b31f9ffeeb2f3d41f66a43794f369b",
+    "_next/static/chunks/app/map/[[...segments]]/page-061ed7521d704b6d.js": "a06af931a5549fafbccc6d1547fbfd013dd9056d96280fb6e39d46de5954c55d",
+    "_next/static/chunks/app/page-fac57effdb8bc48f.js": "66ebe429435171aafb194a1681d759f5dfade2a417970ec496c92ebe1caddbee",
+    "_next/static/chunks/app/projects/[[...segments]]/page-15f1f90fc4579bcc.js": "898efabc737d6ce19b7a54ba8af7c27dc2c24fa40395ba2c6249bc197bece135",
+    "_next/static/chunks/app/review/[[...segments]]/page-f47511d30ad4514d.js": "dbd91bf516c638d636610c901e93aa8479ae96565728c3c9df147f10249d4862",
+    "_next/static/chunks/app/sessions/[[...segments]]/page-46e4a7a93fe14f63.js": "a7cee29714890d4c50843ce4f602f08a4173ac9e28048689fc00e7aa0a09b0dd",
+    "_next/static/chunks/app/settings/page-36afa6fbdedf7de9.js": "ab7e816ad638b33bdaad89ee633e5ce8b6be6a9bbf4e13c4407b96ea44680887",
+    "_next/static/chunks/app/share/page-b8f7876d87cc4aba.js": "0a9dbeb0f59adcf5a00312b7566ca4861214228ffa712c233de377b5c16334da",
+    "_next/static/chunks/app/village/page-89c88edaec327878.js": "1f3937b9e3d8b3f82f935064dc309fd36742c8674e50b56783b42d4e234e2784",
+    "_next/static/chunks/b4d7b5b7-759fa4c8fa1b6701.js": "ea2204e144b92029192fa2db1579e6452a27c958295f75f0f70c5e5814bb8663",
+    "_next/static/chunks/framework-1258f282d0b2dd3b.js": "796966b183143956926685b6ea471522559db680e9de567d917c2f4fbae61329",
+    "_next/static/chunks/main-0c5e9eabc4dee5f8.js": "87c0494f5a7510cfa87c36d5f8740a779e73c59bff9042b108032cc36fe5b4db",
+    "_next/static/chunks/main-app-8cf6ba53856b7a33.js": "76cd76da8457226560729359a62290f004504742773c6ce6de7d984f2556e80a",
+    "_next/static/chunks/pages/_app-6ecd0a4c769d971a.js": "6c0fb9a4fa78dc7359d36332462711009a55b17bb739b6f08add1477b1411612",
+    "_next/static/chunks/pages/_error-c04d62a7e7790799.js": "160115c4afc669200c2df8a9dc10c91f6057769f558b23df5adbc756e28cb3dc",
+    "_next/static/chunks/polyfills-42372ed130431b0a.js": "0973c1d64c88adc8e3c950410cb58b288f72118d5965b78049438deb8f2f9683",
+    "_next/static/chunks/webpack-4f9b57669a513f78.js": "91b5538666ab15c59628249332d51dfba460c1d28f0b9e31934c7bc99ed0970d",
+    "_next/static/css/008a05b0ad6b854a.css": "51bc386b72d70be3f37056838e1fea59889d488c114d4e38a46be696a069bcab",
+    "_next/static/css/3dc22f438221a0fa.css": "0c2a5e65f59c3f5c5b657afb1ead21c1b23dc23facf71ca512d3e2442da383f9",
+    "_next/static/css/5d070f2e13e5389b.css": "dfd219c75d7e37add5c55d4466e95fbfe31d93389f04c4f8baeadd1efccabd65",
+    "_next/static/css/67a3d9a6012f5eaa.css": "ce6acc6755e6c63f8eb5e6898aae9cf1331764f35948bead72d72f40876ea129",
+    "_next/static/css/6e8ec43f47d45e00.css": "3d46e8c4f322edd097ca481650de2b16dc3685c56859f67459df46871051435c",
+    "_next/static/css/89b69432ec02e7a1.css": "2539005bd8f4563a0f86c7b002adb9fbf95a65523d035171cc24d05896bc366f",
+    "_next/static/media/6e546afaf258f1e0-s.p.woff2": "f0230cab68ecdc96766fde00a89cf3167e668c3a8756f844cab554dc3bcfd030",
+    "_next/static/media/851a75a9cb7ade06-s.p.woff2": "5ee711c886e479406e0ef239f5cc6db7cae99906af00e774950d96189113ed9d",
+    "_next/static/media/89bba36f80ba9d0d-s.p.woff2": "cc84a9955b3a4bba1a5b5e9ba6c4276974f6614609b1d52e53990f4eceecbd0c",
+    "_next/static/media/9816a0e0ed309b6c-s.p.woff2": "1cc7c0c5fbf16d1be3cb6d95c89fc0afd0e11f264e239ac97c64a326c5d88fe4",
+    "_next/static/media/bc08e10e1c60a660-s.p.woff2": "a60206dd4793eb886952e48dc3e1c1d59942c004b2ab1e0086e7ccd156a7852d",
+    "_next/static/media/f2b84684bb0e6e9d-s.p.woff2": "3987a9380206f1fe82996907601efa98b5cda98dd8cd37b94e2688677ecdc28d",
+    "analytics/index.html": "4aef0eac6927c1866521dc936193222f0361ac40424b0f96da4e98df3e29f6f3",
+    "analytics/index.txt": "a928ff006f25a654c11f5e2b283ac02219c553b1108694acd897b29888d5db95",
+    "dev/changes-harness/index.html": "32630bae0e2b9c41265bab8257117d16187a29a225b47ba7687e633bc6766ebf",
+    "dev/changes-harness/index.txt": "28a36f8f19609bd238c007f3338f2227ae6d87ef75cadd90dc2354e3ad49f13f",
+    "dev/visual-harness/index.html": "4982a03fe0229282ef7b52187ca8d69f65763a27ee7abb33cbc8bd7cc7c064c3",
+    "dev/visual-harness/index.txt": "b5d2089616898a1745ed1101a13e69a76eebe8ec95976aaf16fd37b09a9e8391",
+    "icon.svg": "067b962aefb6b90b69ceb5daccdda35e0e8e25356ad5c66b5892719e8e7d9f46",
+    "index.html": "75301091a6175c9e1dd40d90f5f5b95ce6b6f1352b32295b334d5b59e421a9aa",
+    "index.txt": "762cfc015c10187422f3da90d07ed376a6307524235c117e9f017cd540756ace",
+    "map/index.html": "4a6c11ab20335fb601b1d5b1d73394b09a87b4c9de0f73593f203a8054d9b188",
+    "map/index.txt": "d69d26362d0f3e33a01552c63cfe12afde0bb9b62933ad23edef8104239d9ee9",
+    "projects/index.html": "d56580678b91e72ab85ff666b460804f2c15648e628639ba3b08a9d4f3315ca8",
+    "projects/index.txt": "070cf5080a44758c9b323d05c1991899d68c14f2d8354c4e5265eb7db57e4a4f",
+    "review/index.html": "91ef19d807537046aca540aa83409cd203b64232cb2115bd376b246424ecd195",
+    "review/index.txt": "fbf0f0e5c998af08eec1eb2a3fbfa8b0c262536613c526deeb4f3007dd0621d7",
+    "sessions/index.html": "4c3c30279173ff0daa3f0738dedb9411f9f403aecdab14f84891e0ad3c69620d",
+    "sessions/index.txt": "a2f22fae28af2ab2d896b0588130c9c299e2f73d6c7a64f2495555aefd3fb4f3",
+    "settings/index.html": "c093271354e7c2651904ee3ee746e1a50147263400d1d83548f669e2ff2f220f",
+    "settings/index.txt": "0e9d3a53f19baf10789286d160754b9bb274ad9dcd8dda092c87c200a84c718c",
+    "share/index.html": "a649ce4474e375fbe1075488b7851831dbfe27d2a7863f9b18d5b171f44bbf03",
+    "share/index.txt": "453b6beec500905560b3bc051a7b841776e2033dba6e98294ddf97341b2b5870",
+    "village/index.html": "1320891813b8a67fd3030517935655765ed801a8ebaf4207c4aab1c1b9f37ef6",
+    "village/index.txt": "3937c49a84a328fe6332d02cf7383803089eb338a133fe96183f9f43d2e4eca7"
+  },
+  "verifiedServedRecords": 69,
+  "data": "Synthetic fixtures only; no user transcript/credential data.",
+  "inspection": "All24 originals and four comparisons inspected by implementing owner; parent additionally inspected all24 via labeled contact sheets and allfour comparisons.",
+  "reference": "Canonical Fairtrade0.0.31 demo fece93aa, left; current Peasant cb326ed5, right.",
+  "limits": [
+    "Real local API/Store/binary is mounted; remote HTTP dependency uses an app-owned fixture.",
+    "Viewport and accessibility probes do not certify physical devices or full WCAG.",
+    "Comparison pixels include intentional account, fixture state and product chrome differences, not an equality gate."
+  ],
+  "screenshots": [
+    {
+      "file": "dark-desktop.png",
+      "sha256": "f4f98d38877fa01dc6416fe40f588aa3f37fedd68defd9ecdf4bd0b39844d9b2",
+      "kind": "mounted product"
+    },
+    {
+      "file": "light-desktop.png",
+      "sha256": "d451ddd66eef19fb81ebfca4c31487ea770a7e2d7768658b78a310e78bd772d0",
+      "kind": "mounted product"
+    },
+    {
+      "file": "dark-mobile.png",
+      "sha256": "1b7a5fa78b020538245969271a7a37c51038eb869cc207be3e88c485dfacca2e",
+      "kind": "mounted product"
+    },
+    {
+      "file": "light-mobile.png",
+      "sha256": "3510de098ae387d73b69786f849015f0260fe2cdfd9acf54492583784fbf3ae7",
+      "kind": "mounted product"
+    },
+    {
+      "file": "dark-desktop-partial-502.png",
+      "sha256": "3d8242655ca4dba9b06ab39f13c79a7d96b57c94775768cf30bb467c9be623ed",
+      "kind": "mounted product"
+    },
+    {
+      "file": "light-desktop-partial-504.png",
+      "sha256": "06330d4f8ea55a24f0cb8940aca7743a4301467424de075cc91bad59dd7cfc90",
+      "kind": "mounted product"
+    },
+    {
+      "file": "dark-mobile-partial-504.png",
+      "sha256": "4b7945d206728b2c4287d8417e2a2b4a5f7efc4fc3ada5c90beab4e2f8ace679",
+      "kind": "mounted product"
+    },
+    {
+      "file": "light-mobile-partial-502.png",
+      "sha256": "1fe71f2c07f5819ac21f24dc7b9f65dca5a14d0d77288715b20662cc20e99288",
+      "kind": "mounted product"
+    },
+    {
+      "file": "dark-desktop-remote-attempts.png",
+      "sha256": "0558456b7924e2670bb901f0195b2566bee227d40891689b1f36ca0b188dbf8e",
+      "kind": "mounted product"
+    },
+    {
+      "file": "light-desktop-receipts.png",
+      "sha256": "b96ee4ed899b862c57d4bb91cdc01ce931c8a2be41050a673bd973b43459cb76",
+      "kind": "mounted product"
+    },
+    {
+      "file": "dark-mobile-operation-diagnostics.png",
+      "sha256": "e1108b6b94477e550d915462b2adbef0991c27c8a63fb551fe7d9171ea15af96",
+      "kind": "mounted product"
+    },
+    {
+      "file": "light-mobile-receipts.png",
+      "sha256": "612e7e95e12efe4567285127b2583d8a4db52ab3dc91dc9f9f28fff2ec8414fb",
+      "kind": "mounted product"
+    },
+    {
+      "file": "sxs-dark-village-desktop.png",
+      "sha256": "1fca74b5147ab6d06229871da14b76be873c0a20a7a4a32efdc9ebcf76764572",
+      "kind": "canonical demo left versus Peasant right"
+    },
+    {
+      "file": "sxs-dark-village-mobile.png",
+      "sha256": "6b367be561c832bbfe4a8981e11c0188cd7be661402e3bf3b92347cf46233652",
+      "kind": "canonical demo left versus Peasant right"
+    },
+    {
+      "file": "sxs-light-village-desktop.png",
+      "sha256": "e66bf2d58e52ad777e1032e95ebe034d9a2d10b46cff9c9b62fd234136e1ea0b",
+      "kind": "canonical demo left versus Peasant right"
+    },
+    {
+      "file": "sxs-light-village-mobile.png",
+      "sha256": "237bf1965d55cbede5987a6a5f7cd4a2371c7ea42044ba0540caf143f4f5e0c3",
+      "kind": "canonical demo left versus Peasant right"
+    }
+  ]
+}
