@@ -14,8 +14,21 @@ for (const row of f.cases) test(row.name, { timeout: 5000 }, async t => {
   const root = mkdtempSync(join(tmpdir(), 'peasant-provenance-')); t.after(() => rmSync(root, { recursive: true, force: true }));
   if (row.mode === 'bytes') {
     const a = join(root, 'installed'), b = join(root, 'published'); mkdirSync(a); mkdirSync(b);
+    writeFileSync(join(a, 'package.json'), '{}'); writeFileSync(join(b, 'package.json'), '{}');
     writeFileSync(join(a, 'ui.js'), 'source override'); writeFileSync(join(b, 'ui.js'), 'published export');
     assert.throws(() => assertPublishedFiles(a, b), /differ/); return;
+  }
+  if (row.mode === 'manager-bin' || row.mode === 'extra-module') {
+    const a = join(root, 'installed'), b = join(root, 'published'); mkdirSync(a); mkdirSync(b);
+    mkdirSync(join(a, 'node_modules/.bin'), { recursive: true });
+    const metadata = JSON.stringify({ dependencies: { yaml: '2.9.0' } });
+    writeFileSync(join(a, 'package.json'), metadata); writeFileSync(join(b, 'package.json'), metadata);
+    writeFileSync(join(a, 'node_modules/.bin/yaml'), 'package-manager-generated-command');
+    if (row.mode === 'extra-module') {
+      writeFileSync(join(a, 'node_modules/override.js'), 'unpublished override');
+      assert.throws(() => assertPublishedFiles(a, b), /differ/);
+    } else assert.ok(assertPublishedFiles(a, b)['node_modules/.bin/yaml']);
+    return;
   }
   mkdirSync(join(root, '_next'));
   const html = `<html>${row.mode === 'body' ? '' : 'village-page village observations'}<script src="/_next/app.js"></script></html>`;

@@ -22,7 +22,14 @@ export function assertExportedSurface(ui, graph) {
 }
 export function assertPublishedFiles(installed, unpacked) {
   const actual = inventory(realpathSync(installed)), published = inventory(unpacked);
-  if (JSON.stringify(Object.entries(actual).sort()) !== JSON.stringify(Object.entries(published).sort())) throw new Error('Installed Fairtrade bytes differ from the integrity-verified npm tarball; remove overrides/dev links and reinstall the frozen published dependency');
+  // pnpm materializes the declared yaml dependency's command shim inside the
+  // installed schema package. It is not a file distributed by that package.
+  // Retain its hash as installation evidence; compare every published byte and
+  // refuse every other extra file rather than ignoring node_modules wholesale.
+  const metadata = JSON.parse(readFileSync(join(unpacked, 'package.json'), 'utf8'));
+  const comparable = { ...actual };
+  if (metadata.dependencies?.yaml && !Object.hasOwn(published, 'node_modules/.bin/yaml')) delete comparable['node_modules/.bin/yaml'];
+  if (JSON.stringify(Object.entries(comparable).sort()) !== JSON.stringify(Object.entries(published).sort())) throw new Error('Installed package bytes differ from the integrity-verified npm tarball; remove overrides/dev links and reinstall the frozen published dependency');
   return actual;
 }
 export async function verifyServed(origin, out, binary, pid) {
