@@ -878,6 +878,10 @@ textarea::placeholder {
   border-color: var(--rule-strong);
 }
 @media (width < 768px) {
+  .app-header-search-label,
+  .app-header-search-shortcut {
+    @apply sr-only;
+  }
   .app-header {
     padding-inline: var(--sp-2);
     gap: var(--sp-1);

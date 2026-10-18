@@ -45,8 +45,8 @@ export function TopNavbar() {
           title="search & jump (⌘K)"
           aria-keyshortcuts="Meta+K Control+K"
         >
-          <span className="sr-only min-[768px]:not-sr-only">search</span>
-          <kbd className="kbd normal-case sr-only min-[768px]:not-sr-only">⌘K</kbd>
+          <span className="app-header-search-label">search</span>
+          <kbd className="kbd normal-case app-header-search-shortcut">⌘K</kbd>
         </Button>
 
         {/* Nav section links: fairtrade's small ghost button, as a client-side

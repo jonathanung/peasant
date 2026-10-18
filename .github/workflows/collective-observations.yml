@@ -36,6 +36,7 @@ jobs:
             pnpm --dir web run test:journey:fixture
             pnpm --dir web run test:journey:api
             pnpm --dir web run journey:collective-observations
+            pnpm --dir web run test:journey:mutations
           SCRIPT
       - name: Retain sanitized build and browser evidence
         if: always()

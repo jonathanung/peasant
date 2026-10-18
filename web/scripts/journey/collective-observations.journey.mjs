@@ -39,7 +39,11 @@ async function filterPanel(page) {
 }
 async function captureShell(page, path) {
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({ path, fullPage: true });
+  const frame = await page.evaluate(() => ({ document: document.documentElement.scrollHeight, viewport: innerHeight }));
+  expect(frame.document, 'the complete app shell must fit its bounded viewport').toBeLessThanOrEqual(frame.viewport + 1);
+  // A viewport capture preserves dynamic-vh sizing on mobile Chromium; fullPage
+  // can expand that viewport and append an artificial blank area after layout.
+  await page.screenshot({ path, fullPage: false });
 }
 test.beforeEach(async ({ request }) => { await control(request, 'reset'); });
 
@@ -209,6 +213,7 @@ async function exercise(row, { page, request }, info) {
       overflow: document.documentElement.scrollWidth > innerWidth,
     }));
     expect(styles.font).toMatch(/Atkinson/i); expect(styles.fontLoaded).toBe(true); expect(styles.size).toBeGreaterThanOrEqual(16); expect(styles.radius).toBe('0px'); expect(styles.overflow).toBe(false); expect(styles.tabular).toContain('tabular-nums');
+    await expect(page.locator('.app-header-search-label')).toHaveCSS('position', surface === 'desktop' ? 'static' : 'absolute');
     const chrome = await page.locator('header').first().locator('a,button').evaluateAll(elements => elements.map(element => {
       const box = element.getBoundingClientRect();
       return { name: element.getAttribute('aria-label') ?? element.textContent, left: box.left, right: box.right, width: box.width, height: box.height };
