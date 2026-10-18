@@ -94,7 +94,7 @@ func TestTranscriptSharesReadsEachRowStatus(t *testing.T) {
 			_, _ = w.Write([]byte(`{"shares":[{"group_id":"` + approved.String() + `","group_name":"platform","shared_at":"2026-01-01T00:00:00Z"},{"group_id":"` + curated.String() + `","group_name":"review","shared_at":"2026-01-01T00:00:00Z"}],` +
 				`"enriched_shares":[{"transcript_id":"` + testTranscript.String() + `","group_id":"` + approved.String() + `","group_name":"platform","acceptance_mode":"open","status":"approved","shared_at":"2026-01-01T00:00:00Z"}]}`))
 		case "/api/v1/users/me/collectives/" + curated.String() + "/transcripts/" + testTranscript.String() + "/events":
-			_, _ = w.Write([]byte(`[{"event_num":1,"status":"rejected","recorded_at":"2026-01-01T00:00:00Z","decided_at":null,"decided_by_actor":"moderator"},{"event_num":2,"status":"pending","recorded_at":"2026-01-02T00:00:00Z","decided_at":null,"decided_by_actor":""}]`))
+			_, _ = w.Write([]byte(`[{"event_num":1,"status":"rejected","recorded_at":"2026-01-01T00:00:00Z","decided_at":"2026-01-01T01:00:00Z","decided_by_actor":"moderator"},{"event_num":2,"status":"pending","recorded_at":"2026-01-02T00:00:00Z","decided_at":null,"decided_by_actor":""}]`))
 		default:
 			http.Error(w, `{"error":"unexpected"}`, http.StatusNotFound)
 		}
@@ -119,7 +119,7 @@ func TestLatestShareStatusRefusesAnUnknownStatus(t *testing.T) {
 	client, _ := collectiveVillage(t, func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte(`[{"event_num":1,"status":"visible","recorded_at":"2026-01-01T00:00:00Z","decided_at":null,"decided_by_actor":""}]`))
 	})
-	if status, err := client.LatestShareStatus(t.Context(), testTranscript, testCollective); err == nil || !strings.Contains(err.Error(), "outside the closed set") {
+	if status, err := client.LatestShareStatus(t.Context(), testTranscript, testCollective); err == nil || status != "" || !strings.Contains(err.Error(), "status is outside the share-attempt status menu") {
 		t.Fatalf("status = %q, err = %v; want the unknown status refused", status, err)
 	}
 }
@@ -135,7 +135,7 @@ func TestListCollectivesReadsAnEmptyMembershipAsNone(t *testing.T) {
 	if err != nil || collectives == nil || len(collectives) != 0 {
 		t.Fatalf("collectives = %#v, err = %v; want an empty list", collectives, err)
 	}
-	if got := (*requests)[0]; got.method != http.MethodGet || got.path != "/api/v1/groups" || got.auth != "Bearer test-key" {
+	if got := (*requests)[0]; got.method != http.MethodGet || got.path != "/api/v1/collectives" || got.auth != "Bearer test-key" {
 		t.Fatalf("list request = %+v", got)
 	}
 }

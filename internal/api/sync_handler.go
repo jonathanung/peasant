@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/peasant-labs/peasant/internal/auth"
+	"github.com/peasant-labs/peasant/internal/collectiveobservations"
 	"github.com/peasant-labs/peasant/internal/config"
 	"github.com/peasant-labs/peasant/internal/defaults"
 	"github.com/peasant-labs/peasant/internal/ingest"
@@ -875,7 +876,8 @@ func (h *syncHandler) handleSyncPush(w http.ResponseWriter, r *http.Request) {
 	// A publish from the local web is for collectives: a first publication
 	// opens private with no license, and the collective steps decide who can
 	// read it. An update keeps the audience and license it has.
-	pipeline, err := push.NewSharePipeline(h.store, client, creds, &pushCfg, redactor, req.SessionIDs)
+	observations := collectiveobservations.New(collectiveobservations.Dependencies{Store: h.store, ConfigHome: h.configHome, NewIdentityReader: func(auth.Credentials) collectiveobservations.IdentityReader { return client }})
+	pipeline, err := push.NewSharePipeline(h.store, client, creds, &pushCfg, redactor, req.SessionIDs, push.WithObservations(observations, time.Now))
 	if err != nil {
 		writeJSONError(w, http.StatusInternalServerError, "create push pipeline: "+err.Error())
 		return

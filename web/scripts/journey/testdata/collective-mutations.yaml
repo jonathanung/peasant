@@ -1,0 +1,20 @@
+requiredNames: [typed-partial-report-discarded, village-route-missing, village-body-missing]
+cases:
+  - name: typed-partial-report-discarded
+    testName: web-catalog-updated-history-old-502
+    asset: /app/village/
+    find: 's=await h(t,{method:"POST",signal:e});if(!l.rHE.safeParse(s.body)'
+    replace: 's=await h(t,{method:"POST",signal:e});if(!s.ok)throw Error("typed partial report discarded");if(!l.rHE.safeParse(s.body)'
+    expectedError: metadata fetch partial
+  - name: village-route-missing
+    testName: village-nav-opens-mounted-body
+    asset: /app/layout-
+    find: 'village:{href:"/village",title:"Inspect saved collective observations and dated contribution evidence."}'
+    replace: 'village:{href:"/missing-village",title:"Inspect saved collective observations and dated contribution evidence."}'
+    expectedError: toHaveURL
+  - name: village-body-missing
+    testName: village-active-after-direct-link
+    asset: /app/village/
+    find: '(0,a.jsxs)("div",{className:"village-page",children:'
+    replace: '(0,a.jsxs)("section",{className:"village-page",hidden:!0,children:'
+    expectedError: village observations

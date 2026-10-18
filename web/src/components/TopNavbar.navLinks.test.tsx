@@ -4,15 +4,13 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { headerFailures, loadShellHeaderManifest, shippedItems } from '../../scripts/visual/shell-header-manifest.mjs';
 import { TopNavbar } from './TopNavbar';
 
-// A registry in which the settings page has shipped: the header must then carry
-// its link, derived from the section list rather than written into the header.
+// This fixture changes only the settings hint; retain the actual published registry's membership.
 vi.mock('@/lib/nav/sections', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/nav/sections')>();
   return {
     ...actual,
-    headerNavSections: () => [
-      { id: 'settings', href: '/settings', label: 'settings', title: 'Every peasant setting.', icon: Settings },
-    ],
+    headerNavSections: () => actual.headerNavSections(new Set<string>()).map(section => section.id === 'settings'
+      ? { ...section, title: 'Every peasant setting.', icon: Settings } : section),
   };
 });
 
@@ -38,7 +36,7 @@ describe('TopNavbar — nav sections from the registry', () => {
     expect(settings).toHaveAttribute('title', 'Every peasant setting.');
     expect(settings).not.toHaveAttribute('aria-current');
     // fairtrade's small ghost button, leading with the section's own glyph.
-    expect(settings.className).toBe('btn btn-ghost btn-sm');
+    expect(settings.className).toBe('btn btn-ghost btn-sm app-header-nav');
     expect(settings.querySelector('svg.lucide-settings')).not.toBeNull();
     expect(screen.queryByRole('link', { name: 'home' })).not.toBeInTheDocument();
     // With the page shipped, the manifest now requires the link.

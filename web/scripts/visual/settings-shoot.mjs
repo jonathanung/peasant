@@ -113,8 +113,8 @@ const village = http.createServer((req, res) => {
     transcript_deletion_policy: 'user_choice', updated_at: '2026-01-01T00:00:00Z',
   })
   res.setHeader('Content-Type', 'application/json')
-  if (req.url === '/api/v1/groups') return res.end(JSON.stringify(COLLECTIVES.map(group)))
-  if (/^\/api\/v1\/groups\/[^/]+\/repositories$/.test(req.url)) return res.end(JSON.stringify({ repositories: [] }))
+  if (req.url === '/api/v1/collectives') return res.end(JSON.stringify(COLLECTIVES.map(group)))
+  if (/^\/api\/v1\/collectives\/[^/]+\/repositories$/.test(req.url)) return res.end(JSON.stringify({ repositories: [] }))
   res.statusCode = 404
   res.end(JSON.stringify({ error: 'not in the double' }))
 })

@@ -27,25 +27,26 @@ export function TopNavbar() {
   const nextTheme = theme === "light" ? "dark" : "light";
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex h-[var(--nav-h)] items-center justify-between gap-3 border-b border-rule bg-surface px-4 grid-snap lg:px-8">
+    <header className="app-header fixed inset-x-0 top-0 z-50 flex h-[var(--nav-h)] items-center justify-between gap-3 border-b border-rule bg-surface px-4 grid-snap lg:px-8">
       <Link href="/" className="self-center focus-mono cursor-pointer" aria-label="Peasant home">
-        <span className="font-[family-name:var(--font-display)] text-xl font-semibold text-ink">
+        <span className="app-header-brand font-[family-name:var(--font-display)] text-xl font-semibold text-ink">
           peasant
         </span>
       </Link>
 
-      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+      <div className="app-header-controls flex min-w-0 items-center gap-2 sm:gap-3">
         {/* Search: the visible way into the command palette, word plus shortcut.
             Its accessible name is its visible text; the shortcut is exposed as such. */}
         <Button
+          className="app-header-search"
           size="sm"
           icon={Search}
           onClick={() => window.dispatchEvent(new Event(OPEN_COMMAND_PALETTE_EVENT))}
           title="search & jump (⌘K)"
           aria-keyshortcuts="Meta+K Control+K"
         >
-          search
-          <kbd className="kbd normal-case">⌘K</kbd>
+          <span className="app-header-search-label">search</span>
+          <kbd className="kbd normal-case app-header-search-shortcut">⌘K</kbd>
         </Button>
 
         {/* Nav section links: fairtrade's small ghost button, as a client-side
@@ -56,7 +57,7 @@ export function TopNavbar() {
             <Link
               key={section.id}
               href={section.href}
-              className="btn btn-ghost btn-sm"
+              className="btn btn-ghost btn-sm app-header-nav"
               title={section.title}
               aria-current={isSectionActive(section, pathname) ? "page" : undefined}
             >
@@ -68,6 +69,7 @@ export function TopNavbar() {
 
         {/* Theme: small and icon-only; the label names the mode it switches to. */}
         <Button
+          className="app-header-theme"
           size="sm"
           variant="ghost"
           icon={theme === "light" ? Moon : Sun}

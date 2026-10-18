@@ -10,6 +10,8 @@
 pages:
   - name: home
     pathname: /
+  - name: village
+    pathname: /village/
   - name: analytics
     pathname: /analytics
   - name: changes

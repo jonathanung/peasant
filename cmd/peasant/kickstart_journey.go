@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"time"
 
 	"github.com/peasant-labs/peasant/internal/auth"
+	"github.com/peasant-labs/peasant/internal/collectiveobservations"
 	"github.com/peasant-labs/peasant/internal/config"
 	"github.com/peasant-labs/peasant/internal/defaults"
 	"github.com/peasant-labs/peasant/internal/githooks"
@@ -152,7 +154,8 @@ func buildKickstartJourneyOperations(cmd *cobra.Command, configPath string, load
 			runCfg.Selection = selection
 		}
 		client := village.NewVillageClient(creds.VillageURL, creds.APIKey, nil)
-		pipeline, pipelineErr := push.NewPipeline(db, client, creds, cfg, &ingest.OSFileSystem{}, runCfg, redactor, io.Discard)
+		observations := collectiveobservations.New(collectiveobservations.Dependencies{Store: db, ConfigHome: configDirOverride(cmd), NewIdentityReader: func(auth.Credentials) collectiveobservations.IdentityReader { return client }})
+		pipeline, pipelineErr := push.NewPipeline(db, client, creds, cfg, &ingest.OSFileSystem{}, runCfg, redactor, io.Discard, push.WithObservations(observations, time.Now))
 		if pipelineErr != nil {
 			return nil, retrySessions(ftue.StagePublication, ids), fmt.Errorf("create kickstart publication pipeline: %w", pipelineErr)
 		}

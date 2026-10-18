@@ -34,6 +34,8 @@ func BuildVillageCommand() *cobra.Command {
 	// auto turns on auto-publish for one repository: a rule in hooks.yaml and
 	// the hook that applies it.
 	cmd.AddCommand(BuildVillageAutoCommand())
+	cmd.AddCommand(BuildVillageCollectivesCommand())
+	cmd.AddCommand(BuildVillageContributionsCommand())
 
 	return cmd
 }

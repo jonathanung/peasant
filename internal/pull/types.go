@@ -227,6 +227,9 @@ type PullResult struct {
 	// after FETCH-META (pulled, up-to-date, dry-run); persisted to the V38
 	// pulled_transcripts.license_id column on a real pull.
 	License schema.License
+	// AssociationMetadata is independent account-scoped disclosure evidence. It
+	// never authorizes content and is not persisted into the content manifest.
+	AssociationMetadata *schema.PullAssociationMetadataResult
 }
 
 // RefreshOptions controls a RefreshOwnAnnotations run.
