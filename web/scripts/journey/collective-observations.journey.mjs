@@ -3,12 +3,14 @@ import AxeBuilder from '@axe-core/playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
+import { createHash } from 'node:crypto';
 import { zCollectiveFetchReport, zCollectiveObservationResponse, zLocalContributionHistoryResponse } from '@peasant-labs/schema';
 
 const f = parse(readFileSync(new URL('./testdata/collective-observations.yaml', import.meta.url), 'utf8'));
 if (new Set(f.cases.map(c => c.name)).size !== f.cases.length || f.requiredNames.some(name => !f.cases.some(c => c.name === name))) throw new Error('The focused journey is missing or repeats a required named scenario');
 const root = process.env.OBSERVATIONS_ARTIFACTS;
 const exported = JSON.parse(readFileSync(join(root, 'fixture-export.json'), 'utf8'));
+const mutationMode = process.env.OBSERVATIONS_MUTANTS === '1';
 const local = '/api/v1/village/collective-observations', contributions = '/api/v1/village/contributions';
 async function control(request, action, params = {}) {
   const url = new URL('/__fixture/control', process.env.OBSERVATIONS_REMOTE_URL);
@@ -42,7 +44,7 @@ async function captureShell(page, path) {
 test.beforeEach(async ({ request }) => { await control(request, 'reset'); });
 
 // One bounded scenario per test: failures retain traces; neither the local API nor the UI is intercepted.
-for (const row of f.cases) test(row.name, async ({ page, request }, info) => {
+async function exercise(row, { page, request }, info) {
   const { theme, surface } = info.project.metadata;
   await open(page, theme);
   if (row.mode === 'navigation' || row.mode === 'direct') {
@@ -66,6 +68,7 @@ for (const row of f.cases) test(row.name, async ({ page, request }, info) => {
     expect(result.status()).toBe(row.status);
     const report = zCollectiveFetchReport.parse(await result.json());
     expect(report.outcome).toBe('partial');
+    await expect(page.locator('.vobs-status')).toContainText('metadata fetch partial');
     expect(report.domains.find(d => d.domain === 'catalog').commit).toBe('updated');
     expect(report.domains.find(d => d.domain === 'history').lastCompletedAt).toBe(before.fetch.history.lastCompletedAt);
     await expect(page.locator('.vobs')).toContainText(exported.fixtures.NewName);
@@ -228,4 +231,37 @@ for (const row of f.cases) test(row.name, async ({ page, request }, info) => {
     await captureShell(page, join(root, `${theme}-${surface}.png`));
     writeFileSync(join(root, `${theme}-${surface}-computed.json`), JSON.stringify({ styles, axe: { violations: axe.violations } }, null, 2));
   }
-});
+}
+
+if (!mutationMode) {
+  for (const row of f.cases) test(row.name, ({ page, request }, info) => exercise(row, { page, request }, info));
+} else {
+  const mutations = parse(readFileSync(new URL('./testdata/collective-mutations.yaml', import.meta.url), 'utf8'));
+  expect(new Set(mutations.cases.map(row => row.name))).toEqual(new Set(mutations.requiredNames));
+  for (const mutation of mutations.cases) test(`rejects ${mutation.name}`, async ({ page, request }, info) => {
+    const row = f.cases.find(candidate => candidate.name === mutation.testName);
+    if (!row) throw new Error(`Mutation ${mutation.name} names no production journey`);
+    const changes = [];
+    // Counterfactual SUT mutation ONLY: never intercept Local API or Village data.
+    // Published package/server provenance remains the original, verified build.
+    await page.route('**/_next/static/chunks/**/*.js', async route => {
+      const response = await route.fetch();
+      const original = await response.text();
+      if (!route.request().url().includes(mutation.asset) || !original.includes(mutation.find)) {
+        await route.fulfill({ response }); return;
+      }
+      if (original.split(mutation.find).length !== 2) throw new Error(`Mutation ${mutation.name} anchor is not unique; update its fixture before claiming rejection`);
+      const changed = original.replace(mutation.find, mutation.replace);
+      new Function(changed); // Compile only: a syntax error is not an observed semantic rejection.
+      const sha = text => createHash('sha256').update(text).digest('hex');
+      changes.push({ url: route.request().url(), originalHash: sha(original), mutatedHash: sha(changed) });
+      await route.fulfill({ response, body: changed });
+    });
+    let failure;
+    try { await exercise(row, { page, request }, info); } catch (error) { failure = error; }
+    expect(changes.length, 'the actual compiled application mutation must execute').toBeGreaterThan(0);
+    expect(failure, 'the same mounted user action must reject the mutant').toBeTruthy();
+    expect(failure.message).toContain(mutation.expectedError);
+    writeFileSync(join(root, `mutation-${mutation.name}.json`), JSON.stringify({ counterfactual: true, mutation, changes, expectedFailure: failure.message }, null, 2));
+  });
+}

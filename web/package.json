@@ -18,6 +18,7 @@
     "test:journey:fixture": "node scripts/journey/run-fixture-tests.mjs",
     "test:journey:api": "vitest run --config vitest.journey-api.config.mjs",
     "journey:collective-observations": "node scripts/journey/run-collective-observations.mjs",
+    "test:journey:mutations": "OBSERVATIONS_MUTANTS=1 node scripts/journey/run-collective-observations.mjs",
     "test:transcript-position:mutations": "node scripts/transcript-position.mutations.mjs",
     "test:contract-boundary:mutations": "node scripts/contract-boundary.mutations.mjs",
     "test:provider-build-provenance": "node scripts/provider-build-provenance-guidance.test.mjs && node scripts/provider-build-provenance.mjs",

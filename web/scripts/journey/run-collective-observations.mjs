@@ -93,7 +93,7 @@ try {
   const sourceCommit = (await capture('git', ['rev-parse', 'HEAD'])).trim();
   const sourcePaths = (await capture('git', ['ls-files', '-z'])).split('\0').filter(Boolean);
   const sourceFiles = Object.fromEntries(sourcePaths.map(path => [path, hash(readFileSync(join(repo, path)))]));
-  const artifacts = join(repo, 'review-capture', `collective-observations-${randomUUID()}`); mkdirSync(artifacts, { recursive: true });
+  const artifacts = join(repo, 'review-capture', `collective-observations${process.env.OBSERVATIONS_MUTANTS === '1' ? '-mutants' : ''}-${randomUUID()}`); mkdirSync(artifacts, { recursive: true });
   const state = life.identity.stateRoot;
   const env = { ...process.env, XDG_CONFIG_HOME: join(state, 'config'), XDG_DATA_HOME: join(state, 'data'), XDG_STATE_HOME: join(state, 'state'), HOME: join(state, 'home'), PEASANT_OBSERVATIONS_OWNER: life.identity.owner,
     PEASANT_COLLECTIVE_FETCH_TIMEOUT: '2s' };
@@ -108,7 +108,8 @@ try {
   const exported = JSON.parse(await capture(seeder, ['--action', 'fixture'], { env }));
   const config = parse(readFileSync(join(web, 'scripts/journey/testdata/collective-observations.yaml'), 'utf8'));
   let appURL = `http://127.0.0.1:${await freePort()}`;
-  const manifest = { sourceCommit, sourceFiles, lockHash: hash(readFileSync(join(web, 'pnpm-lock.yaml'))), packages, binary, binaryHash: hash(readFileSync(binary)), webAssets: inventory(out), nodeExecutable: process.execPath, nodeVersion: process.version, fetchTimeout: env.PEASANT_COLLECTIVE_FETCH_TIMEOUT, served: [], appURL };
+  const mutationMode = process.env.OBSERVATIONS_MUTANTS === '1';
+  const manifest = { sourceCommit, sourceFiles, counterfactual: mutationMode, lockHash: hash(readFileSync(join(web, 'pnpm-lock.yaml'))), packages, binary, binaryHash: hash(readFileSync(binary)), webAssets: inventory(out), nodeExecutable: process.execPath, nodeVersion: process.version, fetchTimeout: env.PEASANT_COLLECTIVE_FETCH_TIMEOUT, served: [], appURL };
   const saveManifest = () => writeFileSync(join(artifacts, 'build-manifest.json'), JSON.stringify(manifest, null, 2));
   async function startApp() {
     app = launch(binary, ['web', 'start', '--foreground', '--no-browser', '--port', new URL(appURL).port], { env });
@@ -169,8 +170,9 @@ try {
   const journeyEnv = { ...env, CHROME_PATH: chrome, OBSERVATIONS_APP_URL: appURL, OBSERVATIONS_REMOTE_URL: remote.origin, OBSERVATIONS_CONTROL_TOKEN: control.token, OBSERVATIONS_ARTIFACTS: artifacts };
   // Resolve the installed CLI before entering isolated HOME. A package-manager
   // launcher may otherwise try to read its user's Corepack cache from that HOME.
-  await bounded(launch(process.execPath, [require.resolve('@playwright/test/cli'), 'test', '--config', 'playwright.collective-observations.config.mjs'], { cwd: web, env: journeyEnv }).done, 300000, 'collective observations mounted suite');
+  const selection = mutationMode ? ['--project', 'dark-desktop'] : [];
+  await bounded(launch(process.execPath, [require.resolve('@playwright/test/cli'), 'test', '--config', 'playwright.collective-observations.config.mjs', ...selection], { cwd: web, env: journeyEnv }).done, 300000, 'collective observations mounted suite');
   writeFileSync(join(artifacts, 'fixture-requests.json'), JSON.stringify(remote.requests, null, 2));
-  console.log(`Inspect retained full-shell evidence in ${artifacts}; generation alone is not visual acceptance.`);
+  console.log(mutationMode ? `Counterfactual rejection evidence in ${artifacts}; not positive UI proof.` : `Inspect retained full-shell evidence in ${artifacts}; generation alone is not visual acceptance.`);
 } catch (error) { console.error(error.message); process.exitCode = 1; }
 finally { try { await cleanup(); } catch (error) { console.error(error.message); process.exit(1); } }

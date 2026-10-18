@@ -22,6 +22,7 @@ pnpm --dir web run test:journey:support
 pnpm --dir web run test:journey:fixture
 pnpm --dir web run test:journey:api
 pnpm --dir web run journey:collective-observations
+pnpm --dir web run test:journey:mutations
 ```
 
 The first test command needs no Next build and tests real disposable-child
@@ -52,6 +53,16 @@ unavailable service is an error, never a skipped test. An unreleased preparation
 cannot pass these prerequisites. The dedicated workflow runs the same commands;
 it is not expected to be green before the dependency releases and coherent
 consumer adoption.
+
+The bounded mutation command uses the SAME built binary, real local API/Store,
+fixtures, user actions and runner. It selects one desktop project and three named
+counterfactuals from YAML: discard a typed partial result, break the actual nav
+route, and remove the page body. It changes only the app's compiled JS response
+inside that negative-test browser context, never Local API/remote response data
+or published DS code. Each original/mutated asset hash and intended observed
+failure is recorded; missing anchors, unexpected errors and surviving mutants
+fail. Its manifest says `counterfactual: true`; these are rejection evidence,
+not trusted positive screenshots or a second unfiltered catalog.
 
 ## Artifact and production-path checks
 
