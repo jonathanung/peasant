@@ -88,6 +88,8 @@ File generation is not acceptance, and PR evidence still needs durable hosting.
 - A persistent inode `flock` serializes the entire build/recovery/cleanup lifetime
   in this worktree. The gate file is never unlinked. An immutable random owner
   identity is atomically published before any workload child can spawn.
+  Its private state is nested under that ignored ownership directory, not a
+  changing Nix-shell TMPDIR; a later shell can therefore verify stale ownership.
 - Every child has exactly one settlement waiter. Workload groups carry an
   inherited random ownership marker; cleanup signals only proven owned groups,
   escalates TERM to KILL, waits for absence and reaps direct children before

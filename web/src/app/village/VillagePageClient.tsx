@@ -36,8 +36,27 @@ export default function VillagePageClient() {
     setLimit(String(state.pagers[kind].limit));
   }
   return <div className="village-page">
-    <h1>village observations</h1>
-    <p><Link href="/settings">village sign-in, automatic publishing rules and hooks remain in settings.</Link></p>
+    <div className="village-page-context">
+      <h1>village observations</h1>
+      <p><Link href="/settings">village sign-in, automatic publishing rules and hooks remain in settings.</Link></p>
+    </div>
+    <div className="village-page-tools">
+      <Button onClick={() => { void controller.load(); }} disabled={state.loading}>reload saved observations</Button>
+      {state.fetching && <Button onClick={controller.cancelFetch}>cancel metadata fetch</Button>}
+      {view === 'history' && <details className="village-page-filter-tools">
+        <summary className="btn btn-secondary btn-sm">filter this category</summary>
+        <form className="village-page-filter" onSubmit={event => {
+          event.preventDefault();
+          void controller.filter(category, filter.trim() || undefined, Number(limit));
+        }}>
+          <label htmlFor="history-collective">collective UUID (optional; includes history-only collectives)</label>
+          <Input id="history-collective" value={filter} onChange={event => setFilter(event.target.value)} />
+          <label htmlFor="history-limit">items per page</label>
+          <Input id="history-limit" type="number" min={1} max={200} required value={limit} onChange={event => setLimit(event.target.value)} />
+          <Button type="submit" disabled={!state.catalog}>apply to this category</Button>
+        </form>
+      </details>}
+    </div>
     <VillageObservations
       key={state.catalog ? JSON.stringify([state.catalog.scope.villageUrl, state.catalog.scope.userId]) : 'unselected'}
       {...presentObservations(state)}
@@ -49,17 +68,5 @@ export default function VillagePageClient() {
       onPageChange={(id: string, page: number) => { void controller.history(zLocalContributionEvidenceKind.parse(id), page); }}
       onRestart={(id: string) => { void controller.restart(zLocalContributionEvidenceKind.parse(id)); }}
     />
-    {state.fetching && <Button onClick={controller.cancelFetch}>cancel metadata fetch</Button>}
-    {view === 'history' && <form className="village-page-filter" onSubmit={event => {
-      event.preventDefault();
-      void controller.filter(category, filter.trim() || undefined, Number(limit));
-    }}>
-      <label htmlFor="history-collective">collective UUID (optional; includes history-only collectives)</label>
-      <Input id="history-collective" value={filter} onChange={event => setFilter(event.target.value)} />
-      <label htmlFor="history-limit">items per page</label>
-      <Input id="history-limit" type="number" min={1} max={200} required value={limit} onChange={event => setLimit(event.target.value)} />
-      <Button type="submit" disabled={!state.catalog}>apply to this category</Button>
-    </form>}
-    <Button onClick={() => { void controller.load(); }} disabled={state.loading}>reload saved observations</Button>
   </div>;
 }

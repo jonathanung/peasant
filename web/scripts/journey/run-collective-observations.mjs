@@ -141,7 +141,7 @@ try {
       if (action === 'stop-app') { await stopApp(); return {}; }
       if (action === 'start-app') { await startApp(); return {}; }
       if (action === 'pull') {
-        const text = await capture(binary, ['village', 'pull', exported.fixtures.TranscriptID, '--json'], { env });
+        const text = await capture(binary, ['village', 'transcripts', 'pull', exported.fixtures.TranscriptID, '--json'], { env });
         const result = JSON.parse(text);
         const directory = realpathSync(result.pullDir);
         if (!directory.startsWith(`${realpathSync(env.XDG_DATA_HOME)}/`)) throw new Error('Pull result escaped the owned fixture data root');

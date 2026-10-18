@@ -14,8 +14,8 @@ for (const row of f.cases) test(row.name, { timeout: 20000 }, async t => {
   t.after(async () => { for (const cleanup of cleanups.reverse()) await cleanup(); });
   const directory = join(root, 'owner');
   const acquire = () => acquireLifecycle(directory, row);
-  function peer(mode = 'hold') {
-    const child = start(process.execPath, [new URL('./lib/lifecycle-peer.mjs', import.meta.url).pathname, directory, mode], { stdio: ['pipe', 'pipe', 'inherit'] });
+  function peer(mode = 'hold', extraEnv = {}) {
+    const child = start(process.execPath, [new URL('./lib/lifecycle-peer.mjs', import.meta.url).pathname, directory, mode], { stdio: ['pipe', 'pipe', 'inherit'], env: { ...process.env, ...extraEnv } });
     const ready = new Promise(done => child.child.stdout.once('data', data => done(JSON.parse(data.toString()))));
     cleanups.push(async () => { child.child.kill('SIGKILL'); await bounded(child.settled, 3000, 'test peer reaping'); });
     child.child.stdin.write('acquire');
@@ -38,10 +38,10 @@ for (const row of f.cases) test(row.name, { timeout: 20000 }, async t => {
     assert.equal(existsSync(`${directory}.gate`), true);
     return;
   }
-  const old = peer('orphan'); const oldIdentity = await bounded(old.ready, 3000, 'old owner readiness');
+  const old = peer('orphan', row.mode === 'changed-temp' ? { TMPDIR: join(root, 'previous-shell-temp') } : {}); const oldIdentity = await bounded(old.ready, 3000, 'old owner readiness');
   old.child.kill('SIGKILL'); await bounded(old.settled, 3000, 'killed owner reaping');
   cleanups.push(async () => { const life = await acquire(); await life.cleanup(); });
-  if (row.mode === 'stale') {
+  if (row.mode === 'stale' || row.mode === 'changed-temp') {
     const other = await acquireLifecycle(join(root, 'unrelated'), row); cleanups.push(() => other.cleanup());
     const child = other.launch(process.execPath, ['-e', 'setTimeout(()=>{},15000)'], { stdio: 'ignore' });
     const next = await acquire(); cleanups.push(() => next.cleanup());

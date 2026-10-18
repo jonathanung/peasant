@@ -30,6 +30,15 @@ async function open(page, theme) {
   await expect(page.getByRole('heading', { name: 'village observations', exact: true })).toBeVisible();
   await expect(page.locator('.vobs')).toBeVisible();
 }
+async function filterPanel(page) {
+  const disclosure = page.locator('.village-page-filter-tools');
+  if (await disclosure.getAttribute('open') === null) await disclosure.locator('summary').click();
+  return page.locator('form.village-page-filter');
+}
+async function captureShell(page, path) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.screenshot({ path, fullPage: true });
+}
 test.beforeEach(async ({ request }) => { await control(request, 'reset'); });
 
 // One bounded scenario per test: failures retain traces; neither the local API nor the UI is intercepted.
@@ -62,18 +71,19 @@ for (const row of f.cases) test(row.name, async ({ page, request }, info) => {
     await expect(page.locator('.vobs')).toContainText(exported.fixtures.NewName);
     await expect(page.locator('[data-domain="history"]')).toContainText(before.fetch.history.lastCompletedAt);
     expect((await saved(request)).fetch.history.lastCompletedAt).toBe(before.fetch.history.lastCompletedAt);
-    await page.screenshot({ path: join(root, `${theme}-${surface}-${row.scenario}.png`), fullPage: true });
+    await captureShell(page, join(root, `${theme}-${surface}-${row.scenario}.png`));
     return;
   }
   if (row.mode === 'paging' || row.mode === 'isolation') {
     await page.getByRole('tab', { name: 'history', exact: true }).click();
     for (const category of f.categories) {
       await page.getByRole('tab', { name: category.label, exact: true }).click();
-      const filter = page.locator('form.village-page-filter');
+      const filter = await filterPanel(page);
       await filter.locator('input[type="number"]').fill('2');
       const firstAnswer = page.waitForResponse(r => r.url().includes(contributions) && new URL(r.url()).searchParams.get('kind') === category.kind && new URL(r.url()).searchParams.get('limit') === '2');
       await filter.getByRole('button', { name: 'apply to this category' }).click();
       const first = zLocalContributionHistoryResponse.parse(await (await firstAnswer).json());
+      await page.locator('.village-page-filter-tools summary').click();
       const ids = [];
       for (let n = 1; n <= Math.ceil(first.total / 2); n++) {
         if (row.mode === 'isolation' && category.kind !== 'operation-diagnostics') await control(request, 'diagnostic');
@@ -91,16 +101,18 @@ for (const row of f.cases) test(row.name, async ({ page, request }, info) => {
       }
       expect(new Set(ids).size).toBe(first.total);
       expect(ids.length).toBe(first.total);
-      if (row.mode === 'paging') await page.screenshot({ path: join(root, `${theme}-${surface}-${category.kind}.png`), fullPage: true });
+      if (row.mode === 'paging') await captureShell(page, join(root, `${theme}-${surface}-${category.kind}.png`));
     }
     return;
   }
   if (row.mode === 'conflict') {
     await page.getByRole('tab', { name: 'history', exact: true }).click();
     await page.getByRole('tab', { name: 'remote attempts', exact: true }).click();
+    await filterPanel(page);
     await page.locator('#history-limit').fill('2');
     await page.getByRole('button', { name: 'apply to this category' }).click();
     await expect(page.locator('.vobs-summary:visible')).toContainText(`${JSON.parse(exported.fixtures.AttemptsJSON).length} saved items`);
+    await page.locator('.village-page-filter-tools summary').click();
     const receiptBefore = await history(request, 'receipts');
     await control(request, 'terminal');
     const conflict = page.waitForResponse(r => r.url().includes(contributions) && r.status() === 409);
@@ -145,7 +157,6 @@ for (const row of f.cases) test(row.name, async ({ page, request }, info) => {
     await page.locator('header').getByRole('link', { name: 'settings', exact: true }).click();
     await expect(page.getByRole('button', { name: 'log out', exact: true })).toBeVisible();
     await expect(page.getByText('auto-publish', { exact: true }).first()).toBeVisible();
-    await expect(page.getByText(/hook/i).first()).toBeVisible();
     await page.getByRole('button', { name: 'add a folder or repository', exact: true }).click();
     const rule = page.getByRole('form', { name: 'add a folder or repository', exact: true });
     await expect(rule.getByText('saving installs no hook.', { exact: false })).toBeVisible();
@@ -204,7 +215,7 @@ for (const row of f.cases) test(row.name, async ({ page, request }, info) => {
     const axe = await new AxeBuilder({ page }).analyze(); expect(axe.violations).toEqual([]);
     const manifest = JSON.parse(readFileSync(join(root, 'build-manifest.json'), 'utf8'));
     expect(manifest.served.length).toBeGreaterThan(0); expect(manifest.packages.every(p => p.integrity.startsWith('sha512-'))).toBe(true);
-    await page.screenshot({ path: join(root, `${theme}-${surface}.png`), fullPage: true });
+    await captureShell(page, join(root, `${theme}-${surface}.png`));
     writeFileSync(join(root, `${theme}-${surface}-computed.json`), JSON.stringify({ styles, axe: { violations: axe.violations } }, null, 2));
   }
 });

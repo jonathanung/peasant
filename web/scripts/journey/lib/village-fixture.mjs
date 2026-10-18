@@ -54,7 +54,7 @@ export async function startVillageFixture(exported, contract, control) {
         username_chosen: true, provider_username: account.Username,
       }));
       if (path === '/api/v1/auth/orgs') return send([]);
-      if (path === '/api/v1/collectives') return send([validated('zVillageUserCollective', membership())]);
+      if (path === '/api/v1/collectives' || path === '/api/v1/groups') return send([validated('zVillageUserCollective', membership())]);
       if (path === '/api/v1/users/me/collectives/contributions') return send(validated('zVillageContributedCollectivesResponse', {
         collectives: [{ id: f.CollectiveID, name: record().name, description: null, linked_github_org: null,
           approved_count: 0, pending_count: 1, rejected_attempt_count: 2, withdrawn_attempt_count: 2 }],

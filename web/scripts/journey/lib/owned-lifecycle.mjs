@@ -2,7 +2,6 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { tmpdir } from 'node:os';
 import { setTimeout as delay } from 'node:timers/promises';
 
 export async function bounded(promise, ms, operation) {
@@ -56,9 +55,16 @@ async function reap(owner, children, termMs, killMs) {
   await bounded(Promise.all(children.map(c => c.settled)), killMs, 'owned child reaping');
   if (ownedGroups(owner).size) throw new Error('Owned groups survived child reaping; ownership is retained, not released');
 }
-function validIdentity(identity) {
-  return Number.isSafeInteger(identity.pid) && /^\d+$/.test(identity.start) && /^[a-f0-9-]{36}$/.test(identity.owner) &&
-    identity.stateRoot === join(tmpdir(), `peasant-observations-${identity.owner}`);
+function validIdentity(identity, directory) {
+  if (!Number.isSafeInteger(identity.pid) || !/^\d+$/.test(identity.start) || !/^[a-f0-9-]{36}$/.test(identity.owner)) return false;
+  if (identity.stateRoot === join(directory, `state-${identity.owner}`)) return true;
+  // Recover a previous runner whose Nix-shell TMPDIR disappeared after SIGKILL.
+  // A surviving legacy root additionally needs its actual random ownership marker.
+  const legacy = /^\/tmp\/(?:nix-shell\.[A-Za-z0-9]+\/)?peasant-observations-[a-f0-9-]{36}$/.test(identity.stateRoot) &&
+    identity.stateRoot.endsWith(`/peasant-observations-${identity.owner}`);
+  if (!legacy) return false;
+  if (!existsSync(identity.stateRoot)) return true;
+  try { return readFileSync(join(identity.stateRoot, '.collective-observations-fixture'), 'utf8') === identity.owner; } catch { return false; }
 }
 
 /** Linux-only persistent-inode flock covers acquisition, stale recovery, workload and teardown.
@@ -80,7 +86,7 @@ export async function acquireLifecycle(directory, { termMs = 1500, killMs = 2000
     throw error;
   }
   const owner = randomUUID();
-  const identity = Object.freeze({ pid: process.pid, start: stat(process.pid)[19], owner, stateRoot: join(tmpdir(), `peasant-observations-${owner}`) });
+  const identity = Object.freeze({ pid: process.pid, start: stat(process.pid)[19], owner, stateRoot: join(directory, `state-${owner}`) });
   const children = [];
   let stopping;
   try {
@@ -88,7 +94,7 @@ export async function acquireLifecycle(directory, { termMs = 1500, killMs = 2000
       const path = join(directory, 'owner.json');
       if (existsSync(path)) {
         const previous = JSON.parse(readFileSync(path, 'utf8'));
-        if (!validIdentity(previous)) throw new Error('Invalid stale journey identity; metadata retained; inspect owner.json instead of deleting arbitrary state');
+        if (!validIdentity(previous, directory)) throw new Error('Invalid stale journey identity; metadata retained; inspect owner.json instead of deleting arbitrary state');
         if (live(previous)) throw new Error('A live journey owner still holds the build; wait for it before retrying');
         await reap(previous.owner, [], termMs, killMs);
         rmSync(previous.stateRoot, { recursive: true, force: true });
