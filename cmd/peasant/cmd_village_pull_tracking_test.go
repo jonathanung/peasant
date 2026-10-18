@@ -93,7 +93,7 @@ func TestPullExplicitTrackingFixtures(t *testing.T) {
 						return
 					}
 					_ = json.NewEncoder(w).Encode(schema.VillageGroupDetailResponse{Group: schema.VillageGroupDetailRecord{ID: f.CollectiveID, Name: f.Name, AcceptanceMode: schema.VillageGroupAcceptanceOpen, DataAccess: schema.VillageGroupDataAccessMembersOnly, CreatedAt: now, UpdatedAt: now}})
-				case "/api/v1/groups":
+				case "/api/v1/collectives":
 					rows := []schema.VillageUserGroup{}
 					if c.DryRun {
 						rows = append(rows, schema.VillageUserGroup{ID: f.CollectiveID, Name: f.Name})

@@ -135,7 +135,7 @@ func TestListCollectivesReadsAnEmptyMembershipAsNone(t *testing.T) {
 	if err != nil || collectives == nil || len(collectives) != 0 {
 		t.Fatalf("collectives = %#v, err = %v; want an empty list", collectives, err)
 	}
-	if got := (*requests)[0]; got.method != http.MethodGet || got.path != "/api/v1/groups" || got.auth != "Bearer test-key" {
+	if got := (*requests)[0]; got.method != http.MethodGet || got.path != "/api/v1/collectives" || got.auth != "Bearer test-key" {
 		t.Fatalf("list request = %+v", got)
 	}
 }

@@ -443,6 +443,10 @@ func (v *CollectiveVillage) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		v.mu.Unlock()
 		_ = json.NewEncoder(w).Encode(schema.VillageCollectiveSearchResponse{Collectives: rows})
+	case r.Method == http.MethodGet && path == "/api/v1/collectives":
+		v.listCollectives(w)
+	case r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/collectives/") && strings.HasSuffix(path, "/repositories"):
+		v.listRepositories(w, schema.VillageUUID(strings.TrimSuffix(strings.TrimPrefix(path, "/api/v1/collectives/"), "/repositories")))
 	case r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/collectives/"):
 		id := schema.VillageUUID(strings.TrimPrefix(path, "/api/v1/collectives/"))
 		v.mu.Lock()
@@ -494,12 +498,8 @@ func (v *CollectiveVillage) serve(w http.ResponseWriter, r *http.Request) {
 		requests := append([]schema.VillagePromptRequest{}, v.promptRequests...)
 		v.mu.Unlock()
 		_ = json.NewEncoder(w).Encode(schema.VillagePromptRequestsResponse{Requests: requests})
-	case r.Method == http.MethodGet && path == "/api/v1/groups":
-		v.listCollectives(w)
 	case r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/users/me/collectives/") && strings.HasSuffix(path, "/events"):
 		v.readEvents(w, strings.TrimSuffix(strings.TrimPrefix(path, "/api/v1/users/me/collectives/"), "/events"))
-	case r.Method == http.MethodGet && strings.HasPrefix(path, "/api/v1/groups/") && strings.HasSuffix(path, "/repositories"):
-		v.listRepositories(w, schema.VillageUUID(strings.TrimSuffix(strings.TrimPrefix(path, "/api/v1/groups/"), "/repositories")))
 	case r.Method == http.MethodGet && path == "/api/v1/annotations/manifest":
 		_ = json.NewEncoder(w).Encode(schema.AnnotationManifestResponse{})
 	case r.Method == http.MethodPost && path == "/api/v1/annotations":

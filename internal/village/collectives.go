@@ -25,7 +25,7 @@ var canonicalUUID = regexp.MustCompile(CollectiveIDPattern)
 func IsCollectiveID(id schema.VillageUUID) bool { return canonicalUUID.MatchString(string(id)) }
 
 // collectivesEndpoint lists the collectives the signed-in user belongs to.
-const collectivesEndpoint = "/api/v1/groups"
+const collectivesEndpoint = "/api/v1/collectives"
 
 // collectiveResponseLimit bounds how much of one collective or share answer is
 // read. The answers are small rows; the limit keeps a misbehaving server from
@@ -67,20 +67,20 @@ func (e *StatusError) Error() string {
 }
 
 // ListCollectives returns the collectives the signed-in user belongs to, with
-// their role in each (GET /api/v1/groups).
-func (c *VillageClient) ListCollectives(ctx context.Context) ([]schema.VillageUserGroup, error) {
-	var collectives []schema.VillageUserGroup
+// their role in each (GET /api/v1/collectives).
+func (c *VillageClient) ListCollectives(ctx context.Context) ([]schema.VillageUserCollective, error) {
+	var collectives []schema.VillageUserCollective
 	if err := c.readCollectiveJSON(ctx, "list collectives", collectivesEndpoint, &collectives); err != nil {
 		return nil, err
 	}
 	if collectives == nil {
-		collectives = []schema.VillageUserGroup{}
+		collectives = []schema.VillageUserCollective{}
 	}
 	return collectives, nil
 }
 
 // ListCollectiveRepositories returns the GitHub repositories linked to one
-// collective (GET /api/v1/groups/{id}/repositories). Village shows a member
+// collective (GET /api/v1/collectives/{id}/repositories). Village shows a member
 // only the rows of accounts their own GitHub account controls.
 func (c *VillageClient) ListCollectiveRepositories(ctx context.Context, id schema.VillageUUID) ([]schema.VillageLinkedRepository, error) {
 	var response schema.VillageLinkedRepositoriesResponse
