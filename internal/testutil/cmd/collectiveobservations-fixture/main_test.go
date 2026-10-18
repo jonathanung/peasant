@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -62,6 +63,31 @@ func TestDisposableSeederProductionStore(t *testing.T) {
 	}
 	for _, c := range corpus.Cases {
 		t.Run(c.Name, func(t *testing.T) {
+			if c.Mode == "export" {
+				f, err := loadFixtures()
+				if err != nil {
+					t.Fatal(err)
+				}
+				var out bytes.Buffer
+				if err := exportFixtures(f, &out); err != nil {
+					t.Fatal(err)
+				}
+				var exported struct {
+					ContentBytesBase64 string                    `json:"contentBytesBase64"`
+					Metadata           schema.PullTranscriptInfo `json:"metadata"`
+				}
+				if err := json.Unmarshal(out.Bytes(), &exported); err != nil {
+					t.Fatal(err)
+				}
+				blob, err := base64.StdEncoding.DecodeString(exported.ContentBytesBase64)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(blob) == 0 || schema.ComputeTranscriptHash(blob) != exported.Metadata.ContentHash {
+					t.Fatal("fixture content hash does not match the canonical served-byte identity")
+				}
+				return
+			}
 			root := t.TempDir()
 			owner := "disposable-seeder-test-owner"
 			t.Setenv("PEASANT_OBSERVATIONS_OWNER", owner)

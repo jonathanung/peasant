@@ -4,8 +4,8 @@ package main
 
 import (
 	"context"
-	"crypto/sha256"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -119,14 +119,15 @@ func exportFixtures(f fixtures, output io.Writer) error {
 	if err != nil {
 		return err
 	}
-	metadata := schema.PullTranscriptInfo{TranscriptID: id, LocalID: id.String(), OwnerUserID: f.Accounts[0].UserID, OwnerUsername: f.Accounts[0].Username, Harness: detail.Harness, Visibility: schema.VisibilityGroup, License: schema.LicenseCCBYSA, ContentHash: fmt.Sprintf("%x", sha256.Sum256(blob)), ContractVersion: defaults.PublishSchemaVersion, PublishedAt: f.ObservedAt.UnixMilli(), UpdatedAt: f.ObservedAt.UnixMilli()}
+	metadata := schema.PullTranscriptInfo{TranscriptID: id, LocalID: id.String(), OwnerUserID: f.Accounts[0].UserID, OwnerUsername: f.Accounts[0].Username, Harness: detail.Harness, Visibility: schema.VisibilityGroup, License: schema.LicenseCCBYSA, ContentHash: schema.ComputeTranscriptHash(blob), ContractVersion: defaults.PublishSchemaVersion, PublishedAt: f.ObservedAt.UnixMilli(), UpdatedAt: f.ObservedAt.UnixMilli()}
 	return json.NewEncoder(output).Encode(struct {
 		Fixtures           fixtures                     `json:"fixtures"`
 		Content            json.RawMessage              `json:"content"`
+		ContentBytesBase64 string                       `json:"contentBytesBase64"`
 		Metadata           schema.PullTranscriptInfo    `json:"metadata"`
 		Version            schema.SchemaVersionResponse `json:"version"`
 		TranscriptFilename string                       `json:"transcriptFilename"`
-	}{Fixtures: f, Content: blob, Metadata: metadata, Version: schema.SchemaVersionResponse{AnnotationSchemaVersion: "0.1.0", SupportedTargetKinds: []string{}, SupportedTypeIDs: []string{}, PushContractVersion: defaults.PublishSchemaVersion, MinPushContractVersion: defaults.PublishSchemaVersion, PullContractVersion: defaults.PullContractVersion, MinPullContractVersion: defaults.PullContractVersion}, TranscriptFilename: pull.TranscriptFilename})
+	}{Fixtures: f, Content: blob, ContentBytesBase64: base64.StdEncoding.EncodeToString(blob), Metadata: metadata, Version: schema.SchemaVersionResponse{AnnotationSchemaVersion: "0.1.0", SupportedTargetKinds: []string{}, SupportedTypeIDs: []string{}, PushContractVersion: defaults.PublishSchemaVersion, MinPushContractVersion: defaults.PublishSchemaVersion, PullContractVersion: defaults.PullContractVersion, MinPullContractVersion: defaults.PullContractVersion}, TranscriptFilename: pull.TranscriptFilename})
 }
 func run(ctx context.Context, args []string, output io.Writer) error {
 	flags := flag.NewFlagSet("collectiveobservations-fixture", flag.ContinueOnError)

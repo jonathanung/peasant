@@ -1,5 +1,4 @@
 import { createServer } from 'node:http';
-import { createHash } from 'node:crypto';
 
 /** Only the remote dependency is synthetic. Local API, credentials, Store and CLI remain real. */
 export async function startVillageFixture(exported, contract, control) {
@@ -82,10 +81,10 @@ export async function startVillageFixture(exported, contract, control) {
       if (path === `/api/v1/pull/transcripts/${f.TranscriptID}/annotations`) return send([]);
       if (path === `/api/v1/pull/transcripts/${f.TranscriptID}/content`) {
         validated('zTranscriptContent', exported.content);
-        const bytes = JSON.stringify(exported.content);
-        const hash = createHash('sha256').update(bytes).digest('hex');
-        if (hash !== exported.metadata.contentHash) throw new Error('Canonical fixture content serialization no longer matches metadata hash');
-        res.writeHead(200, { 'content-type': 'application/json', etag: `"${hash}"` }); res.end(bytes); return;
+        const bytes = Buffer.from(exported.contentBytesBase64, 'base64');
+        validated('zTranscriptContent', JSON.parse(bytes.toString()));
+        if (JSON.stringify(JSON.parse(bytes.toString())) !== JSON.stringify(exported.content)) throw new Error('Canonical fixture bytes no longer describe the exported content');
+        res.writeHead(200, { 'content-type': 'application/json', etag: `"${exported.metadata.contentHash}"` }); res.end(bytes); return;
       }
       if (path === `/api/v1/transcripts/${f.TranscriptID}/collectives`) {
         if (scenario === 'association-unavailable') return send({ error: 'optional associations unavailable' }, 503);

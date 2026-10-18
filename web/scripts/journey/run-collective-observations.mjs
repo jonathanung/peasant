@@ -145,7 +145,7 @@ try {
         const result = JSON.parse(text);
         const directory = realpathSync(result.pullDir);
         if (!directory.startsWith(`${realpathSync(env.XDG_DATA_HOME)}/`)) throw new Error('Pull result escaped the owned fixture data root');
-        if (hash(readFileSync(join(directory, exported.transcriptFilename))) !== exported.metadata.contentHash) throw new Error('Optional metadata failure did not preserve the actual validated content bytes');
+        if (!readFileSync(join(directory, exported.transcriptFilename)).equals(Buffer.from(exported.contentBytesBase64, 'base64'))) throw new Error('Optional metadata failure did not preserve the actual validated content bytes');
         return result;
       }
       if (action === 'cli') {

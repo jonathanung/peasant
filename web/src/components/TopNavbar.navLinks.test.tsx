@@ -36,7 +36,7 @@ describe('TopNavbar — nav sections from the registry', () => {
     expect(settings).toHaveAttribute('title', 'Every peasant setting.');
     expect(settings).not.toHaveAttribute('aria-current');
     // fairtrade's small ghost button, leading with the section's own glyph.
-    expect(settings.className).toBe('btn btn-ghost btn-sm');
+    expect(settings.className).toBe('btn btn-ghost btn-sm app-header-nav');
     expect(settings.querySelector('svg.lucide-settings')).not.toBeNull();
     expect(screen.queryByRole('link', { name: 'home' })).not.toBeInTheDocument();
     // With the page shipped, the manifest now requires the link.

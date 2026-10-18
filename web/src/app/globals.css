@@ -870,3 +870,32 @@ textarea::placeholder {
 .txn-hints-hidden .txn-hint {
   display: none;
 }
+
+/* Compact chrome retains every canonical nav action and its accessible name.
+   The breakpoint is Fairtrade's tablet boundary, not a second section registry. */
+.app-header-nav[aria-current="page"] {
+  color: var(--amber);
+  border-color: var(--rule-strong);
+}
+@media (width < 768px) {
+  .app-header {
+    padding-inline: var(--sp-2);
+    gap: var(--sp-1);
+  }
+  .app-header-brand {
+    font-size: var(--fs-body);
+  }
+  .app-header-controls {
+    gap: var(--sp-1);
+  }
+  .app-header-nav {
+    padding-inline: var(--sp-1);
+    gap: var(--sp-1);
+  }
+  .app-header-search,
+  .app-header-theme {
+    padding-inline: 0;
+    inline-size: var(--control-h-sm);
+    min-inline-size: var(--target-min);
+  }
+}

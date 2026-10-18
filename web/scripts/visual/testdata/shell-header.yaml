@@ -35,12 +35,12 @@ show:
       light: Switch to dark mode
       dark: Switch to light mode
   settings:
-    selector: 'header a[href="/settings"]'
+    selector: 'header a[href="/settings"], header a[href="/settings/"]'
     text: settings
     icon: true
     page: src/app/settings/page.tsx
   village:
-    selector: 'header a[href="/village"]'
+    selector: 'header a[href="/village"], header a[href="/village/"]'
     text: village
     page: src/app/village/page.tsx
 hide:

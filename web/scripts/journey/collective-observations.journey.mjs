@@ -206,6 +206,16 @@ for (const row of f.cases) test(row.name, async ({ page, request }, info) => {
       overflow: document.documentElement.scrollWidth > innerWidth,
     }));
     expect(styles.font).toMatch(/Atkinson/i); expect(styles.fontLoaded).toBe(true); expect(styles.size).toBeGreaterThanOrEqual(16); expect(styles.radius).toBe('0px'); expect(styles.overflow).toBe(false); expect(styles.tabular).toContain('tabular-nums');
+    const chrome = await page.locator('header').first().locator('a,button').evaluateAll(elements => elements.map(element => {
+      const box = element.getBoundingClientRect();
+      return { name: element.getAttribute('aria-label') ?? element.textContent, left: box.left, right: box.right, width: box.width, height: box.height };
+    }));
+    for (const control of chrome) {
+      expect(control.left, control.name).toBeGreaterThanOrEqual(0);
+      expect(control.right, control.name).toBeLessThanOrEqual(page.viewportSize().width);
+      expect(control.width, control.name).toBeGreaterThanOrEqual(24);
+      expect(control.height, control.name).toBeGreaterThanOrEqual(24);
+    }
     await page.keyboard.press('Tab');
     const focused = await page.evaluate(() => document.activeElement?.tagName);
     expect(focused).not.toBe('BODY');

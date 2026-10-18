@@ -11,7 +11,7 @@
 .village-page-context h1 {
   font-family: var(--font-mono);
   font-size: var(--fs-xl);
-  line-height: var(--lh-tight);
+  line-height: var(--lh-mono);
 }
 .village-page-context p {
   margin: 0;
