@@ -23,6 +23,7 @@ var _ IdentityReader = (*village.VillageClient)(nil)
 
 // Dependencies selects the credential profile and remote identity transport.
 type Dependencies struct {
+	Credentials              CredentialBackend
 	ConfigHome               string
 	NewIdentityReader        func(auth.Credentials) IdentityReader
 	Store                    *store.Store
@@ -35,6 +36,7 @@ type Dependencies struct {
 // Service shares credential selection between offline readers and online
 // observation operations. A snapshot is never itself remote authorization.
 type Service struct {
+	credentials        CredentialBackend
 	configHome         string
 	newIdentityReader  func(auth.Credentials) IdentityReader
 	store              *store.Store
@@ -47,6 +49,10 @@ type Service struct {
 
 // New uses the real Village transport unless a dependency is explicitly supplied.
 func New(deps Dependencies) *Service {
+	credentials := deps.Credentials
+	if credentials == nil {
+		credentials = diskCredentialBackend{}
+	}
 	factory := deps.NewIdentityReader
 	if factory == nil {
 		factory = func(creds auth.Credentials) IdentityReader {
@@ -65,7 +71,7 @@ func New(deps Dependencies) *Service {
 	if budget <= 0 {
 		budget = 4 * village.ObservationResponseLimit
 	}
-	return &Service{configHome: deps.ConfigHome, newIdentityReader: factory, store: deps.Store, now: now, operationTimeout: timeout, sourceSlots: make(chan struct{}, 4), sourceBudgetBytes: budget, localTranscriptIDs: deps.LocallyHeldTranscriptIDs}
+	return &Service{credentials: credentials, configHome: deps.ConfigHome, newIdentityReader: factory, store: deps.Store, now: now, operationTimeout: timeout, sourceSlots: make(chan struct{}, 4), sourceBudgetBytes: budget, localTranscriptIDs: deps.LocallyHeldTranscriptIDs}
 }
 
 func (s *Service) operationContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -75,7 +81,7 @@ func (s *Service) operationContext(ctx context.Context) (context.Context, contex
 // SelectedCredentials selects the saved private scope OFFLINE. It never logs
 // in, verifies remotely, or falls back to the most recently used account.
 func (s *Service) SelectedCredentials(ctx context.Context) (auth.CredentialSnapshot, error) {
-	snapshot, err := auth.CaptureCredentials(ctx, s.configHome)
+	snapshot, err := s.credentials.Capture(ctx, s.configHome)
 	if err != nil {
 		return auth.CredentialSnapshot{}, err
 	}

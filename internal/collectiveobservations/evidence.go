@@ -10,12 +10,17 @@ import (
 
 // History is an offline saved-scope read; no Village transport is constructed.
 func (s *Service) History(ctx context.Context, q schema.LocalContributionHistoryQuery) (schema.LocalContributionHistoryResponse, error) {
-	if s.store == nil {
-		return schema.LocalContributionHistoryResponse{}, fmt.Errorf("read contribution history: local Store is not configured; no private evidence was read; configure the observation service Store")
-	}
 	snapshot, err := s.SelectedCredentials(ctx)
 	if err != nil {
 		return schema.LocalContributionHistoryResponse{}, err
+	}
+	return s.HistoryFor(ctx, snapshot, q)
+}
+
+// HistoryFor reads saved evidence offline under the original action generation.
+func (s *Service) HistoryFor(ctx context.Context, snapshot auth.CredentialSnapshot, q schema.LocalContributionHistoryQuery) (schema.LocalContributionHistoryResponse, error) {
+	if s.store == nil {
+		return schema.LocalContributionHistoryResponse{}, fmt.Errorf("read contribution history: local Store is not configured; no private evidence was read; configure the observation service Store")
 	}
 	return s.store.ReadContributionHistory(ctx, snapshot, q)
 }

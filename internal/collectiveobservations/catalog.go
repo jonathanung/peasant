@@ -102,14 +102,22 @@ func (s *Service) ResolveReference(ctx context.Context, ref string, online bool)
 
 // ResolveReferenceFor selects an exact reference in the original action scope.
 // It never reselects a profile after a content action captured its credentials.
-func (s *Service) ResolveReferenceFor(ctx context.Context, snapshot auth.CredentialSnapshot, ref string, online bool) (schema.VillageUUID, error) {
-	if err := snapshot.WithCurrent(ctx, func() error { return nil }); err != nil {
-		return "", err
-	}
+func (s *Service) ResolveReferenceFor(ctx context.Context, snapshot auth.CredentialSnapshot, ref string, online bool) (id schema.VillageUUID, err error) {
 	if online {
 		var cancel context.CancelFunc
 		ctx, cancel = s.operationContext(ctx)
 		defer cancel()
+	}
+	defer func() {
+		if err == nil {
+			err = s.credentials.CheckSnapshot(ctx, snapshot)
+			if err != nil {
+				id = ""
+			}
+		}
+	}()
+	if err := snapshot.WithCurrent(ctx, func() error { return nil }); err != nil {
+		return "", err
 	}
 	ref = strings.TrimSpace(ref)
 	if ref == "" {
@@ -216,12 +224,17 @@ func (s *Service) TrackFor(ctx context.Context, original auth.CredentialSnapshot
 }
 
 func (s *Service) Untrack(ctx context.Context, id schema.VillageUUID) (schema.CollectiveObservationResponse, error) {
-	if s.store == nil {
-		return schema.CollectiveObservationResponse{}, fmt.Errorf("untrack collective: local Store is not configured; no preference changed; configure the observation Store")
-	}
 	snapshot, err := s.SelectedCredentials(ctx)
 	if err != nil {
 		return schema.CollectiveObservationResponse{}, err
+	}
+	return s.UntrackFor(ctx, snapshot, id)
+}
+
+// UntrackFor removes a preference offline under the original action generation.
+func (s *Service) UntrackFor(ctx context.Context, snapshot auth.CredentialSnapshot, id schema.VillageUUID) (schema.CollectiveObservationResponse, error) {
+	if s.store == nil {
+		return schema.CollectiveObservationResponse{}, fmt.Errorf("untrack collective: local Store is not configured; no preference changed; configure the observation Store")
 	}
 	invocation, err := s.store.BeginCollectiveObservation(ctx, snapshot)
 	if err != nil {

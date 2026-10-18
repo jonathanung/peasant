@@ -49,12 +49,18 @@ func printCollectiveObservations(cmd *cobra.Command, response schema.CollectiveO
 // BuildVillageCollectivesCommand shares the service with the Local API. Offline
 // reads never call the local HTTP server, login, or contact Village implicitly.
 func BuildVillageCollectivesCommand() *cobra.Command {
+	return buildVillageCollectivesCommand(villageObservationService)
+}
+
+type villageObservationServiceFactory func(*cobra.Command) (*collectiveobservations.Service, func(), error)
+
+func buildVillageCollectivesCommand(newService villageObservationServiceFactory) *cobra.Command {
 	var jsonOutput bool
 	group := &cobra.Command{Use: "collectives", Short: "Inspect saved collective metadata and explicit tracking"}
 	group.PersistentFlags().BoolVar(&jsonOutput, defaults.JSONFlagName, false, "Output the Local API JSON envelope")
 	group.AddCommand(&cobra.Command{Use: "fetch", Short: "Fetch metadata only; independently install complete catalog, history and disclosed associations", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-		service, closeDB, err := villageObservationService(cmd)
+		service, closeDB, err := newService(cmd)
 		if err != nil {
 			return err
 		}
@@ -79,7 +85,7 @@ func BuildVillageCollectivesCommand() *cobra.Command {
 	}})
 	group.AddCommand(&cobra.Command{Use: "list", Short: "List saved relevant collectives offline (no network or login)", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-		service, closeDB, err := villageObservationService(cmd)
+		service, closeDB, err := newService(cmd)
 		if err != nil {
 			return err
 		}
@@ -94,16 +100,20 @@ func BuildVillageCollectivesCommand() *cobra.Command {
 		cmd.SilenceUsage = true
 		ctx, cancel := context.WithTimeout(cmd.Context(), 2*time.Minute)
 		defer cancel()
-		service, closeDB, err := villageObservationService(cmd)
+		service, closeDB, err := newService(cmd)
 		if err != nil {
 			return err
 		}
 		defer closeDB()
-		id, err := service.ResolveReference(ctx, args[0], true)
+		snapshot, err := service.SelectedCredentials(ctx)
 		if err != nil {
 			return err
 		}
-		response, err := service.Track(ctx, id)
+		id, err := service.ResolveReferenceFor(ctx, snapshot, args[0], true)
+		if err != nil {
+			return err
+		}
+		response, err := service.TrackFor(ctx, snapshot, id)
 		if err != nil {
 			return err
 		}
@@ -111,16 +121,20 @@ func BuildVillageCollectivesCommand() *cobra.Command {
 	}})
 	group.AddCommand(&cobra.Command{Use: "untrack <uuid|name|url>", Short: "Remove explicit tracking offline using the saved account (does not leave a collective)", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-		service, closeDB, err := villageObservationService(cmd)
+		service, closeDB, err := newService(cmd)
 		if err != nil {
 			return err
 		}
 		defer closeDB()
-		id, err := service.ResolveReference(cmd.Context(), args[0], false)
+		snapshot, err := service.SelectedCredentials(cmd.Context())
 		if err != nil {
 			return err
 		}
-		response, err := service.Untrack(cmd.Context(), id)
+		id, err := service.ResolveReferenceFor(cmd.Context(), snapshot, args[0], false)
+		if err != nil {
+			return err
+		}
+		response, err := service.UntrackFor(cmd.Context(), snapshot, id)
 		if err != nil {
 			return err
 		}
@@ -130,6 +144,10 @@ func BuildVillageCollectivesCommand() *cobra.Command {
 }
 
 func BuildVillageContributionsCommand() *cobra.Command {
+	return buildVillageContributionsCommand(villageObservationService)
+}
+
+func buildVillageContributionsCommand(newService villageObservationServiceFactory) *cobra.Command {
 	group := &cobra.Command{Use: "contributions", Short: "Inspect bounded saved contribution evidence offline"}
 	var kind, collective, revision string
 	var page, limit int
@@ -145,13 +163,17 @@ func BuildVillageContributionsCommand() *cobra.Command {
 		if !q.Kind.IsValid() {
 			return fmt.Errorf("unknown contribution kind %q; no history read; use remote-attempts, receipts, or operation-diagnostics", kind)
 		}
-		service, closeDB, err := villageObservationService(cmd)
+		service, closeDB, err := newService(cmd)
 		if err != nil {
 			return err
 		}
 		defer closeDB()
+		snapshot, err := service.SelectedCredentials(cmd.Context())
+		if err != nil {
+			return err
+		}
 		if collective != "" {
-			id, err := service.ResolveReference(cmd.Context(), collective, false)
+			id, err := service.ResolveReferenceFor(cmd.Context(), snapshot, collective, false)
 			if err != nil {
 				return err
 			}
@@ -161,7 +183,7 @@ func BuildVillageContributionsCommand() *cobra.Command {
 			token := schema.ContributionTraversalRevision(revision)
 			q.Revision = &token
 		}
-		response, err := service.History(cmd.Context(), q)
+		response, err := service.HistoryFor(cmd.Context(), snapshot, q)
 		if err != nil {
 			return err
 		}
