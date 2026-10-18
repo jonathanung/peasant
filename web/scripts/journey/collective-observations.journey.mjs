@@ -211,8 +211,10 @@ async function exercise(row, { page, request }, info) {
       tabular: getComputedStyle(element.querySelector('.tnum')).fontVariantNumeric,
       fontLoaded: [...document.fonts].some(face => /Atkinson/i.test(face.family) && face.status === 'loaded'),
       overflow: document.documentElement.scrollWidth > innerWidth,
+      panelPosition: getComputedStyle(element.querySelector('.tabpanel:not([hidden])')).position,
     }));
     expect(styles.font).toMatch(/Atkinson/i); expect(styles.fontLoaded).toBe(true); expect(styles.size).toBeGreaterThanOrEqual(16); expect(styles.radius).toBe('0px'); expect(styles.overflow).toBe(false); expect(styles.tabular).toContain('tabular-nums');
+    expect(styles.panelPosition).toBe('relative');
     await expect(page.locator('.app-header-search-label')).toHaveCSS('position', surface === 'desktop' ? 'static' : 'absolute');
     const chrome = await page.locator('header').first().locator('a,button').evaluateAll(elements => elements.map(element => {
       const box = element.getBoundingClientRect();

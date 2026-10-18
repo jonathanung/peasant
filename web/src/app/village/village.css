@@ -27,11 +27,6 @@
   flex: 1;
   min-height: 0;
 }
-/* Anchor absolute accessibility labels within their existing canonical scroller.
-   No overflow, content, height or evidence layout is overridden here. */
-.village-page .vobs > .tabpanel {
-  position: relative;
-}
 .village-page-filter {
   display: grid;
   gap: var(--sp-3);

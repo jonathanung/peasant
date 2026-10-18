@@ -19,8 +19,8 @@ STORY: inspect saved catalog, fetch deliberately, then inspect available history
 
 FIRST VIEWPORT: persistent Peasant header with canonical village active; published VillageObservations body names the account and Village, primary fetch, persistent status and independent catalog/history/association dates. History reveals three separately paged evidence categories. Signature interaction: a partial fetch updates catalog while retained history keeps its date and pager.
 
-FORM: existing approved canonical Fairtrade world, code-led extension; no new visual-world seed. The registry and composition resolve from published Fairtrade 0.0.30, not source-linked components.
+FORM: existing approved canonical Fairtrade world, code-led extension; no new visual-world seed. The registry, composition and panel containment resolve from published Fairtrade 0.0.31, not source-linked components or consumer internal-style overrides.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, DESIGN.md, and every shipping raster carrying its provenance
 
-Open: real built-binary journey, both-theme inspected screenshots and consolidated consumer review. Published schema 0.31.0 and Fairtrade 0.0.30 now supply the actual imports; package installation alone is not mounted proof.
+Open: fresh built-binary journey, both-theme inspected screenshots and consolidated consumer review. Published schema 0.31.0 and Fairtrade 0.0.31 supply the actual imports; package installation alone is not mounted proof.
