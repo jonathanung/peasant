@@ -88,7 +88,7 @@ func (s *Service) ObserveOwnPairFor(ctx context.Context, original auth.Credentia
 }
 
 func (s *Service) observeOwnPair(ctx context.Context, snapshot auth.CredentialSnapshot, source Source, collective schema.VillageUUID, transcript schema.TranscriptID) (store.ContributionAttemptInstall, error) {
-	invocation, err := s.store.BeginCollectiveObservation(ctx, snapshot)
+	invocation, err := s.store.BeginCollectiveRead(ctx, snapshot,store.CollectiveReadPlan{Sources:[]store.CollectiveReadSource{store.ContributionAttemptReadSource(collective,transcript)}},s.now().UTC())
 	if err != nil {
 		return store.ContributionAttemptInstall{}, err
 	}

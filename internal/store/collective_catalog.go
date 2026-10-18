@@ -27,7 +27,7 @@ func bumpObservationRevision(conn *sqlite.Conn, base, user string) (string, erro
 
 func checkCollectiveSourceSequence(conn *sqlite.Conn, invocation CollectiveObservationInvocation, source schema.CollectiveObservationSource, id string) error {
 	var installed int64
-	if err := sqlitex.Execute(conn, `SELECT coalesce(max(installed_seq),0) FROM collective_source_installs WHERE village_url=? AND user_id=? AND source=? AND (source_id='' OR source_id=? OR ?='')`, &sqlitex.ExecOptions{Args: []any{invocation.villageURL, invocation.userID, string(source), id, id}, ResultFunc: func(stmt *sqlite.Stmt) error { installed = stmt.ColumnInt64(0); return nil }}); err != nil {
+	if err := sqlitex.Execute(conn, `SELECT coalesce(max(max(installed_seq,issued_seq)),0) FROM collective_source_installs WHERE village_url=? AND user_id=? AND source=? AND (source_id='' OR source_id=? OR ?='')`, &sqlitex.ExecOptions{Args: []any{invocation.villageURL, invocation.userID, string(source), id, id}, ResultFunc: func(stmt *sqlite.Stmt) error { installed = stmt.ColumnInt64(0); return nil }}); err != nil {
 		return err
 	}
 	if installed > invocation.sequence {

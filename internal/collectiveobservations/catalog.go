@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/peasant-labs/peasant/internal/auth"
+	"github.com/peasant-labs/peasant/internal/store"
 	"github.com/peasant-labs/peasant/internal/village"
 	"github.com/peasant-labs/schema"
 )
@@ -136,6 +137,9 @@ func (s *Service) ResolveReferenceFor(ctx context.Context, snapshot auth.Credent
 		if err != nil {
 			return "", err
 		}
+		if err := s.issueExplicitTargetRead(ctx, snapshot, id); err != nil {
+			return "", err
+		}
 		if _, err := source.ReadObservationCollective(ctx, id); err != nil {
 			return "", err
 		}
@@ -208,7 +212,7 @@ func (s *Service) TrackFor(ctx context.Context, original auth.CredentialSnapshot
 	if err != nil {
 		return schema.CollectiveObservationResponse{}, err
 	}
-	invocation, err := s.store.BeginCollectiveObservation(ctx, snapshot)
+	invocation, err := s.store.BeginCollectiveRead(ctx, snapshot, store.CollectiveReadPlan{Sources: []store.CollectiveReadSource{{Source: schema.CollectiveObservationSourceExplicit, ID: id.String()}}}, s.now().UTC())
 	if err != nil {
 		return schema.CollectiveObservationResponse{}, err
 	}
@@ -281,6 +285,9 @@ func (s *Service) VerifyTargetsFor(ctx context.Context, original auth.Credential
 			continue
 		}
 		seen[id] = true
+		if err := s.issueExplicitTargetRead(ctx, snapshot, id); err != nil {
+			return nil, err
+		}
 		row, err := source.ReadObservationCollective(ctx, id)
 		if err != nil {
 			return nil, err
@@ -291,4 +298,17 @@ func (s *Service) VerifyTargetsFor(ctx context.Context, original auth.Credential
 		return nil, err
 	}
 	return rows, nil
+}
+
+// Read-only preflights can supersede an older overlapping target observation;
+// selecting a name alone never implies a new tracking preference.
+func (s *Service) issueExplicitTargetRead(ctx context.Context, snapshot auth.CredentialSnapshot, id schema.VillageUUID) error {
+	if s.store == nil {
+		return nil
+	}
+	_, err := s.store.BeginCollectiveRead(ctx, snapshot, store.CollectiveReadPlan{Sources: []store.CollectiveReadSource{{Source: schema.CollectiveObservationSourceExplicit, ID: id.String()}}}, s.now().UTC())
+	if err != nil {
+		return err
+	}
+	return nil
 }

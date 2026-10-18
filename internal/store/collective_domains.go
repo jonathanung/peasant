@@ -30,7 +30,7 @@ func writeCollectiveDomain(conn *sqlite.Conn, invocation CollectiveObservationIn
 		return err
 	}
 	if result.State == schema.CollectiveFetchStateComplete {
-		if installed > invocation.sequence {
+		if installed > invocation.sequence || attempt > invocation.sequence {
 			return ErrObservationSuperseded
 		}
 		installed = invocation.sequence
@@ -42,14 +42,7 @@ func writeCollectiveDomain(conn *sqlite.Conn, invocation CollectiveObservationIn
 	}
 	summary := schema.CollectiveFetchDomainSummary{State: result.State, Coverage: result.Coverage, LastAttemptAt: result.LastAttemptAt, LastCompletedAt: result.LastCompletedAt, LastInstalledRevision: result.LastInstalledRevision, Issue: result.Issue}
 	if attempt > invocation.sequence {
-		if result.State != schema.CollectiveFetchStateComplete {
-			return nil
-		}
-		// A newer failed attempt does not invalidate an independently complete
-		// older source. Preserve its reporting, but MUST advance the installed
-		// fence and completion evidence with the actual payload commit.
-		prior.LastCompletedAt, prior.LastInstalledRevision, prior.Coverage = result.LastCompletedAt, result.LastInstalledRevision, result.Coverage
-		summary = prior
+		return ErrObservationSuperseded
 	} else {
 		attempt = invocation.sequence
 	}
@@ -116,11 +109,11 @@ func (s *Store) CommitCollectiveCatalog(ctx context.Context, invocation Collecti
 		if err := checkObservationInvocation(conn, invocation); err != nil {
 			return err
 		}
-		_, installed, _, err := readCollectiveDomain(conn, invocation, result.Domain)
+		_, installed, issued, err := readCollectiveDomain(conn, invocation, result.Domain)
 		if err != nil {
 			return err
 		}
-		if installed > invocation.sequence {
+		if installed > invocation.sequence || issued > invocation.sequence {
 			return ErrObservationSuperseded
 		}
 		for _, source := range sources {
@@ -198,14 +191,14 @@ func (s *Store) CommitCollectiveHistory(ctx context.Context, invocation Collecti
 		return result, fmt.Errorf("commit history: complete owner contribution discovery is absent; prior history retained; obtain complete owner discovery before pair crawling")
 	}
 	_, err := s.installContributionAttemptSources(ctx, invocation, pairs, func(conn *sqlite.Conn) error {
-		_, installed, _, err := readCollectiveDomain(conn, invocation, result.Domain)
+		_, installed, issued, err := readCollectiveDomain(conn, invocation, result.Domain)
 		if err != nil {
 			return err
 		}
-		if installed > invocation.sequence {
+		if installed > invocation.sequence || issued > invocation.sequence {
 			return ErrObservationSuperseded
 		}
-		return nil
+		return checkCollectiveSourceSequence(conn, invocation, schema.CollectiveObservationSourceAttempts, "")
 	}, func(conn *sqlite.Conn, effect ContributionAttemptInstall) error {
 		var oldCoverage string
 		if err := sqlitex.Execute(conn, `SELECT attempt_coverage FROM collective_observation_scopes WHERE village_url=? AND user_id=?`, &sqlitex.ExecOptions{Args: []any{invocation.villageURL, invocation.userID}, ResultFunc: func(stmt *sqlite.Stmt) error { oldCoverage = stmt.ColumnText(0); return nil }}); err != nil {

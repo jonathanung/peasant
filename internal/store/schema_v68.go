@@ -114,6 +114,7 @@ CREATE TABLE collective_source_installs (
     village_url TEXT NOT NULL,user_id TEXT NOT NULL,
     source TEXT NOT NULL CHECK(source IN ('membership','contribution-discovery','organization','explicit','submissions','attempts','associations')),
     source_id TEXT NOT NULL,installed_seq INTEGER NOT NULL,
+    issued_seq INTEGER NOT NULL DEFAULT 0 CHECK(issued_seq>=0),
     PRIMARY KEY(village_url,user_id,source,source_id),
     FOREIGN KEY(village_url,user_id) REFERENCES collective_observation_scopes(village_url,user_id)
 ) WITHOUT ROWID;

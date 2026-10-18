@@ -66,7 +66,7 @@ func (s *Store) InstallTranscriptAssociations(ctx context.Context, invocation Co
 		}}); err != nil {
 			return err
 		}
-		if installed > invocation.sequence {
+		if installed > invocation.sequence || attempt > invocation.sequence {
 			return ErrObservationSuperseded
 		}
 		at := observedAt.UTC().Format(observationOrderedTimeLayout)
@@ -135,6 +135,9 @@ func (s *Store) RecordTranscriptAssociationFailure(ctx context.Context, invocati
 		if err := checkObservationInvocation(conn, invocation); err != nil {
 			return err
 		}
+		if err := checkTranscriptReadSequence(conn, invocation, id); err != nil {
+			return err
+		}
 		return sqlitex.Execute(conn, `INSERT INTO transcript_collective_observations(village_url,user_id,transcript_id,attempt_seq,last_attempt_at,issue_code,issue_message,issue_retry) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(village_url,user_id,transcript_id) DO UPDATE SET attempt_seq=excluded.attempt_seq,last_attempt_at=excluded.last_attempt_at,issue_code=excluded.issue_code,issue_message=excluded.issue_message,issue_retry=excluded.issue_retry WHERE attempt_seq<=excluded.attempt_seq`, &sqlitex.ExecOptions{Args: []any{invocation.villageURL, invocation.userID, id.String(), invocation.sequence, attemptedAt.UTC().Format(observationOrderedTimeLayout), string(issue.Code), issue.Message, issue.Retry}})
 	})
 }
@@ -189,6 +192,11 @@ func (s *Store) ReadTranscriptAssociations(ctx context.Context, snapshot auth.Cr
 							metadata.State = state
 						}
 					}
+				}
+				// An issued read with no completed observation or failure is still
+				// never observed, not a fabricated unknown-result warning.
+				if metadata.ObservedAt == nil && metadata.Warning == nil && persistedState == "" {
+					return nil
 				}
 				if err := metadata.Validate(); err != nil {
 					return err

@@ -99,8 +99,8 @@ func TestCollectiveDomainSourceCAS(t *testing.T) {
 				if _, err := db.RecordCollectiveDomainFailure(t.Context(), latest, failure); err != nil {
 					t.Fatal(err)
 				}
-				if _, err := db.CommitCollectiveHistory(t.Context(), newer, []store.ContributionAttemptSource{}, historySources, schema.CollectiveEvidenceCoverageAvailable, at, at); err != nil {
-					t.Fatal(err)
+				if _, err := db.CommitCollectiveHistory(t.Context(), newer, []store.ContributionAttemptSource{}, historySources, schema.CollectiveEvidenceCoverageAvailable, at, at); !errors.Is(err, store.ErrObservationSuperseded) {
+					t.Fatalf("newer failure did not fence intermediate older empty completion: %v", err)
 				}
 				_, err = db.CommitCollectiveHistory(t.Context(), old, pairs, historySources, schema.CollectiveEvidenceCoverageAvailable, at, at)
 			default:
@@ -123,8 +123,8 @@ func TestCollectiveDomainSourceCAS(t *testing.T) {
 			if c.Mode == "failed-then-complete" {
 				summary := catalog.Fetch.History
 				retainedFailure := summary.State == schema.CollectiveFetchStateFailed && summary.Issue != nil
-				completedEvidence := summary.LastCompletedAt != nil && summary.LastInstalledRevision != nil && summary.Coverage == schema.CollectiveEvidenceCoverageAvailable
-				if !retainedFailure || !completedEvidence {
+				noFabricatedCompletion := summary.LastCompletedAt == nil && summary.LastInstalledRevision == nil && summary.Coverage == schema.CollectiveEvidenceCoverageUnknown
+				if !retainedFailure || !noFabricatedCompletion {
 					t.Fatalf("newer failure or independently completed evidence was lost: %#v", summary)
 				}
 			}

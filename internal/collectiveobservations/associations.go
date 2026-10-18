@@ -92,6 +92,9 @@ func (s *Service) ObserveAssociationsFor(ctx context.Context, original auth.Cred
 }
 
 func (s *Service) observeAssociations(ctx context.Context, snapshot auth.CredentialSnapshot, source Source, invocation store.CollectiveObservationInvocation, id schema.TranscriptID) (schema.PullAssociationMetadataResult, error) {
+	if err := s.store.IssueCollectiveReads(ctx, invocation, store.CollectiveReadPlan{Transcripts: []schema.TranscriptID{id}}, s.now().UTC()); err != nil {
+		return s.associationFailureResult(ctx, snapshot, id, persistenceError(err))
+	}
 	rows, readErr := source.ReadTranscriptCollectives(ctx, id)
 	invalidated := false
 	var status *village.StatusError

@@ -110,6 +110,10 @@ func (s *Store) withObservationTransaction(ctx context.Context, snapshot auth.Cr
 // credential guard. Online authentication belongs to the service BEFORE this
 // call; there is no network work inside the credential or SQLite write lock.
 func (s *Store) BeginCollectiveObservation(ctx context.Context, snapshot auth.CredentialSnapshot) (CollectiveObservationInvocation, error) {
+	return s.beginCollectiveObservation(ctx, snapshot, nil)
+}
+
+func (s *Store) beginCollectiveObservation(ctx context.Context, snapshot auth.CredentialSnapshot, issue func(*sqlite.Conn, CollectiveObservationInvocation) error) (CollectiveObservationInvocation, error) {
 	base, user, err := observationCredentialScope(snapshot)
 	if err != nil {
 		return CollectiveObservationInvocation{}, err
@@ -129,10 +133,16 @@ func (s *Store) BeginCollectiveObservation(ctx context.Context, snapshot auth.Cr
 		if conn.Changes() != 1 {
 			return fmt.Errorf("allocate collective observation sequence: local sequence exhausted; no invocation allocated; recreate the selected cache before retrying")
 		}
-		return sqlitex.ExecuteTransient(conn, `SELECT incarnation,invocation_seq FROM collective_observation_scopes WHERE village_url=? AND user_id=?`, &sqlitex.ExecOptions{Args: []any{base, user}, ResultFunc: func(stmt *sqlite.Stmt) error {
+		if err := sqlitex.ExecuteTransient(conn, `SELECT incarnation,invocation_seq FROM collective_observation_scopes WHERE village_url=? AND user_id=?`, &sqlitex.ExecOptions{Args: []any{base, user}, ResultFunc: func(stmt *sqlite.Stmt) error {
 			result.incarnation, result.sequence = stmt.ColumnText(0), stmt.ColumnInt64(1)
 			return nil
-		}})
+		}}); err != nil {
+			return err
+		}
+		if issue != nil {
+			return issue(conn, result)
+		}
+		return nil
 	})
 	if err != nil {
 		return CollectiveObservationInvocation{}, err
@@ -206,6 +216,9 @@ func (s *Store) installContributionAttemptSources(ctx context.Context, invocatio
 			return ErrObservationSuperseded
 		}
 		for _, source := range sources {
+			if err := checkCollectiveSourceSequence(conn, invocation, schema.CollectiveObservationSourceAttempts, ContributionAttemptReadSource(source.CollectiveID, source.TranscriptID).ID); err != nil {
+				return err
+			}
 			var installed int64
 			args := []any{invocation.villageURL, invocation.userID, source.CollectiveID.String(), source.TranscriptID.String()}
 			if err := sqlitex.Execute(conn, `SELECT installed_seq FROM collective_attempt_sources WHERE village_url=? AND user_id=? AND collective_id=? AND transcript_id=?`, &sqlitex.ExecOptions{Args: args, ResultFunc: func(stmt *sqlite.Stmt) error { installed = stmt.ColumnInt64(0); return nil }}); err != nil {
@@ -237,6 +250,9 @@ func (s *Store) installContributionAttemptSources(ctx context.Context, invocatio
 				}
 			}
 			if err := sqlitex.Execute(conn, `INSERT INTO collective_attempt_sources(village_url,user_id,collective_id,transcript_id,installed_seq,observed_at) VALUES(?,?,?,?,?,?) ON CONFLICT(village_url,user_id,collective_id,transcript_id) DO UPDATE SET installed_seq=excluded.installed_seq,observed_at=excluded.observed_at`, &sqlitex.ExecOptions{Args: append(append([]any{}, args...), invocation.sequence, source.ObservedAt.Format(time.RFC3339Nano))}); err != nil {
+				return err
+			}
+			if err := markCollectiveSource(conn, invocation, schema.CollectiveObservationSourceAttempts, ContributionAttemptReadSource(source.CollectiveID, source.TranscriptID).ID); err != nil {
 				return err
 			}
 		}

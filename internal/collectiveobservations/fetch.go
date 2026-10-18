@@ -100,11 +100,26 @@ func (s *Service) Fetch(ctx context.Context) (schema.CollectiveFetchReport, erro
 	snapshot, source, authErr := s.AuthenticatedSourceFor(ctx, selected)
 	var invocation store.CollectiveObservationInvocation
 	if authErr == nil {
-		invocation, authErr = s.store.BeginCollectiveObservation(ctx, snapshot)
+		invocation, authErr = s.store.BeginCollectiveRead(ctx, snapshot, store.CollectiveReadPlan{Domains: schema.AllCollectiveFetchDomains}, s.now().UTC())
 		authErr = persistenceError(authErr)
 	}
 	if authErr != nil {
 		return s.initialFetchFailure(report, prior.Fetch, started, authErr)
+	}
+	// Register requested sets before delayed discovery. Inventory/read-issuance
+	// failure stays local to associations; other complete domains can proceed.
+	associationIDs, inventoryErr := s.localTranscriptIDs(ctx, scope)
+	if inventoryErr == nil && len(associationIDs) > schema.MaxCollectiveFetchItems {
+		inventoryErr = fmt.Errorf("issue association reads: held inventory exceeds metadata bound; no prefix requested; narrow held inventory")
+	}
+	if inventoryErr == nil {
+		for _, id := range associationIDs {
+			err := s.store.IssueCollectiveReads(ctx, invocation, store.CollectiveReadPlan{Transcripts: []schema.TranscriptID{id}}, s.now().UTC())
+			if err != nil && !errors.Is(err, store.ErrObservationSuperseded) {
+				inventoryErr = err
+				break
+			}
+		}
 	}
 	discovery, discoveryErr := source.ReadOwnContributionDiscovery(ctx)
 	discoveryResult := sourceOutcome(schema.CollectiveObservationSourceContributionDiscovery, s.now().UTC(), discoveryErr)
@@ -128,7 +143,7 @@ func (s *Service) Fetch(ctx context.Context) (schema.CollectiveFetchReport, erro
 	}()
 	go func() {
 		defer domains.Done()
-		pairs, sources, coverage, err := s.fetchHistory(ctx, source, discovery, discoveryResult, discoveryErr)
+		pairs, sources, coverage, err := s.fetchHistory(ctx, source, invocation, discovery, discoveryResult, discoveryErr)
 		if err == nil {
 			history, err = s.store.CommitCollectiveHistory(ctx, invocation, pairs, sources, coverage, started, s.now().UTC())
 			err = persistenceError(err)
@@ -139,7 +154,7 @@ func (s *Service) Fetch(ctx context.Context) (schema.CollectiveFetchReport, erro
 	}()
 	go func() {
 		defer domains.Done()
-		associations = s.fetchAssociations(ctx, snapshot, source, invocation, scope, started, prior.Fetch.Associations)
+		associations = s.fetchAssociations(ctx, snapshot, source, invocation, associationIDs, inventoryErr, started, prior.Fetch.Associations)
 	}()
 	domains.Wait()
 	report.Domains = append(report.Domains, catalog, history, associations)
@@ -318,7 +333,7 @@ func (s *Service) fetchCatalog(ctx context.Context, source Source, snapshot auth
 	return result, sources, failure
 }
 
-func (s *Service) fetchHistory(ctx context.Context, source Source, discovery []schema.VillageContributedCollective, discoveryResult schema.CollectiveFetchSourceResult, discoveryErr error) ([]store.ContributionAttemptSource, []schema.CollectiveFetchSourceResult, schema.CollectiveEvidenceCoverage, error) {
+func (s *Service) fetchHistory(ctx context.Context, source Source, invocation store.CollectiveObservationInvocation, discovery []schema.VillageContributedCollective, discoveryResult schema.CollectiveFetchSourceResult, discoveryErr error) ([]store.ContributionAttemptSource, []schema.CollectiveFetchSourceResult, schema.CollectiveEvidenceCoverage, error) {
 	sources := []schema.CollectiveFetchSourceResult{discoveryResult}
 	pairs := []store.ContributionAttemptSource{}
 	coverage := schema.CollectiveEvidenceCoverageAvailable
@@ -345,6 +360,9 @@ func (s *Service) fetchHistory(ctx context.Context, source Source, discovery []s
 				continue
 			}
 			seen[row.TranscriptID] = true
+			if err := s.store.IssueCollectiveReads(ctx, invocation, store.CollectiveReadPlan{Sources: []store.CollectiveReadSource{store.ContributionAttemptReadSource(collective.ID, row.TranscriptID)}}, s.now().UTC()); err != nil {
+				return nil, sources, coverage, persistenceError(err)
+			}
 			events, err := source.ReadOwnShareEvents(ctx, row.TranscriptID, collective.ID)
 			if negativeDisclosure(err) {
 				r := sourceOutcome(schema.CollectiveObservationSourceAttempts, s.now().UTC(), nil)
@@ -367,10 +385,10 @@ func (s *Service) fetchHistory(ctx context.Context, source Source, discovery []s
 	return pairs, sources, coverage, nil
 }
 
-func (s *Service) fetchAssociations(ctx context.Context, snapshot auth.CredentialSnapshot, source Source, invocation store.CollectiveObservationInvocation, scope schema.CollectiveObservationScope, started time.Time, prior schema.CollectiveFetchDomainSummary) schema.CollectiveFetchDomainResult {
+func (s *Service) fetchAssociations(ctx context.Context, snapshot auth.CredentialSnapshot, source Source, invocation store.CollectiveObservationInvocation, ids []schema.TranscriptID, inventoryErr error, started time.Time, prior schema.CollectiveFetchDomainSummary) schema.CollectiveFetchDomainResult {
 	at := s.now().UTC()
 	result := schema.CollectiveFetchDomainResult{Domain: schema.CollectiveFetchDomainAssociations, Requested: true, State: schema.CollectiveFetchStateComplete, Commit: schema.CollectiveFetchCommitUnchanged, StartedAt: &started, LastAttemptAt: &at, CompletedAt: &at, LastCompletedAt: prior.LastCompletedAt, LastInstalledRevision: prior.LastInstalledRevision, Coverage: schema.CollectiveEvidenceCoverageAvailable, SourceOutcomes: []schema.CollectiveFetchSourceResult{}, Associations: &schema.CollectiveFetchAssociationResults{Scopes: []schema.CollectiveFetchAssociationScopeResult{}}}
-	ids, err := s.localTranscriptIDs(ctx, scope)
+	err := inventoryErr
 	if err == nil && len(ids) > schema.MaxCollectiveFetchItems {
 		err = fmt.Errorf("local transcript inventory exceeds metadata invocation bound; no prefix was selected; narrow the held inventory before retrying")
 	}
