@@ -1,0 +1,8 @@
+requiredNames: [exact-served-artifact, stale-html-refused, missing-body-refused, wrong-asset-refused, absent-published-export-refused, modified-installed-package-refused]
+cases:
+  - {name: exact-served-artifact, mode: exact}
+  - {name: stale-html-refused, mode: stale}
+  - {name: missing-body-refused, mode: body}
+  - {name: wrong-asset-refused, mode: asset}
+  - {name: absent-published-export-refused, mode: package}
+  - {name: modified-installed-package-refused, mode: bytes}

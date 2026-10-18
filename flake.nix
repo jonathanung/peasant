@@ -70,6 +70,10 @@
         # protoc-gen-go      # protobuf Go codegen
         # temporal-cli       # Temporal dev server
         # tlaplus18          # TLC model checker
+      ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [
+        pkgs.util-linux # persistent-inode flock for the focused built-binary journey
+        pkgs.gnutar # integrity-verified registry artifact inventory and extraction
+        pkgs.chromium # explicit CHROME_PATH; the runner never downloads a browser
       ];
 
       # Native build dependencies (C libraries, system packages)
