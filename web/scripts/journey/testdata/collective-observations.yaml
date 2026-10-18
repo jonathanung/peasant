@@ -14,7 +14,7 @@ requiredNames:
   - full-shell-computed-style-axe-keyboard
   - tracking-visible-online-untrack-offline
   - missing-history-revision-actionable
-scenarios: [complete, partial-502, partial-504, late-history, association-unavailable, association-invalidated]
+scenarios: [complete, partial-502, partial-504, remote-history-504, late-history, association-unavailable, association-invalidated]
 projectNames: [dark-desktop, light-desktop, dark-mobile, light-mobile]
 projects:
   - {name: dark-desktop, theme: dark, surface: desktop, width: 1440, height: 1000, mobile: false}

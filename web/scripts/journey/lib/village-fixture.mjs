@@ -43,7 +43,8 @@ export async function startVillageFixture(exported, contract, control) {
         if (!control.actions.includes(action)) return send({ error: 'unknown named fixture operation' }, 400);
         return send(await control.run(action, url.searchParams));
       }
-      requests.push({ method: req.method, path: url.pathname });
+      const observedRequest = { method: req.method, path: url.pathname };
+      requests.push(observedRequest);
       if (req.headers.authorization !== 'Bearer disposable-observations-fixture') return send({ error: 'fixture credentials refused' }, 401);
       if (req.method !== 'GET') return send({ error: 'remote fixture refuses all mutations' }, 405);
       const path = url.pathname;
@@ -67,7 +68,13 @@ export async function startVillageFixture(exported, contract, control) {
       ]);
       if (path.endsWith(`/transcripts/${f.TranscriptID}/events`)) {
         if (scenario === 'partial-502') return send({ error: 'owner history fixture unavailable' }, 503);
-        if (scenario === 'partial-504' || scenario === 'late-history') return; // real transport/operation deadline or cancellation; never forge local HTTP 504
+        if (scenario === 'remote-history-504') return send({ error: 'remote owner history gateway timeout' }, 504);
+        if (scenario === 'partial-504' || scenario === 'late-history') {
+          observedRequest.stalled = true;
+          // The real client deadline closes this response; no synthetic local status or timer.
+          await new Promise(done => res.once('close', () => { observedRequest.cancelled = !res.writableEnded; done(); }));
+          return;
+        }
         return send(JSON.parse(f.AttemptsJSON).map(row => validated('zVillageShareEvent', row)));
       }
       if (path === '/api/v1/schema/version') return send(validated('zSchemaVersionResponse', exported.version));

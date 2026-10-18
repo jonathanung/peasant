@@ -20,6 +20,7 @@ export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 pnpm --dir web install --frozen-lockfile
 pnpm --dir web run test:journey:support
 pnpm --dir web run test:journey:fixture
+pnpm --dir web run test:journey:api
 pnpm --dir web run journey:collective-observations
 ```
 
@@ -27,6 +28,21 @@ The first test command needs no Next build and tests real disposable-child
 lifetimes plus provenance refusal boundaries. The fixture command builds the small
 Go seeder and validates remote payloads against the installed canonical schema.
 It uses published module/package pins, not a source-prototype workspace.
+
+The API command separately compiles the real CLI and seeder, starts that absolute
+foreground binary with the normal production environment setting
+`PEASANT_COLLECTIVE_FETCH_TIMEOUT=2s`, and exercises real HTTP/Store domain effects.
+The remote owner-history fixture genuinely waits until the client cancels its
+response. That local deadline must yield local 504 with completed catalog and
+retained history. A distinct remote HTTP 504 must yield local 502. Invalid runtime
+configuration must refuse startup before remote I/O or listener readiness.
+The command asserts exact declared remote request paths/counts and complete
+schema-validated local reports. It requires no browser and makes **no UI claim**:
+it does not use `make build`, certify embedded web assets, or capture `/village`.
+Its explicitly named API-only reports record source/binary provenance and whether
+an external source-prototype Go workspace was selected. Normal published-schema
+resolution is used unless an external development configuration explicitly says
+otherwise; a source-prototype API run is never a published consumer proof.
 
 The mounted command requires a committed, clean consumer tree and published
 schema/Fairtrade packages that actually export the observation contract,
@@ -44,6 +60,9 @@ tarballs, including registry/frozen-lock SHA-512 integrity. It rejects source
 links and candidate packages rather than treating them as published proof.
 It invokes `make build` once, then starts that absolute embedded binary with
 `web start --foreground --no-browser` in an isolated XDG environment.
+The mounted runner uses the same normal `PEASANT_COLLECTIVE_FETCH_TIMEOUT=2s`
+process setting, so its real deadline scenario fits the unchanged 60-second test
+budget. The setting changes no Local API request field and inserts no fake response.
 
 Before Playwright, it records source commit/file hashes, lockfile/package
 integrity, exported web assets and binary SHA-256. It compares actual served

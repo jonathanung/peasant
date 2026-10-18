@@ -34,6 +34,7 @@ jobs:
             pnpm --dir web install --frozen-lockfile
             pnpm --dir web run test:journey:support
             pnpm --dir web run test:journey:fixture
+            pnpm --dir web run test:journey:api
             pnpm --dir web run journey:collective-observations
           SCRIPT
       - name: Retain sanitized build and browser evidence
