@@ -3,24 +3,17 @@
 import { useMemo } from 'react';
 import type { useHomeSessions } from '@/hooks/useHomeSessions';
 import { SkeletonList } from '@/lib/skeleton';
-import type { LocalSyncProjectOption } from '@/lib/api/home';
-import { discoveryErrorMessage } from '@/lib/selectionGuidance';
 import Link from 'next/link';
 import {
   DataTable,
-  ProviderIcon,
+  ProviderName,
   PublishStateLabel,
-  Segmented,
-  Select,
   SessionGroupDisclosure,
   Button,
   type DataTableColumn,
 } from '@/lib/ft-ui';
 import { usePublicationAudience } from '@/hooks/useRootSessions';
 import {
-  PUBLISH_FILTERS,
-  PUBLISH_FILTER_LABELS,
-  isPublishFilter,
   rowPublishState,
   type PublishFilter,
   type RootSessionRow,
@@ -74,11 +67,9 @@ export interface RootSessionListProps {
   /** sessionId -> first prompt, for sessions without a generated title. */
   previews: ReadonlyMap<string, string>;
   home: ReturnType<typeof useHomeSessions>;
+  /** The publish-state filter the page set; it picks the empty copy. */
   filter: PublishFilter;
-  onFilter: (filter: PublishFilter) => void;
   loading?: boolean;
-  project: LocalSyncProjectOption | null;
-  onProject: (hash: string) => void;
 }
 
 interface SessionChildrenGroupProps {
@@ -114,11 +105,11 @@ function SessionChildrenGroup({ parentId, childIds, expanded, onToggle, indent =
 
 /**
  * The root page's session list: one row per session with its publish state,
- * the server-owned publish-state filters over the same rows, and
- * `load more`. Home owns server filters and pages; page lengths never stand
- * in for global totals or the complete project catalog.
+ * and `load more`. Home owns the server filters and pages; page lengths never
+ * stand in for global totals or the complete project catalog, so the footer
+ * counts the rows on screen, not the library.
  */
-export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previews, home, filter, onFilter, loading, project, onProject }: RootSessionListProps) {
+export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previews, home, filter, loading }: RootSessionListProps) {
   const expandedGroups = home.expanded;
   const visible = rows;
 
@@ -154,7 +145,6 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
           const children = childGroups.get(row.id);
           const hash = parseProjectHash(row.sync.projectHash);
           const title = rowTitle(row.id, titles, previews);
-          const harness = row.sync.harness.replace(/-/g, ' ');
           const childCount = childCounts.get(row.id) ?? 0;
           const group = childCount ? (
             <>
@@ -168,19 +158,26 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
               </div>
             </>
           ) : null;
+          const meta = (
+            <span className="home-session-meta">
+              {title.untitled ? 'untitled, ' : ''}
+              <ProviderName harness={row.sync.harness} className="home-session-agent" />,{' '}
+              <span className="tabular-nums">{tokenFormat.format(row.sync.totalTokens).toLowerCase()}</span> tokens
+            </span>
+          );
+          const link = hash ? (
+            <Link href={transcriptHref(hash, row.id)} className="home-session-title focus-mono">
+              {title.text}
+            </Link>
+          ) : (
+            <span className="home-session-title">{title.text}</span>
+          );
           if (row.kind === 'child') {
             return (
               <div className="flex min-w-0 flex-col" style={{ paddingLeft: `calc(${row.depth} * (var(--sp-5) + var(--sp-4)))` }}>
-                <span id={`session-group-rows:${row.id}`} data-session-group-child={row.id} className="inline-flex min-w-0 items-start gap-2">
-                  <ProviderIcon harness={row.sync.harness} accent className="mt-1 shrink-0" />
-                  {hash ? (
-                    <Link
-                      href={transcriptHref(hash, row.id)}
-                      className="font-[family-name:var(--font-body)] text-base text-ink underline decoration-dotted decoration-[color:var(--ink-4)] underline-offset-[3px] [overflow-wrap:anywhere] hover:text-[color:var(--amber)] focus-mono"
-                    >
-                      {title.text}
-                    </Link>
-                  ) : <span className="font-[family-name:var(--font-body)] text-base text-ink [overflow-wrap:anywhere]">{title.text}</span>}
+                <span id={`session-group-rows:${row.id}`} data-session-group-child={row.id} className="home-session">
+                  {link}
+                  {meta}
                 </span>
                 {group}
               </div>
@@ -188,24 +185,9 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
           }
           return (
             <div className="flex min-w-0 flex-col" data-session-family={row.id}>
-              <span className="inline-flex min-w-0 items-start gap-2" data-session-id={row.id}>
-                <ProviderIcon harness={row.sync.harness} accent className="mt-1 shrink-0" />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  {hash ? (
-                    <Link
-                      href={transcriptHref(hash, row.id)}
-                      className="font-[family-name:var(--font-body)] text-base text-ink underline decoration-dotted decoration-[color:var(--ink-4)] underline-offset-[3px] [overflow-wrap:anywhere] hover:text-[color:var(--amber)] focus-mono"
-                    >
-                      {title.text}
-                    </Link>
-                  ) : (
-                    <span className="font-[family-name:var(--font-body)] text-base text-ink [overflow-wrap:anywhere]">{title.text}</span>
-                  )}
-                  <span className="font-mono text-sm text-ink-3">
-                    {title.untitled ? 'untitled · ' : ''}
-                    {harness} · <span className="tabular-nums">{tokenFormat.format(row.sync.totalTokens)}</span> tokens
-                  </span>
-                </span>
+              <span className="home-session" data-session-id={row.id}>
+                {link}
+                {meta}
               </span>
               {group}
             </div>
@@ -215,19 +197,15 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
       {
         key: 'project',
         label: 'project',
-        width: '11rem',
+        width: '10rem',
         render: (_, row) => {
           const hash = parseProjectHash(row.sync.projectHash);
           const name = displayProject(row.sync.projectName);
           return (
-            <span className="flex min-w-0 flex-col gap-0.5">
-              <span className="[overflow-wrap:anywhere]">{name}</span>
+            <span className="home-project">
+              <span className="home-project-name">{name}</span>
               {hash && (
-                <Link
-                  href={reviewHref(hash)}
-                  aria-label={`changes in ${name}`}
-                  className="w-fit font-mono text-sm text-ink-3 underline decoration-dotted underline-offset-[3px] hover:text-ink focus-mono"
-                >
+                <Link href={reviewHref(hash)} aria-label={`changes in ${name}`} className="home-project-changes focus-mono">
                   changes
                 </Link>
               )}
@@ -254,8 +232,8 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
       },
       {
         key: 'state',
-        label: 'publish state',
-        width: '22rem',
+        label: 'status',
+        width: '17rem',
         render: (_, row) => {
           const state = rowPublishState(row);
           const published = state === 'published' || state === 'new-turns';
@@ -272,53 +250,33 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
     [titles, previews, audience, childGroups, expandedGroups, home, childCounts],
   );
 
-  const choose = (next: string) => {
-    if (!isPublishFilter(next)) return;
-    onFilter(next);
-  };
+  // The server pages by an opaque continuation: a page can come back short or
+  // empty and still have more after it, so `load more` follows `next`, never a count.
+  const hasMore = (home.groups.get('')?.pages.at(-1)?.next ?? '') !== '';
 
   return (
-    <section aria-label="sessions" className="mx-0 flex w-full max-w-none flex-col gap-4 px-0" data-root-session-list="true">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Segmented
-          label="filter by publish state"
-          value={filter}
-          onChange={choose}
-          className="max-w-full flex-wrap [&_.bs-seg-opt]:flex-none [&_.bs-seg-opt]:whitespace-nowrap"
-          options={PUBLISH_FILTERS.map((option) => ({
-            value: option,
-            label: (
-              <>
-                {PUBLISH_FILTER_LABELS[option]}{' '}
-              </>
-            ),
-          }))}
-        />
-        <Select aria-label="project" value={project?.projectHash ?? ''} onFocus={() => { void home.loadProjects(); }} onChange={event => onProject(event.target.value)} options={[
-          { value: '', label: 'all projects' },
-          ...(project && !home.projects?.some(option => option.projectHash === project.projectHash) ? [{ value: project.projectHash, label: project.projectName }] : []),
-          ...(home.projects ?? []).map(option => ({ value: option.projectHash, label: option.projectName })),
-        ]} />
-      </div>
-      {home.projectsLoading && <p role="status" className="m-0 text-base text-ink-2">loading project choices…</p>}
-      {home.projectError != null && <div className="flex items-center gap-2" role="status"><span>{discoveryErrorMessage(home.projectError)}</span><Button variant="secondary" size="sm" onClick={() => { void home.loadProjects(); }}>retry project choices</Button></div>}
-
+    <section aria-label="sessions" className="home-list" data-root-session-list="true">
       {loading ? <SkeletonList rows={6} label="Loading your sessions" /> : rows.length === 0 ? (
-        <p className="border-y border-rule py-6 text-base text-ink-2">{EMPTY_FILTER_COPY[filter]}</p>
+        <p className="home-empty">{EMPTY_FILTER_COPY[filter]}</p>
       ) : (
         <DataTable<ListRow>
           caption="sessions on this computer"
           // Below the table's natural width the wrapper scrolls sideways
           // instead of crushing every column into a sliver.
-          className="[&_.tbl]:min-w-[68rem]"
+          className="home-table"
           columns={columns}
           rows={renderRows}
           rowKey={(row) => row.id}
         />
       )}
 
-      {(home.groups.get('')?.pages.at(-1)?.next ?? '') !== '' && (
-        <Button variant="secondary" size="sm" disabled={home.groups.get('')?.loading} onClick={() => home.more()}>load more</Button>
+      {!loading && (rows.length > 0 || hasMore) && (
+        <div className="home-pager">
+          {rows.length > 0 && <span className="home-pager-range tabular-nums">1 to {rows.length.toLocaleString('en-US')}</span>}
+          {hasMore && (
+            <Button variant="secondary" size="sm" disabled={home.groups.get('')?.loading} onClick={() => home.more()}>load more</Button>
+          )}
+        </div>
       )}
     </section>
   );

@@ -9,6 +9,7 @@ import type { DecodedProjectSummariesPayload } from '@/lib/api/map';
 import { ALPHA_HASH, BETA_HASH, makeSession } from '@/app/review/[[...segments]]/test-fixtures';
 import { formatMinutes } from '@/lib/home/rootStats';
 import { formatRelative } from '@/app/review/[[...segments]]/format';
+import { choiceRows } from '@/test/homeMenus';
 import {
   parseStrictYAML,
   requireExactFields,
@@ -49,7 +50,7 @@ const FILTER_LABELS = {
   all: 'all',
   notPublished: 'not published',
   published: 'published',
-  auto: 'auto',
+  auto: 'auto-publish on',
 } as const;
 type CountKey = keyof typeof FILTER_LABELS;
 const FILTER_KEYS: Record<string, CountKey> = {
@@ -303,13 +304,10 @@ function summaries(): DecodedProjectSummariesPayload {
   } as DecodedProjectSummariesPayload;
 }
 
-function filterButtons(list: HTMLElement) {
-  return within(within(list).getByRole('group', { name: 'filter by publish state' })).getAllByRole('button');
-}
-
-function filterButton(list: HTMLElement, key: CountKey): HTMLElement {
+/** The publish-state rows of the filters menu: the menu sits beside the list, not in it. */
+function filterButton(key: CountKey): HTMLElement {
   const label = FILTER_LABELS[key];
-  const button = filterButtons(list).find((candidate) => candidate.textContent?.trim() === label);
+  const button = choiceRows('status').find((candidate) => candidate.textContent?.trim() === label);
   if (!button) throw new Error(`no ${label} filter option`);
   return button;
 }
@@ -409,11 +407,11 @@ describe('root page publish filters', () => {
       };
 
       for (const key of Object.keys(FILTER_LABELS) as CountKey[]) {
-         expect(filterButton(list, key)).toHaveTextContent(FILTER_LABELS[key]);
-         expect(filterButton(list, key).textContent).not.toMatch(/\d/);
+         expect(filterButton(key)).toHaveTextContent(FILTER_LABELS[key]);
+         expect(filterButton(key).textContent).not.toMatch(/\d/);
       }
 
-       fireEvent.click(filterButton(list, FILTER_KEYS[testCase.filter]));
+       fireEvent.click(filterButton(FILTER_KEYS[testCase.filter]));
        await waitFor(() => expect(list.querySelector('[aria-label="Loading your sessions"]')).toBeNull());
        await waitFor(() => expect(rowsOnScreen(list).length).toBe(Math.min(testCase.expectedRows.length, 25)));
       assertSessionsStat();
@@ -432,7 +430,7 @@ describe('root page publish filters', () => {
 
       const errors = vi.spyOn(console, 'error');
       for (const step of testCase.steps ?? []) {
-        if (step.filter) fireEvent.click(filterButton(list, FILTER_KEYS[step.filter]));
+        if (step.filter) fireEvent.click(filterButton(FILTER_KEYS[step.filter]));
         if (step.expand) {
           const group = list.querySelector(`[data-session-group="${step.expand}"]`) as HTMLElement;
           fireEvent.click(within(group).getAllByRole('button')[0]);
@@ -498,7 +496,7 @@ describe('root page publish filters', () => {
         }
       }
       if (searchSpec) {
-        fireEvent.change(screen.getByRole('searchbox', { name: 'search transcripts' }), { target: { value: 'child' } });
+        fireEvent.change(screen.getByRole('searchbox', { name: 'search your sessions' }), { target: { value: 'child' } });
         const match = await screen.findByText('child search match');
         await waitFor(() => expect(match.closest('[data-grouped-sessions-section]')?.querySelector('.pub-state-text')?.textContent).toBe('published, up to date'));
         fireEvent.click(screen.getByRole('button', { name: 'clear search' }));
@@ -511,10 +509,10 @@ describe('root page publish filters', () => {
 
        // Filter membership stays server-owned; totals are intentionally omitted.
       for (const key of Object.keys(FILTER_LABELS) as CountKey[]) {
-         const button = filterButton(list, key);
-         const alreadySelected = button.getAttribute('aria-pressed') === 'true';
+         const button = filterButton(key);
+         const alreadySelected = button.getAttribute('aria-checked') === 'true';
          fireEvent.click(button);
-         expect(button).toHaveAttribute('aria-pressed', 'true');
+         expect(button).toHaveAttribute('aria-checked', 'true');
          if (!alreadySelected) await waitFor(() => expect(rowsOnScreen(list).length).toBe(Math.min(testCase.expectedCounts[key], 25)));
          await loadAll(list);
          expect(rowsOnScreen(list).length, `${key} rows`).toBe(testCase.expectedCounts[key]);
@@ -633,7 +631,7 @@ describe('root page list reads', () => {
     const requests = serve(SPECS, { search });
     render(<HomePage />);
     await screen.findByRole('region', { name: 'sessions' });
-    fireEvent.change(screen.getByRole('searchbox', { name: 'search transcripts' }), { target: { value: 'flakes' } });
+    fireEvent.change(screen.getByRole('searchbox', { name: 'search your sessions' }), { target: { value: 'flakes' } });
 
     const results = await screen.findByText('search results');
     const section = results.closest('[data-grouped-sessions-section]') as HTMLElement;

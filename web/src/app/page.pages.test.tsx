@@ -8,6 +8,7 @@ import { PublishProvider, usePublishState } from '@/contexts/PublishContext';
 import { zSyncPushRequest, zSyncPushResponse } from '@peasant-labs/schema';
 import { ALPHA_HASH, makeSession } from '@/app/review/[[...segments]]/test-fixtures';
 import type { LocalSyncSessionRow } from '@/lib/api/home';
+import { browseBy, browseTrigger, chooseStatus, choiceRows } from '@/test/homeMenus';
 
 const channels = vi.hoisted(() => vi.fn<(subscriptions: unknown) => { connected: boolean; data: unknown; error: null }>());
 vi.mock('@/contexts/WebSocketContext', () => ({ useChannel: channels }));
@@ -101,7 +102,7 @@ describe('mounted bounded Home', () => {
       expect(pageRequests()[0].searchParams.get('maxItems')).toBe('25');
       expect(screen.queryByRole('link', { name: 'title root-25' })).not.toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'title root-0' }).getAttribute('href')).toContain('root-0');
-      expect(screen.getByRole('button', { name: 'all' })).toBeInTheDocument();
+      expect(choiceRows('status').find(row => row.getAttribute('aria-checked') === 'true')).toHaveTextContent('all');
 
       if (testCase.name === 'first-page-and-explicit-more') {
         fireEvent.click(screen.getByRole('button', { name: 'load more' }));
@@ -126,11 +127,11 @@ describe('mounted bounded Home', () => {
       }
       if (testCase.name === 'stale-filter-response') {
         delayed = deferred<Response>(); delayFilter = 'published';
-        fireEvent.click(screen.getByRole('button', { name: 'published' }));
+        await chooseStatus('published');
         await waitFor(() => expect(pageRequests().at(-1)?.searchParams.get('publication')).toBe('published'));
-        fireEvent.change(screen.getByRole('searchbox', { name: 'search transcripts' }), { target: { value: '' } });
+        fireEvent.change(screen.getByRole('searchbox', { name: 'search your sessions' }), { target: { value: '' } });
         // Filter controls stay available during a first-page load.
-        fireEvent.click(screen.getByRole('button', { name: 'auto' }));
+        await chooseStatus('auto-publish on');
         await screen.findByRole('link', { name: 'title root-0' });
         await act(async () => { delayed?.resolve(json({ items: [row('stale')], next: '' })); });
         expect(screen.queryByRole('link', { name: 'title stale' })).not.toBeInTheDocument();
@@ -190,8 +191,8 @@ describe('mounted bounded Home', () => {
         await act(async () => { fireEvent(window, new Event('focus')); });
         await screen.findByRole('button', { name: 'retry the session list' });
         expect(screen.getByText(/peasant kickstart/)).toBeInTheDocument();
-        fireEvent.click(screen.getByRole('button', { name: 'filter and page through every session' }));
-        expect(screen.getByRole('button', { name: 'filter and page through every session' })).toHaveAttribute('aria-expanded', 'true');
+        await browseBy('every session');
+        expect(browseTrigger()).toHaveTextContent('browse by: every session');
         expect(channels).not.toHaveBeenCalled();
 
         selectionFailure = false;
@@ -214,10 +215,11 @@ describe('mounted bounded Home', () => {
         fail = false;
         roots = [row('revalidated-root')];
         await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'retry the session list' })); });
-        await screen.findByRole('link', { name: 'title revalidated-root' });
+        await screen.findByRole('searchbox', { name: 'search sessions' });
         await waitFor(() => expect(channels.mock.calls.length).toBeGreaterThan(0));
         expect(screen.queryByText(/peasant kickstart/)).not.toBeInTheDocument();
-        expect(screen.getByRole('searchbox', { name: 'search sessions' })).toBeInTheDocument();
+        await browseBy('sessions');
+        await screen.findByRole('link', { name: 'title revalidated-root' });
       }
       if (testCase.name === 'overlapping-refresh-does-not-race') {
         delayed = deferred<Response>(); delayFilter = 'all';

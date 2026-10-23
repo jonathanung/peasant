@@ -6,6 +6,7 @@ import { parse } from 'yaml';
 import HomePage from './page';
 import { PublishProvider } from '@/contexts/PublishContext';
 import { zLocalSyncProjectOptions, type LocalSyncProjectOption } from '@peasant-labs/schema';
+import { chooseProject, chooseStatus, filtersTrigger, projectChoice } from '@/test/homeMenus';
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock('@/contexts/WebSocketContext', () => ({ useChannel: () => { throw new Error('Home must not subscribe to full-library channels'); } }));
@@ -79,7 +80,7 @@ describe('mounted Home opaque continuation', () => {
     if (testCase.optionsError?.code === 'selection_visibility') {
       await screen.findByRole('button', { name: 'retry the session list' });
       expect(screen.queryByRole('link', { name: 'root-one' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('option', { name: 'alpha' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^filters/ })).not.toBeInTheDocument();
       expect(tokens(homeReads())).toEqual(testCase.expectedTokens);
       return;
     }
@@ -142,17 +143,17 @@ describe('mounted Home opaque continuation', () => {
     if (testCase.name === 'project-options-do-not-block-rows') {
       await waitFor(() => expect(releases).toHaveLength(1));
       expect(screen.getByRole('link', { name: 'root-one' })).toBeInTheDocument();
-      expect(screen.queryByRole('option', { name: 'beta' })).not.toBeInTheDocument();
+      expect(projectChoice('beta')).toBeNull();
       await act(async () => { releases[0](); });
-      await screen.findByRole('option', { name: 'beta' });
+      await waitFor(() => expect(projectChoice('beta')).not.toBeNull());
     }
     if (testCase.name === 'project-filter-aborts-old-continuation') {
-      await screen.findByRole('option', { name: 'beta' });
+      await waitFor(() => expect(projectChoice('beta')).not.toBeNull());
       fireEvent.click(screen.getByRole('button', { name: 'load more' }));
       await waitFor(() => expect(releases).toHaveLength(1));
       const oldSignal = signals.at(-1)!;
       fresh = true;
-      fireEvent.change(screen.getByRole('combobox', { name: 'project' }), { target: { value: projects[1].projectHash } });
+      await chooseProject('beta');
       await screen.findByRole('link', { name: 'fresh root-one' });
       expect(oldSignal.aborted).toBe(true);
       expect(homeReads().at(-1)?.searchParams.get('projectHash')).toBe(projects[1].projectHash);
@@ -162,27 +163,28 @@ describe('mounted Home opaque continuation', () => {
     if (testCase.name === 'late-options-cannot-win-filter-reset') {
       await waitFor(() => expect(releases).toHaveLength(1));
       options = [projects[1]];
-      fireEvent.click(screen.getByRole('button', { name: 'auto' }));
-      await screen.findByRole('option', { name: 'beta' });
+      await chooseStatus('auto-publish on');
+      await waitFor(() => expect(projectChoice('beta')).not.toBeNull());
       await act(async () => { releases[0](); });
       expect(optionSignals[0].aborted).toBe(true);
-      expect(screen.queryByRole('option', { name: 'alpha' })).not.toBeInTheDocument();
+      expect(projectChoice('alpha')).toBeNull();
     }
     if (testCase.name === 'account-reset-reloads-project-options') {
-      await screen.findByRole('option', { name: 'alpha' });
+      await waitFor(() => expect(projectChoice('alpha')).not.toBeNull());
       username = 'second-account';
       options = [projects[1]];
       fresh = true;
       fireEvent(window, new Event('focus'));
-      await screen.findByRole('option', { name: 'beta' });
-      await waitFor(() => expect(screen.queryByRole('option', { name: 'alpha' })).not.toBeInTheDocument());
+      await waitFor(() => expect(projectChoice('beta')).not.toBeNull());
+      await waitFor(() => expect(projectChoice('alpha')).toBeNull());
       expect(screen.queryByRole('link', { name: 'root-one' })).not.toBeInTheDocument();
     }
     if (testCase.name === 'project-options-error-retains-rows-and-retries') {
-      await screen.findByRole('button', { name: 'retry project choices' });
+      await waitFor(() => expect(screen.getByRole('menuitem', { name: 'retry project choices', hidden: true })).toBeInTheDocument());
       expect(screen.getByRole('link', { name: 'root-one' })).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'retry project choices' }));
-      await screen.findByRole('option', { name: 'beta' });
+      fireEvent.click(filtersTrigger());
+      fireEvent.click(screen.getByRole('menuitem', { name: 'retry project choices' }));
+      await waitFor(() => expect(projectChoice('beta')).not.toBeNull());
       expect(optionsRead).toBe(2);
     }
     expect(tokens(homeReads())).toEqual(testCase.expectedTokens);
