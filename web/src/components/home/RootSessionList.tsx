@@ -201,7 +201,10 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
   const stateOf = (row: ListRow) => {
     const state = rowPublishState(row);
     const published = state === 'published' || state === 'new-turns';
-    return <PublishStateLabel state={state} collectives={published ? audience.get(row.id) : undefined} className="whitespace-nowrap" />;
+    // No approved collective is not an audience to count: "published, 0
+    // collectives" read as hidden. The label then names the state alone, as
+    // the transcript's publish bar does.
+    return <PublishStateLabel state={state} collectives={published ? (audience.get(row.id) || undefined) : undefined} className="whitespace-nowrap" />;
   };
 
   const columns = useMemo<DataTableColumn<ListRow>[]>(

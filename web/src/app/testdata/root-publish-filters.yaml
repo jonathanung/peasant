@@ -98,7 +98,7 @@ cases:
     expectedCounts: { all: 3, notPublished: 1, published: 2, auto: 1 }
     expectedRows: [s-a, s-c]
     expectedLabels:
-      s-c: published, 0 collectives, new turns
+      s-c: published, new turns
 
   - name: auto-counts
     sessions:
@@ -138,7 +138,7 @@ cases:
     expectedRows: [s-approved, s-pending]
     expectedLabels:
       s-approved: published, 1 collective, up to date
-      s-pending: published, 0 collectives, up to date
+      s-pending: published, up to date
 
   - name: parent-visible-child-grouped
     sessions:
