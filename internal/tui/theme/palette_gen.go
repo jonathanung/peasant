@@ -122,7 +122,7 @@ var GeneratedPalette = Palette{
 	SuccessFg:      ColorPair{Dark: lipgloss.Color("#141003"), Light: lipgloss.Color("#fffdf8")},
 	Surface:        ColorPair{Dark: lipgloss.Color("#0b0b0a"), Light: lipgloss.Color("#fbfaf7")},
 	Surface2:       ColorPair{Dark: lipgloss.Color("#1c1b18"), Light: lipgloss.Color("#f1eee6")},
-	SurfaceElev:    ColorPair{Dark: lipgloss.Color("#1c1b18"), Light: lipgloss.Color("#efece4")},
+	SurfaceElev:    ColorPair{Dark: lipgloss.Color("#0b0b0a"), Light: lipgloss.Color("#fbfaf7")},
 	SurfaceHover:   ColorPair{Dark: lipgloss.Color("#24231f"), Light: lipgloss.Color("#ebe7dd")},
 	Teal:           ColorPair{Dark: lipgloss.Color("#8fb6ac"), Light: lipgloss.Color("#3a675e")},
 	Warning:        ColorPair{Dark: lipgloss.Color("#d6ae66"), Light: lipgloss.Color("#8a5f1f")},
