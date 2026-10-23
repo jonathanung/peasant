@@ -1,32 +1,53 @@
 import { getApiBaseUrl } from './base';
 
-/** The states GET /api/v1/sync/ingest/status reports. */
-export type IngestRunStatus = 'idle' | 'running' | 'done' | 'error';
-
-const INGEST_PATH = '/api/v1/sync/ingest';
-const INGEST_STATUS_PATH = '/api/v1/sync/ingest/status';
+const SESSION_INGEST_PATH = '/api/v1/sync/ingest/session';
 
 /**
- * Re-index this computer's sessions through the local server's own ingest run
- * (POST /api/v1/sync/ingest), and wait for it to finish. A run already in
- * progress is waited on rather than started twice. It reads the recorded
- * sessions and indexes them here; nothing leaves the machine.
+ * The server stops a session re-index after two minutes and says so; the
+ * client waits a little longer, so a server that went away (a restart, a
+ * crash) still ends the wait with a reason instead of a spinner.
  */
-export async function reindexAndWait({ signal, pollMs = 1000 }: { signal?: AbortSignal; pollMs?: number } = {}): Promise<void> {
-  const base = getApiBaseUrl();
-  const start = await fetch(`${base}${INGEST_PATH}`, { method: 'POST', signal });
-  if (!start.ok && start.status !== 409) {
-    throw new Error(`the local index could not start (${start.status})`);
-  }
-  for (;;) {
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(resolve, pollMs);
-      signal?.addEventListener('abort', () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
-    });
-    const response = await fetch(`${base}${INGEST_STATUS_PATH}`, { signal });
-    if (!response.ok) throw new Error(`the local index status could not be read (${response.status})`);
-    const body = (await response.json()) as { status?: IngestRunStatus; error?: string };
-    if (body.status === 'done') return;
-    if (body.status === 'error') throw new Error(body.error ?? 'the local index failed');
+export const SESSION_REINDEX_TIMEOUT_MS = 150_000;
+
+/** A finished re-index: what the run could not read, in its own words. */
+export interface SessionReindex {
+  notes: string[];
+}
+
+/**
+ * Re-index one recorded session through the local server
+ * (POST /api/v1/sync/ingest/session) and wait for its answer. It re-reads this
+ * session's recording only, on this computer; nothing leaves the machine. A
+ * refusal, a timeout or a server that stopped answering throws one line that
+ * names what happened and how to retry.
+ */
+export async function reindexSession(
+  sessionId: string,
+  { signal, timeoutMs = SESSION_REINDEX_TIMEOUT_MS }: { signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<SessionReindex> {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+  const forward = () => controller.abort(signal?.reason);
+  signal?.addEventListener('abort', forward, { once: true });
+  try {
+    let response: Response;
+    try {
+      const params = new URLSearchParams({ session_id: sessionId });
+      response = await fetch(`${getApiBaseUrl()}${SESSION_INGEST_PATH}?${params.toString()}`, { method: 'POST', signal: controller.signal });
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (timedOut) throw new Error(`updating this session’s index took longer than ${Math.round(timeoutMs / 1000)}s and was stopped; retry`);
+      throw new Error('the peasant app on this computer stopped answering while updating this session’s index; retry');
+    }
+    const body = (await response.json().catch(() => ({}))) as { error?: unknown; notes?: unknown };
+    if (!response.ok) {
+      throw new Error(typeof body.error === 'string' && body.error.trim() ? body.error.trim() : `updating this session’s index failed (${response.status}); retry`);
+    }
+    const notes = Array.isArray(body.notes) ? body.notes.filter((note): note is string => typeof note === 'string' && note.trim() !== '') : [];
+    return { notes };
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', forward);
   }
 }

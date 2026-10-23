@@ -1,9 +1,10 @@
 # A failed redaction scan as the publish popup receives it, and the line its
 # failure box shows. A stale local index (stored evidence the strict
 # publication reader refuses, or a capture not verified yet) is healed by the
-# popup's re-scan, so it gets one short line; any other failure keeps its own
-# actionable message without the transport status or JSON envelope.
-# requiredNames pins the cases.
+# popup's re-scan, which re-indexes this one session, so it gets one short line
+# naming that; any other failure keeps its own actionable message without the
+# transport status or JSON envelope. message is the whole reason the details
+# view shows, also without the wrapper. requiredNames pins the cases.
 requiredNames:
   - stale-local-index
   - stale-position-evidence
@@ -14,20 +15,25 @@ cases:
   - name: stale-local-index
     detail: 'redaction scan failed (404): {"error":"retain unknown source evidence in ingest: extra is missing, null, malformed, duplicated, or unrecognized; no evidence was certified; restore an intact capture or re-index the source"}'
     kind: needs-reindex
-    line: this session needs a quick re-index before it can be published.
+    line: this session needs a quick re-index before it can be published. re-scan runs it on this computer.
+    message: 'retain unknown source evidence in ingest: extra is missing, null, malformed, duplicated, or unrecognized; no evidence was certified; restore an intact capture or re-index the source'
   - name: stale-position-evidence
     detail: 'redaction scan failed (404): {"error":"retain unknown source evidence in ingest: position.public is wholly absent; this stored evidence predates traversal coordinates and no full-data certificate was issued; re-index the original source with a position-aware adapter"}'
     kind: needs-reindex
-    line: this session needs a quick re-index before it can be published.
+    line: this session needs a quick re-index before it can be published. re-scan runs it on this computer.
+    message: 'retain unknown source evidence in ingest: position.public is wholly absent; this stored evidence predates traversal coordinates and no full-data certificate was issued; re-index the original source with a position-aware adapter'
   - name: unverified-capture
     detail: 'redaction scan failed (404): {"error":"load publication input from peasant.db: database publication metadata needs ingest; metadata and indexed entries are not a verified capture; nothing uploaded; run peasant ingest with the stored source available and retry"}'
     kind: needs-reindex
-    line: this session needs a quick re-index before it can be published.
+    line: this session needs a quick re-index before it can be published. re-scan runs it on this computer.
+    message: 'load publication input from peasant.db: database publication metadata needs ingest; metadata and indexed entries are not a verified capture; nothing uploaded; run peasant ingest with the stored source available and retry'
   - name: server-error-envelope
     detail: 'redaction scan failed (404): {"error":"session sess-1 is not recorded on this computer"}'
     kind: other
     line: the scan failed, so publish is off. session sess-1 is not recorded on this computer
+    message: session sess-1 is not recorded on this computer
   - name: actionable-client-error
     detail: 'redaction category "LOCATION" is not recognized; sharing remains blocked'
     kind: other
     line: 'the scan failed, so publish is off. redaction category "LOCATION" is not recognized; sharing remains blocked'
+    message: 'redaction category "LOCATION" is not recognized; sharing remains blocked'

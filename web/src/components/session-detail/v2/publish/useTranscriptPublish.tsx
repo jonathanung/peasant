@@ -19,7 +19,8 @@ import { useRedactionPipeline, type RedactionScanTarget } from '@/lib/share/reda
 import { DEFAULT_REDACTION_LEVEL } from '@/lib/share/redactions';
 import { guardReviewMatches } from '@/lib/share/reviewMatches';
 import { classifyScanFailure } from '@/lib/share/scanFailure';
-import { reindexAndWait } from '@/lib/api/ingest';
+import { checkingStage, type CheckingStep } from '@/lib/share/checkingStage';
+import { reindexSession } from '@/lib/api/ingest';
 import { fetchSettings } from '@/lib/api/settings';
 import { AutomaticPublishingError, enableAutomaticPublishing } from './automaticPublishing';
 import { onlineCollectivesHref } from '@/lib/village/links';
@@ -74,6 +75,8 @@ type CollectivesRead =
 
 /** A step before the push that stopped; retry runs it again. */
 type Blocked = { stoppedAt: string; retry?: () => void };
+/** The one-session re-index that heals a stale local index. */
+type Reindex = { status: 'idle' | 'running' } | { status: 'done'; notes: string[] } | { status: 'failed'; message: string };
 type AutomaticPreference = { status: 'loading' } | { status: 'ready'; offer: boolean } | { status: 'error'; message: string };
 
 export interface TranscriptPublishOptions {
@@ -356,21 +359,21 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
 
   // A stale local index is healed on request: the scan failed because the
   // session's stored evidence is one the strict publication reader refuses, or
-  // its capture is not verified yet, so the popup's re-scan re-indexes this
-  // computer's sessions through the server's own ingest run, then scans again.
-  // It reads and writes the local index only; nothing leaves the machine, and
-  // no redaction rule is relaxed. A large library takes a while, so it runs
-  // only when asked, in the background, while the checking state shows.
-  const [reindex, setReindex] = useState<'idle' | 'running' | 'failed'>('idle');
+  // its capture is not verified yet, so the popup's re-scan re-indexes this one
+  // session, then scans again. A failed scan stays cached until that explicit
+  // re-scan. It reads and writes the local index only; nothing leaves the
+  // machine, and no redaction rule is relaxed. The re-index answers within its
+  // bound, so it never spins on a run that outlived the server.
+  const [reindex, setReindex] = useState<Reindex>({ status: 'idle' });
   const reindexRun = useRef<AbortController | null>(null);
   const runScan = scan.runScan;
   useEffect(() => {
     if (open) return;
     reindexRun.current?.abort();
     reindexRun.current = null;
-    setReindex('idle');
+    setReindex({ status: 'idle' });
   }, [open]);
-  const healing = reindex === 'running';
+  const healing = reindex.status === 'running';
   const rescan = useCallback(() => {
     if (failure?.kind !== 'needs-reindex') {
       runScan(true);
@@ -379,24 +382,33 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
     if (reindexRun.current) return;
     const controller = new AbortController();
     reindexRun.current = controller;
-    setReindex('running');
-    reindexAndWait({ signal: controller.signal })
-      .then(() => {
+    setReindex({ status: 'running' });
+    reindexSession(sessionId, { signal: controller.signal })
+      .then(({ notes }) => {
         if (controller.signal.aborted) return;
-        setReindex('idle');
+        setReindex({ status: 'done', notes });
         runScan(true);
       })
-      .catch(() => { if (!controller.signal.aborted) setReindex('failed'); })
+      .catch((error: unknown) => { if (!controller.signal.aborted) setReindex({ status: 'failed', message: messageOf(error) }); })
       .finally(() => { if (reindexRun.current === controller) reindexRun.current = null; });
-  }, [failure?.kind, runScan]);
+  }, [failure?.kind, runScan, sessionId]);
 
   const scanClean = scan.phase === 'ready' && reviewError == null && scanResult !== undefined;
-  // A stale index shows one human line (re-scan re-indexes it); any other
-  // failure keeps its actionable message, never the transport status or JSON.
+  // A failed scan shows one short line, and its whole reason behind details,
+  // never the transport status or JSON envelope. A stale index the re-index
+  // could not reach says what stopped it; one it re-indexed and the scan still
+  // refuses says the repair did not take, with the run's own notes.
+  const failureShown = failure == null
+    ? null
+    : failure.kind === 'needs-reindex' && reindex.status === 'failed'
+      ? { line: `the scan failed, so publish is off. ${oneLine(reindex.message)}`, detail: `${reindex.message}\n\n${failure.message}` }
+      : failure.kind === 'needs-reindex' && reindex.status === 'done'
+        ? { line: 'the scan failed, so publish is off. this session’s index could not be repaired on this computer; details say why.', detail: [failure.message, ...reindex.notes].join('\n\n') }
+        : { line: failure.line, detail: failure.message };
   const scanProp = healing
     ? undefined
-    : failure != null
-    ? { failure: reindex === 'failed' ? 'the re-index could not finish. re-scan to try again.' : failure.line }
+    : failureShown != null
+    ? { failure: failureShown.line, failureDetail: failureShown.detail }
     : scanResult
       ? { matches: adaptation.matches, total: scanResult.length, matchCount: scan.sessionMatchCounts.get(sessionId) }
       : undefined;
@@ -538,6 +550,29 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
     if (collectivesRead.status === 'ready' && collectivesRead.collectives.length === 0 && access.length === 0) return 'no-collective';
     return 'ready';
   })();
+  // While the check runs, the popup names the step and, after a while, what
+  // is slow: the check runs on this computer and publish waits for it.
+  const checkingStep: CheckingStep | null = dialogState !== 'checking'
+    ? null
+    : healing
+      ? 'reindexing'
+      : scan.phase === 'scanning'
+        ? 'scanning'
+        : scanResult === undefined && reviewError == null
+          ? 'preparing'
+          : 'reading';
+  const [stepClock, setStepClock] = useState<{ step: CheckingStep | null; startedAt: number; now: number }>({ step: null, startedAt: 0, now: 0 });
+  useEffect(() => {
+    if (checkingStep === null) return;
+    const startedAt = Date.now();
+    setStepClock({ step: checkingStep, startedAt, now: startedAt });
+    const timer = window.setInterval(() => setStepClock((clock) => ({ ...clock, now: Date.now() })), 1000);
+    return () => window.clearInterval(timer);
+  }, [checkingStep]);
+  // A step's first render, before its clock starts, has run for no time yet.
+  const stepElapsedMs = stepClock.step === checkingStep ? stepClock.now - stepClock.startedAt : 0;
+  const checking = checkingStep === null ? undefined : checkingStage(checkingStep, { turns: turns.length, elapsedMs: stepElapsedMs });
+
   const stopped = dialogState === 'stopped'
     ? (blocked ?? (outcome?.kind === 'stopped' ? { stoppedAt: outcome.stoppedAt, retry: /push --force/.test(outcome.stoppedAt) ? undefined : () => { void runPublish(); } } : null))
     : null;
@@ -601,6 +636,8 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       mode={mode}
       state={dialogState}
       scan={scanProp}
+      checking={checking}
+      primaryLabel={checkingStep !== null && checkingStep !== 'reading' ? 'scanning…' : undefined}
       onRescan={rescan}
       changes={mode === 'update' ? { summary: changesSummary(newTurns) } : undefined}
       access={access}

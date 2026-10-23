@@ -1,9 +1,9 @@
 /**
  * What a failed redaction scan means to the person publishing. A stale local
- * index is healed by the popup's re-scan (it re-indexes, then scans again), so
- * it gets one short line. Any other failure keeps its actionable message, the what, why
- * and fix the redaction invariants require to stay visible, without the
- * transport wrapper: no HTTP status, no JSON envelope.
+ * index is healed by the popup's re-scan (it re-indexes this one session, then
+ * scans again), so it gets one short line. Any other failure keeps its actionable
+ * message, the what, why and fix the redaction invariants require to stay
+ * visible, without the transport wrapper: no HTTP status, no JSON envelope.
  */
 export type ScanFailureKind = 'needs-reindex' | 'other';
 
@@ -11,7 +11,9 @@ export interface ScanFailure {
   kind: ScanFailureKind;
   /** The one line the dialog's failure box shows. */
   line: string;
-  /** The text as it arrived, for a details view only. */
+  /** The server's whole reason without the transport wrapper, for the details view. */
+  message: string;
+  /** The text as it arrived. */
   detail: string;
 }
 
@@ -40,8 +42,9 @@ function unwrap(detail: string): string {
 }
 
 export function classifyScanFailure(detail: string): ScanFailure {
+  const message = unwrap(detail);
   if (STALE_INDEX.some((marker) => detail.includes(marker))) {
-    return { kind: 'needs-reindex', line: 'this session needs a quick re-index before it can be published.', detail };
+    return { kind: 'needs-reindex', line: 'this session needs a quick re-index before it can be published. re-scan runs it on this computer.', message, detail };
   }
-  return { kind: 'other', line: `the scan failed, so publish is off. ${unwrap(detail)}`, detail };
+  return { kind: 'other', line: `the scan failed, so publish is off. ${message}`, message, detail };
 }

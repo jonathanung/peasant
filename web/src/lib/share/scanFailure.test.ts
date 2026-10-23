@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
 import { classifyScanFailure, type ScanFailureKind } from './scanFailure';
 
-interface Case { name: string; detail: string; kind: ScanFailureKind; line: string }
+interface Case { name: string; detail: string; kind: ScanFailureKind; line: string; message: string }
 const fixture = parse(readFileSync(resolve(process.cwd(), 'src/lib/share/testdata/scan-failures.yaml'), 'utf8')) as { requiredNames: string[]; cases: Case[] };
 
 describe('classifyScanFailure', () => {
@@ -16,8 +16,10 @@ describe('classifyScanFailure', () => {
       const failure = classifyScanFailure(row.detail);
       expect(failure.kind).toBe(row.kind);
       expect(failure.line).toBe(row.line);
+      expect(failure.message).toBe(row.message);
       // The transport wrapper never reaches the line.
       expect(failure.line).not.toMatch(/redaction scan failed \(\d+\)|\{"error"/);
+      expect(failure.message).not.toMatch(/redaction scan failed \(\d+\)|\{"error"/);
       expect(failure.detail).toBe(row.detail);
     });
   }

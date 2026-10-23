@@ -200,7 +200,7 @@ cases:
       popup:
         heading: publish “{title}”
         texts: [what leaves your machine, checking for sensitive content, who can read it]
-        primary: { label: publish to 2 collectives, enabled: false }
+        primary: { label: scanning…, enabled: false }
       request: null
 
   - name: scan-failed
