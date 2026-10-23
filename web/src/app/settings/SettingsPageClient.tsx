@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useEnter } from '@/lib/motion/enter';
 import Link from 'next/link';
-import { ExternalLink, EyeOff, Folder, Lock, Plug, Send, SlidersHorizontal, UserRound, Users, type LucideIcon } from 'lucide-react';
+import { ExternalLink, EyeOff, Folder, Lock, Plug, Send, SlidersHorizontal, UserRound, type LucideIcon } from 'lucide-react';
 import { LocalSettingKind, isHarness, type AutoPublishRule, type LocalSetting, type LocalSettingsResponse, type SyncAuthResponse } from '@peasant-labs/schema';
 import { Button, FeedbackPanel, ProviderName, SettingGroup, SettingRow, SettingsLayout } from '@/lib/ft-ui';
 import { fetchSettings, fetchVillageAuth, fetchVillageCollectives, updateSetting } from '@/lib/api/settings';
@@ -435,10 +435,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
             );
           })}
         </div>
-        <p className="stg-pointer">
-          <Users className="stg-pointer-icon" aria-hidden="true" />
-          <span>collective settings live on each collective&apos;s page in your <a href={onlineCollectivesHref()} target="_blank" rel="noreferrer">dashboard</a>.</span>
-        </p>
       </div>
     </SettingsFrame>
   );

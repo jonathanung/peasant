@@ -6,6 +6,7 @@ import type { SyncAuthResponse } from '@peasant-labs/schema';
 import { Button } from '@/lib/ft-ui';
 import { logOutOfVillage } from '@/lib/api/settings';
 import { DocsLink } from '@/components/DocsLink';
+import { defaultOnlineUrl } from '@/lib/village/links';
 
 function hostOf(url: string | undefined): string | undefined {
   if (!url) return undefined;
@@ -31,7 +32,10 @@ export function VillageAccountRow({ auth, readError, onRetry, onLoggedOut }: {
   const [status, setStatus] = useState<'idle' | 'pending' | 'failed'>('idle');
   const [error, setError] = useState<string | null>(null);
   const signedIn = auth?.authenticated === true;
+  // The server is named only when it is not peasant online itself: a quiet
+  // second detail for a self-hosted or test server, never the default's host.
   const host = hostOf(auth?.villageUrl);
+  const otherServer = host !== undefined && host !== hostOf(defaultOnlineUrl()) ? host : undefined;
 
   const logOut = async () => {
     setStatus('pending');
@@ -54,7 +58,7 @@ export function VillageAccountRow({ auth, readError, onRetry, onLoggedOut }: {
   const help = auth === null
     ? readError ? 'the sign-in could not be read.' : 'reading the sign-in on this computer.'
     : signedIn
-      ? <>signed in with github{host ? ` on ${host}` : ''}. log out removes the key from this computer only. <DocsLink topic="signIn" variant="inline">revoke it everywhere</DocsLink></>
+      ? <>signed in to peasant online with github. log out removes the key from this computer only. <DocsLink topic="signIn" variant="inline">revoke it everywhere</DocsLink>{otherServer && <span className="stg-muted stg-server"> server: {otherServer}</span>}</>
       : <>sign in from the publish popup. <DocsLink topic="signIn" variant="inline">other ways to sign in</DocsLink></>;
 
   return (
