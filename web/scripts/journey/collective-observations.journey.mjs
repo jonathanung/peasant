@@ -70,7 +70,7 @@ async function exercise(row, { page, request }, info) {
       await page.goto('/');
       await expect(await sidebarLink(page, 'home')).toBeVisible();
       await expect(page.locator('.asb-panel a[href^="/village"]')).toHaveCount(0);
-      await expect(page.locator('.asb-apps .asb-item[title="online"]')).toHaveCount(0);
+      await expect(page.locator('.asb-utils .asb-app[title="online"]')).toHaveCount(0);
       await expect(page.locator('.asb-panel').getByRole('link', { name: /^collectives/ })).toBeVisible();
       await page.goto('/village');
       await expect(page.getByRole('heading', { name: 'online observations', exact: true })).toBeVisible();

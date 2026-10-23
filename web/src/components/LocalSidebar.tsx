@@ -15,21 +15,17 @@ import { fetchVillageAuth } from '@/lib/api/settings';
 import { DOCS_URL, onlineCollectivesHref } from '@/lib/village/links';
 
 /**
- * Where the switcher's other app lives: the docs, opened in a new tab. The
- * switcher leaves this app out, and online gets no address, so it is left out
- * too (an app with no href is omitted); the collectives link is the local
- * app's way to online.
+ * Where the switcher's other app lives: the docs, opened in a new tab.
+ * Fairtrade never lists online or local in a switcher and ends it with
+ * community marked soon by itself; the collectives link is the local app's
+ * way to online.
  */
 function switcherApps() {
   const urls: Partial<Record<string, string>> = { docs: DOCS_URL };
-  return [
-    ...APP_SIDEBAR_APPS.map((entry) => {
-      const href = urls[entry.id];
-      return href ? { ...entry, href } : entry;
-    }),
-    // Shown, not linked, until a community space exists.
-    { id: 'community', label: 'community', tag: 'soon' },
-  ];
+  return APP_SIDEBAR_APPS.map((entry) => {
+    const href = urls[entry.id];
+    return href ? { ...entry, href } : entry;
+  });
 }
 
 /** The pages under Home: a project's sessions and a transcript. */
@@ -66,10 +62,11 @@ function NextLink({ href, ...rest }: { href: string } & React.AnchorHTMLAttribut
  * analytics, changes, the code map) and `/share` are not linked from it. A
  * settings page keeps this same nav, settings current: its sections are the
  * in-page section bar of the settings page itself. The sidebar owns its own
- * order, the same in every app: the nav, then search (the command palette,
- * ⌘K), then the app switcher (the docs, and community marked soon), then the
- * footer with the theme toggle and the account. The collectives link opens
- * online.
+ * order, the same in every app: the shortcuts (search, the command palette
+ * on ⌘K; the docs; community marked soon; then the collectives link, which
+ * opens online), the app's pages, then the footer with the account and the
+ * settings gear and theme toggle. Fairtrade turns the registry's settings
+ * entry into that gear.
  */
 export function LocalSidebar() {
   const pathname = usePathname() ?? '/';
@@ -86,6 +83,7 @@ export function LocalSidebar() {
       items: [
         // No description tooltips: an item is named by its label alone.
         ...nav.map((entry) => ({ id: entry.id, label: entry.label, href: entry.href, icon: entry.icon })),
+        // Leaves this app: fairtrade lists it with the shortcuts, not the pages.
         { id: 'collectives', label: 'collectives', href: onlineCollectivesHref(), icon: Users, external: true, target: '_blank', rel: 'noreferrer' },
       ],
     },
@@ -106,7 +104,6 @@ export function LocalSidebar() {
       account={auth?.authenticated && auth.username ? { handle: auth.username, href: settingsSectionHref('account') } : undefined}
       LinkComponent={NextLink}
       storageKey="peasant.local-sidebar"
-      defaultWidth={272}
     />
   );
 }

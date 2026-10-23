@@ -33,8 +33,9 @@ show:
     text: home
     icon: true
   search:
-    # fairtrade's own search item, after the nav groups; its key hint is a kbd.
-    selector: '.asb-panel .asb-search button.asb-item[title="search (⌘K)"]'
+    # fairtrade's own search item, the first shortcut under the brand; its key
+    # hint is a kbd.
+    selector: '.asb-panel .asb-utils button.asb-search'
     text: search⌘K
     icon: true
   theme:
@@ -44,7 +45,8 @@ show:
       light: switch to dark mode
       dark: switch to light mode
   settings:
-    selector: '.asb-panel a.asb-item[href="/settings"], .asb-panel a.asb-item[href="/settings/"]'
+    # fairtrade turns the registry's settings entry into the footer gear.
+    selector: '.asb-panel .asb-foot a.asb-settings[href="/settings"], .asb-panel .asb-foot a.asb-settings[href="/settings/"]'
     text: settings
     icon: true
     page: src/app/settings/page.tsx
@@ -66,7 +68,7 @@ hide:
   online-switcher:
     # The app switcher's online entry. The local app reaches online through the
     # collectives link only; the switcher offers the docs alone.
-    selector: '.asb-apps .asb-item[title="online"]'
+    selector: '.asb-utils .asb-app[title="online"]'
 routes:
   /village:
     mount: .village-page

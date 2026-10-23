@@ -108,12 +108,13 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     expect(failures).not.toContain('route /map: the persistent chrome links to it');
   });
 
-  it('lists the registry nav sections in its order, labelled as the registry labels them', async () => {
+  it('lists the registry nav sections in its order, labelled as the registry labels them, settings as the footer gear', async () => {
     await mount();
     const nav = screen.getByRole('navigation', { name: 'sections' });
     const labels = within(nav).getAllByRole('link').map((link) => link.querySelector('.asb-label')?.textContent);
     const registry = LOCAL_APP_SECTIONS.filter((section) => section.inNav !== false).map((section) => section.label);
-    expect(labels.slice(0, registry.length)).toEqual(registry);
+    expect(labels).toEqual(registry.filter((label) => label !== 'settings'));
+    expect(document.querySelector('.asb-foot a.asb-settings')).toHaveAttribute('href', '/settings');
   });
 
   it('marks home current on Home, a project and a transcript, and nothing on a route-only page', async () => {
@@ -167,9 +168,9 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     expect(link).toHaveAccessibleName(/^collectives\s*, opens outside this app$/);
   });
 
-  it('offers the docs in the switcher, opened in a new tab, and community as soon', async () => {
+  it('offers the docs in the shortcuts, opened in a new tab, and community as soon', async () => {
     await mount();
-    const apps = screen.getByRole('navigation', { name: 'apps' });
+    const apps = screen.getByRole('navigation', { name: 'shortcuts' });
     // The switcher leaves this app out: it lists only where else to go.
     expect(within(apps).queryByText('local')).toBeNull();
     const docs = within(apps).getByRole('link', { name: /^docs/ });
@@ -177,7 +178,8 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     expect(docs).toHaveAttribute('target', '_blank');
     // The collectives link is the local app's way to online; the switcher does not offer it again.
     expect(within(apps).queryByText('online')).toBeNull();
-    expect(within(apps).getAllByRole('listitem').map((item) => item.querySelector('.asb-label')?.textContent)).toEqual(['docs', 'community']);
+    // search, the docs, community, then the link that leaves for online
+    expect(within(apps).getAllByRole('listitem').map((item) => item.querySelector('.asb-label')?.textContent)).toEqual(['search', 'docs', 'community', 'collectives']);
     // Community is shown, not linked, until a community space exists.
     const community = within(apps).getByText('community').closest('.asb-item');
     expect(community?.tagName).not.toBe('A');
