@@ -183,7 +183,7 @@ func TestCaptureFixtureGuardsRequiredSelectionStateDeletion(t *testing.T) {
 // closed set of five required push states (see validatePushMatrix) still
 // catches a missing state even without a bare state-count guard.
 func TestCaptureFixtureGuardsRequiredPushStateDeletion(t *testing.T) {
-	old := []byte("  - key: receipt\n    wantContains: [\"to the village.\", \"nothing is removed from this machine.\", \"sessions in this push\"]\n")
+	old := []byte("  - key: receipt\n    wantContains: [\"to peasant online.\", \"nothing is removed from this machine.\", \"sessions in this push\"]\n")
 	if count := bytes.Count(captureFixtureData, old); count != 1 {
 		t.Fatalf("receipt state mutation source occurs %d times, want exactly one", count)
 	}
