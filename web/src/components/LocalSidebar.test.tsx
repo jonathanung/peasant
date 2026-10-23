@@ -148,7 +148,7 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
   it('links the collectives page online as leaving the app', async () => {
     await mount();
     const link = screen.getByRole('link', { name: /^collectives/ });
-    expect(link.getAttribute('href')).toMatch(/^https:\/\/.+\/groups$/);
+    expect(link.getAttribute('href')).toMatch(/^https:\/\/.+\/collectives$/);
     expect(link).toHaveAttribute('target', '_blank');
     expect(link).toHaveAccessibleName(/^collectives\s*, opens outside this app$/);
   });

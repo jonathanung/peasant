@@ -4,11 +4,15 @@ export function defaultOnlineUrl(): string {
 }
 
 /** Where peasant online lists the collectives a reader can create or join. */
-const ONLINE_COLLECTIVES_PATH = '/groups';
+const ONLINE_COLLECTIVES_PATH = '/collectives';
 
-/** The collectives page on the peasant online this computer signs in to. */
-export function onlineCollectivesHref(onlineUrl?: string): string {
-  return `${onlineUrl || defaultOnlineUrl()}${ONLINE_COLLECTIVES_PATH}`;
+/**
+ * The collectives page on peasant online. The sign-in answer's `villageUrl` is
+ * the village API base, not a page a reader can open, so this takes no address
+ * from it.
+ */
+export function onlineCollectivesHref(): string {
+  return `${defaultOnlineUrl()}${ONLINE_COLLECTIVES_PATH}`;
 }
 
 /** The peasant docs. */

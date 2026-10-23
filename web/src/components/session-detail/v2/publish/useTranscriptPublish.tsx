@@ -145,7 +145,6 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   // ── the popup ────────────────────────────────────────────────────────────
   const [open, setOpen] = useState(false);
   const [signIn, setSignIn] = useState<SignIn>('unknown');
-  const [villageUrl, setVillageUrl] = useState<string | undefined>(undefined);
   const [signInFailure, setSignInFailure] = useState<SignInFailure | null>(null);
   // A sign-in that completes inside the popup changes what the publication read
   // reports (a signed-out computer reports every session unpublished).
@@ -235,7 +234,6 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
     fetchVillageAuth()
       .then((auth) => {
         if (!live) return;
-        setVillageUrl(auth.villageUrl || undefined);
         setSignIn(auth.authenticated ? 'signed-in' : 'signed-out');
       })
       .catch((error: unknown) => {
@@ -271,7 +269,6 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
         const auth = await fetchVillageAuth();
         if (!live) return;
         if (auth.authenticated) {
-          setVillageUrl(auth.villageUrl || undefined);
           setSignIn('signed-in');
           return;
         }
@@ -581,7 +578,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       accessSummary={mode === 'update' ? accessSummary(activeDraft, names) : undefined}
       onPublish={() => { void runPublish(); }}
       onConnect={connect}
-      joinHref={onlineCollectivesHref(villageUrl)}
+      joinHref={onlineCollectivesHref()}
       stoppedAt={stopped?.stoppedAt}
       onRecover={blocked?.retry ? recover : undefined}
       onRetry={blocked === null ? stopped?.retry : undefined}

@@ -230,7 +230,7 @@ cases:
       popup:
         heading: publish “{title}”
         texts: [you are not in a collective yet., create or join one on peasant online]
-        link: { text: create or join one on peasant online, href: 'https://village.peasantlabs.org/groups' }
+        link: { text: create or join one on peasant online, href: 'https://village.peasantlabs.org/collectives' }
         primary: { label: publish, enabled: false }
       request: null
 
