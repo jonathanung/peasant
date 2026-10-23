@@ -297,7 +297,6 @@
 .stg-cat-label code { font-family: var(--font-mono); color: var(--ink-strong); }
 .stg-cats-scope { margin: 0; max-width: var(--measure-prose); color: var(--ink-3); font-size: var(--fs-body); line-height: var(--lh-body); }
 
-.stg-saves { margin: 0; max-width: var(--measure-prose); color: var(--ink-3); font-size: var(--fs-body); line-height: var(--lh-body); }
 .stg-pointer { margin: 0; display: flex; align-items: center; gap: var(--sp-2); color: var(--ink-3); font-size: var(--fs-body); }
 .stg-pointer-icon { width: var(--ic-sm); height: var(--ic-sm); flex: none; }
 

@@ -171,6 +171,15 @@ describe('settings page groups', () => {
     }
   });
 
+  it('leads with a breadcrumb back to home and settings, and carries no save footnote', async () => {
+    await mountPage('redaction');
+    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
+    expect(within(trail).getByRole('link', { name: 'home' })).toHaveAttribute('href', '/');
+    expect(within(trail).getByRole('link', { name: 'settings' })).toHaveAttribute('href', '/settings');
+    expect(within(trail).getByText('redaction')).toHaveClass('cur');
+    expect(document.body.textContent).not.toContain('changes save right away');
+  });
+
   it('opens the default section for a missing or unknown section id', async () => {
     render(<SettingsPageClient section="no-such-section" />);
     expect(await screen.findByRole('heading', { level: 1, name: 'account' })).toBeInTheDocument();

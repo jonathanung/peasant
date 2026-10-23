@@ -26,6 +26,7 @@ import {
 } from '@/lib/settings/catalog';
 import { ReadOnlyRow, SettingKeyRow } from '@/components/settings/SettingKeyRow';
 import { DocsLink } from '@/components/DocsLink';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { VillageAccountRow } from '@/components/settings/VillageAccountRow';
 import { CustomPatterns } from '@/components/settings/CustomPatterns';
 import { AutoPublishRules, type CollectiveNames } from '@/components/settings/AutoPublishRules';
@@ -435,9 +436,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
             );
           })}
         </div>
-        <p className="stg-saves">
-          changes save right away, to config.yaml. anything tagged <Chip size="sm" className="srow-tag">{NOT_IN_PEASANT_CONFIG}</Chip> can be changed here, not in peasant config.
-        </p>
         <p className="stg-pointer">
           <Users className="stg-pointer-icon" aria-hidden="true" />
           <span>collective settings live on each collective&apos;s page, <a href={onlineCollectivesHref()} target="_blank" rel="noreferrer">online</a>.</span>
@@ -452,13 +450,15 @@ function NextLink({ href, ...rest }: { href: string } & React.AnchorHTMLAttribut
 }
 
 /**
- * The settings page: fairtrade's in-page section bar beside the section on a
- * wide body, above it on a narrow one. The app sidebar keeps its own nav, with
- * settings current; the bar is the one way between the sections.
+ * The settings page: a breadcrumb back to home and to settings, then
+ * fairtrade's in-page section bar beside the section on a wide body, above it
+ * on a narrow one. The app sidebar keeps its own nav, with settings current;
+ * the bar is the one way between the sections, and the breadcrumb the way back.
  */
 function SettingsFrame({ section, children }: { section: SettingsSection; children: ReactNode }) {
   return (
     <div className="iu-page stg-page" data-settings-section={section.id}>
+      <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'settings', href: '/settings' }, { label: section.label }]} />
       <SettingsLayout sections={NAV_SECTIONS} currentId={section.id} LinkComponent={NextLink} label="settings sections">
         {children}
       </SettingsLayout>
