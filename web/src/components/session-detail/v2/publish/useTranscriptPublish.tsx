@@ -20,8 +20,8 @@ import { DEFAULT_REDACTION_LEVEL } from '@/lib/share/redactions';
 import { guardReviewMatches } from '@/lib/share/reviewMatches';
 import { classifyScanFailure, REINDEX_DID_NOT_REPAIR, reindexFailureLine, reindexRetryable, type ReindexFailureCode } from '@/lib/share/scanFailure';
 import { checkingStage, type CheckingStep } from '@/lib/share/checkingStage';
-import { stepWithReason } from '@/lib/share/publishFailure';
-import { reindexSession, SessionReindexError } from '@/lib/api/ingest';
+import { stepWithReason, unreadableNote } from '@/lib/share/publishFailure';
+import { reindexSession, SessionReindexError, type UnreadableLine } from '@/lib/api/ingest';
 import { fetchSettings } from '@/lib/api/settings';
 import { AutomaticPublishingError, enableAutomaticPublishing } from './automaticPublishing';
 import { onlineCollectivesHref } from '@/lib/village/links';
@@ -77,7 +77,7 @@ type CollectivesRead =
 /** A step before the push that stopped; retry runs it again. `detail` is the whole reason, for details only. */
 type Blocked = { stoppedAt: string; detail?: string; retry?: () => void };
 /** The one-session re-index that heals a stale local index. */
-type Reindex = { status: 'idle' | 'running' } | { status: 'done'; notes: string[] } | { status: 'failed'; code: ReindexFailureCode; message: string };
+type Reindex = { status: 'idle' | 'running' } | { status: 'done'; notes: string[]; unreadable: UnreadableLine[] } | { status: 'failed'; code: ReindexFailureCode; message: string };
 type AutomaticPreference = { status: 'loading' } | { status: 'ready'; offer: boolean } | { status: 'error'; message: string };
 
 export interface TranscriptPublishOptions {
@@ -387,9 +387,9 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
     reindexRun.current = controller;
     setReindex({ status: 'running' });
     reindexSession(sessionId, { signal: controller.signal })
-      .then(({ notes }) => {
+      .then(({ notes, unreadable }) => {
         if (controller.signal.aborted) return;
-        setReindex({ status: 'done', notes });
+        setReindex({ status: 'done', notes, unreadable });
         onReindexed?.();
         runScan(true);
       })
@@ -406,6 +406,9 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   // action that fixes it: re-index this session, here. A re-index that did not
   // finish says what stopped it and offers to run again when that can help;
   // one that ran while the scan still refuses says so, with the run's notes.
+  // A re-index that could not read a recording line leaves the copy before
+  // it: said once, never a reason to block the publish.
+  const unreadable = reindex.status === 'done' ? unreadableNote(reindex.unreadable) : undefined;
   const failureShown: { line: string; detail: string; action?: { label: string; onSelect: () => void } } | null = failure == null
     ? null
     : failure.kind === 'needs-reindex' && reindex.status === 'failed'
@@ -424,7 +427,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
     : failureShown != null
     ? { failure: failureShown.line, failureDetail: failureShown.detail, failureAction: failureShown.action }
     : scanResult
-      ? { matches: adaptation.matches, total: scanResult.length, matchCount: scan.sessionMatchCounts.get(sessionId) }
+      ? { matches: adaptation.matches, total: scanResult.length, matchCount: scan.sessionMatchCounts.get(sessionId), note: unreadable }
       : undefined;
 
   // ── who can read it ──────────────────────────────────────────────────────
@@ -585,7 +588,8 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   }, [checkingStep]);
   // A step's first render, before its clock starts, has run for no time yet.
   const stepElapsedMs = stepClock.step === checkingStep ? stepClock.now - stepClock.startedAt : 0;
-  const checking = checkingStep === null ? undefined : checkingStage(checkingStep, { turns: turns.length, elapsedMs: stepElapsedMs });
+  const stage = checkingStep === null ? undefined : checkingStage(checkingStep, { turns: turns.length, elapsedMs: stepElapsedMs });
+  const checking = stage && checkingStep === 'scanning' && unreadable && !stage.note ? { ...stage, note: unreadable.line } : stage;
 
   const stopped = dialogState === 'stopped'
     ? (blocked ?? (outcome?.kind === 'stopped' ? { stoppedAt: outcome.stoppedAt, detail: outcome.detail, retry: /push --force/.test(outcome.stoppedAt) ? undefined : () => { void runPublish(); } } : null))

@@ -1215,14 +1215,20 @@ func (h *syncHandler) handleSyncIngestSession(w http.ResponseWriter, r *http.Req
 	// re-indexed instead. The notes say so; the scan that follows decides.
 	// Only this session's diagnostics are notes: the run also reports on the
 	// stored sessions it was scoped away from.
+	// A recording line the run could not parse is named on its own, so the
+	// popup can say the copy being published stops before it.
 	notes := make([]string, 0, len(result.Diagnostics))
+	unreadable := make([]sessionIngestUnreadable, 0)
 	for _, diagnostic := range result.Diagnostics {
 		if strings.Contains(diagnostic.Location, id.String()) || strings.Contains(diagnostic.Message, id.String()) {
 			notes = append(notes, diagnostic.Message)
+			if line, ok := ingest.MalformedJSONLRecordLine(diagnostic.Message); ok {
+				unreadable = append(unreadable, sessionIngestUnreadable{Line: line, Reason: diagnostic.Message})
+			}
 		}
 	}
 	w.Header().Set(defaults.HeaderContentType, defaults.ContentJSON.String())
-	_ = json.NewEncoder(w).Encode(sessionIngestResponse{Status: "done", Duration: time.Since(started).Round(time.Millisecond).String(), Notes: notes})
+	_ = json.NewEncoder(w).Encode(sessionIngestResponse{Status: "done", Duration: time.Since(started).Round(time.Millisecond).String(), Notes: notes, Unreadable: unreadable})
 }
 
 // sessionIngestResponse is a finished one-session re-index.
@@ -1230,6 +1236,15 @@ type sessionIngestResponse struct {
 	Status   string   `json:"status"`
 	Duration string   `json:"duration"`
 	Notes    []string `json:"notes"`
+	// Unreadable names the recording lines the run could not read; the copy
+	// being published stops before the first of them.
+	Unreadable []sessionIngestUnreadable `json:"unreadable"`
+}
+
+// sessionIngestUnreadable is one recording line a re-index could not read.
+type sessionIngestUnreadable struct {
+	Line   int    `json:"line"`
+	Reason string `json:"reason"`
 }
 
 // sessionIngestFailure is why a scoped run did not re-index the session, or

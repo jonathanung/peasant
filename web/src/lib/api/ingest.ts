@@ -24,9 +24,16 @@ const SERVER_CODES: Record<string, ReindexFailureCode> = {
   session_not_recorded: 'session_not_recorded',
 };
 
-/** A finished re-index: what the run could not read, in its own words. */
+/** A recording line a re-index could not read; the copy being published stops before it. */
+export interface UnreadableLine {
+  line: number;
+  reason: string;
+}
+
+/** A finished re-index: what the run could not read, in its own words, and the lines it could not parse. */
 export interface SessionReindex {
   notes: string[];
+  unreadable: UnreadableLine[];
 }
 
 /**
@@ -55,13 +62,17 @@ export async function reindexSession(
       if (timedOut) throw new SessionReindexError('session_ingest_timeout', `updating this session’s index took longer than ${Math.round(timeoutMs / 1000)}s and was stopped; retry`);
       throw new SessionReindexError('unreachable', 'the peasant app on this computer stopped answering while updating this session’s index; retry');
     }
-    const body = (await response.json().catch(() => ({}))) as { error?: unknown; code?: unknown; notes?: unknown };
+    const body = (await response.json().catch(() => ({}))) as { error?: unknown; code?: unknown; notes?: unknown; unreadable?: unknown };
     if (!response.ok) {
       const code = typeof body.code === 'string' ? SERVER_CODES[body.code] ?? 'other' : 'other';
       throw new SessionReindexError(code, typeof body.error === 'string' && body.error.trim() ? body.error.trim() : `updating this session’s index failed (${response.status}); retry`);
     }
     const notes = Array.isArray(body.notes) ? body.notes.filter((note): note is string => typeof note === 'string' && note.trim() !== '') : [];
-    return { notes };
+    const unreadable = Array.isArray(body.unreadable)
+      ? body.unreadable.filter((entry): entry is UnreadableLine => typeof entry === 'object' && entry !== null
+        && Number.isSafeInteger((entry as UnreadableLine).line) && typeof (entry as UnreadableLine).reason === 'string')
+      : [];
+    return { notes, unreadable };
   } finally {
     clearTimeout(timer);
     signal?.removeEventListener('abort', forward);

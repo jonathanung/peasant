@@ -42,3 +42,17 @@ export function stepWithReason(step: string, message: string | undefined | null)
   const reason = plainReason(message);
   return reason ? `${step}: ${reason}` : step;
 }
+
+/**
+ * The informational line for a copy that stops before a recording line the
+ * re-index could not read. It never blocks the publish: what is sent is
+ * complete up to that line, and every check runs on it.
+ */
+export function unreadableNote(unreadable: readonly { line: number; reason: string }[]): { line: string; detail: string } | undefined {
+  const first = unreadable[0];
+  if (!first) return undefined;
+  return {
+    line: '1 line in this session couldn’t be read, so the copy being published stops before it.',
+    detail: `line ${first.line} of the recording: ${first.reason}`,
+  };
+}

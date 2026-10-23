@@ -42,6 +42,7 @@ type sessionReindexCase struct {
 	NeighbourUserTurnsAfter int    `yaml:"neighbour_user_turns_after"`
 	ScanStatus              int    `yaml:"scan_status"`
 	NoNotes                 bool   `yaml:"no_notes"`
+	UnreadableLine          int    `yaml:"unreadable_line"`
 }
 
 type sessionReindexFixture struct {
@@ -234,10 +235,13 @@ func TestSessionReindexRoute(t *testing.T) {
 				t.Fatalf("status = %d, want %d; body %s", response.Code, c.Status, response.Body.String())
 			}
 			var body struct {
-				Status string   `json:"status"`
-				Notes  []string `json:"notes"`
-				Error  string   `json:"error"`
-				Code   string   `json:"code"`
+				Status     string   `json:"status"`
+				Notes      []string `json:"notes"`
+				Unreadable []struct {
+					Line int `json:"line"`
+				} `json:"unreadable"`
+				Error string `json:"error"`
+				Code  string `json:"code"`
 			}
 			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
 				t.Fatalf("body %q: %v", response.Body.String(), err)
@@ -254,6 +258,13 @@ func TestSessionReindexRoute(t *testing.T) {
 			}
 			if c.NoNotes && len(body.Notes) != 0 {
 				t.Fatalf("notes = %q, want none: they must be about this session only", body.Notes)
+			}
+			var lines []int
+			for _, entry := range body.Unreadable {
+				lines = append(lines, entry.Line)
+			}
+			if want := c.UnreadableLine; (want == 0 && len(lines) != 0) || (want != 0 && (len(lines) != 1 || lines[0] != want)) {
+				t.Fatalf("unreadable lines = %v, want %d", lines, want)
 			}
 			if handler.sessionIngest {
 				t.Fatal("the run left the session re-index marked running")

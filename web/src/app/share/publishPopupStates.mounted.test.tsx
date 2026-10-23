@@ -266,6 +266,24 @@ describe('stale local index', () => {
     expect(reindexRequests).toHaveLength(1);
   }, 15000);
 
+  it('says once that the copy stops before a line the re-index could not read, and still publishes', async () => {
+    const reason = 'capture transcript source: capture JSONL record 50: malformed complete JSON; prior stored snapshot was retained';
+    const { world, reindexRequests } = staleWorld([{ status: 200, json: { status: 'done', duration: '220ms', notes: [reason], unreadable: [{ line: 50, reason }] } }], () => true);
+    installWorld(world);
+    render(<Page />);
+    const user = userEvent.setup();
+    await runStep('open', user);
+    await user.click(await within(dialog()).findByRole('button', { name: 're-index this session' }, WAIT));
+    await waitFor(() => expect(primaryButton()).toBeEnabled(), { timeout: 6000 });
+    expect(reindexRequests).toHaveLength(1);
+    expect(latestDialogProps.scan?.note).toEqual({
+      line: '1 line in this session couldn’t be read, so the copy being published stops before it.',
+      detail: `line 50 of the recording: ${reason}`,
+    });
+    await runStep('publish', user);
+    await waitFor(() => expect(world.pushRequests).toHaveLength(1), WAIT);
+  }, 15000);
+
   it('says in one line what stopped the re-index, keeps the reason in details, and offers to run it again', async () => {
     const busy = 'another index update is running on this computer; retry when it finishes';
     const { world, reindexRequests } = staleWorld([

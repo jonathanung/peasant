@@ -13,8 +13,9 @@
 # to the last complete record and leaves the neighbour alone. A malformed
 # complete record still fails the capture closed: the run re-indexes the stored
 # copy instead and the route's notes name the record, so the scan that follows
-# decides and its details can say why. The notes are about this session only,
-# never about the stored sessions the run was scoped away from.
+# decides and its details can say why; the malformed record is also named by
+# its line (unreadable_line). The notes are about this session only, never
+# about the stored sessions the run was scoped away from.
 required_names:
   - live-session-reindexes-only-itself
   - malformed-record-reindexes-stored-copy-and-names-it
@@ -54,6 +55,8 @@ cases:
     append_malformed: true
     status: 200
     message: malformed complete JSON
+    # 12 turns of 4 records and the lone-surrogate hook record come first.
+    unreadable_line: 50
     user_turns_after: 12
     neighbour_user_turns_after: 3
     scan_status: 200

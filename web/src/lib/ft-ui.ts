@@ -905,11 +905,14 @@ export type PublishBarProps = ComponentProps<typeof FtPublishBar> & HTMLAttribut
  * whatever node it is handed.
  *
  * `stoppedDetail` is a stopped step's whole reason, for a details disclosure
- * in the stopped box; the line itself carries only plain words. A package that
- * does not render it yet ignores it.
+ * in the stopped box; the line itself carries only plain words. `scan.note`
+ * is a quiet informational line under a clean scan, with its own details
+ * (the copy stops before a recording line that could not be read). A package
+ * that does not render them yet ignores them.
  */
-export type PublishDialogProps = Omit<ComponentProps<typeof FtPublishDialog>, 'autoPublish'> & {
+export type PublishDialogProps = Omit<ComponentProps<typeof FtPublishDialog>, 'autoPublish' | 'scan'> & {
   autoPublish?: { checked: boolean; onChange: (checked: boolean) => void; hint?: ReactNode };
+  scan?: NonNullable<ComponentProps<typeof FtPublishDialog>['scan']> & { note?: { line: string; detail?: string } };
   stoppedDetail?: string;
 };
 export type PublishDialogState = PublishDialogProps['state'];
