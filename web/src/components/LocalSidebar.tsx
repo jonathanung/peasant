@@ -84,8 +84,9 @@ export function LocalSidebar() {
       id: 'sections',
       ariaLabel: 'sections',
       items: [
-        ...nav.map((entry) => ({ id: entry.id, label: entry.label, href: entry.href, icon: entry.icon, title: entry.title })),
-        { id: 'collectives', label: 'collectives', href: onlineCollectivesHref(), icon: Users, external: true, target: '_blank', rel: 'noreferrer', title: 'collectives, opens online' },
+        // No description tooltips: an item is named by its label alone.
+        ...nav.map((entry) => ({ id: entry.id, label: entry.label, href: entry.href, icon: entry.icon })),
+        { id: 'collectives', label: 'collectives', href: onlineCollectivesHref(), icon: Users, external: true, target: '_blank', rel: 'noreferrer' },
       ],
     },
   ];

@@ -131,6 +131,17 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     }
   });
 
+  it('carries no description tooltips on its nav items', async () => {
+    await mount();
+    for (const item of document.querySelectorAll<HTMLElement>('.asb-panel nav .asb-item')) {
+      const title = item.getAttribute('title');
+      const label = item.querySelector('.asb-label')?.textContent ?? '';
+      // fairtrade's default tooltip is the label itself; nothing longer.
+      if (title !== null) expect(title.startsWith(label), `${label} tooltip ${title}`).toBe(true);
+    }
+    expect(document.querySelector('.asb-panel')?.innerHTML).not.toContain('Your projects and the sessions');
+  });
+
   it('switches the theme from the footer toggle, named for the mode it switches to', async () => {
     await mount();
     const button = screen.getByRole('button', { name: 'switch to dark mode' });
