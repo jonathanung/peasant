@@ -14,6 +14,7 @@ import { Button, Checkbox, CopyIconButton, Input, Menu, Select, SettingRow } fro
 import { installAutoPublishRule, removeAutoPublishRule, saveAutoPublishRule } from '@/lib/api/settings';
 import { shellQuote } from '@/lib/settings/shell';
 import { StatusLine, type BlockStatus } from './CustomPatterns';
+import { DocsLink } from '@/components/DocsLink';
 
 /** The collectives this computer's Village account can see, by identifier. null: not signed in or not read. */
 export type CollectiveNames = ReadonlyMap<string, string> | null;
@@ -611,7 +612,7 @@ export function AutoPublishRules({ rules, onRulesChange, collectives, collective
           <fieldset className="stg-collectives" disabled={busy}>
             <legend className="label">publish to</legend>
             {!signedIn ? (
-              <p className="stg-note">sign in to peasant online to pick collectives: run peasant village login, or sign in from the publish popup.</p>
+              <p className="stg-note">sign in to peasant online to pick collectives. <DocsLink topic="signIn" variant="inline">how to sign in</DocsLink></p>
             ) : collectivesError !== null ? (
               <p className="stg-note" role="alert">the collectives could not be read from peasant online: {collectivesError}</p>
             ) : collectives === null ? (

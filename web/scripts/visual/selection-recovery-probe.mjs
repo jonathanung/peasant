@@ -83,7 +83,6 @@ const acceptedLines = [
   'the web viewer does not list it.',
   'it is not available for a future push.',
   'peasant did not delete data.',
-  'to change the selection, run peasant kickstart.',
 ]
 const expectedCounts = [`${selection.hiddenProjects.toLocaleString()} ${projectWord}`, `${selection.hiddenSessions.toLocaleString()} ${sessionWord}`]
 
@@ -160,7 +159,8 @@ try {
           const heading = descendants.find((element) => /^H[1-6]$/.test(element.tagName) && normalize(element.textContent) === lines[0])
           const body = exact('the data stays ingested and indexed.')
           const count = exact(counts[0])
-          const copy = panel?.querySelector('button[aria-label="copy command to clipboard"]') || null
+          // How to change the selection lives in the docs: the panel's one control links there.
+          const copy = panel?.querySelector('a[data-docs-topic="selection"][target="_blank"]') || null
           if (copy) copy.focus({ focusVisible: true })
           let surface = heading?.parentElement || null
           while (surface && surface !== panel) {
@@ -187,7 +187,7 @@ try {
             missing: lines.filter((line) => !exact(line)),
             missingCounts: counts.filter((value) => !exact(value)),
             leaks: identities.filter((identity) => panelText.includes(identity)),
-            wrongGuidance: panelText.includes('peasant ingest') || panelText.includes('a saved project selection is limiting'),
+            wrongGuidance: panelText.includes('peasant ingest') || panelText.includes('peasant kickstart') || panelText.includes('a saved project selection is limiting'),
             theme: [root.getAttribute('data-theme'), root.getAttribute('data-tb-theme')],
             themeMatches: root.getAttribute('data-theme') === activeTheme && root.getAttribute('data-tb-theme') === activeTheme,
             fontsLoaded: document.fonts.check('400 16px "Atkinson Hyperlegible"') && document.fonts.check('400 16px "Atkinson Hyperlegible Mono"'),

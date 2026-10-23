@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { DOCS } from '@/lib/docs';
 import { render, screen, cleanup, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -371,10 +372,11 @@ describe('HomePage — the changes-first picker', () => {
     channelData = { sessions: [] };
     api.fetchProjectSummaries.mockResolvedValue(fixture.summary);
     render(<HomePage />);
-    // TeachingEmptyState renders lowercase chrome title + the copy-able command.
+    // The empty state names what is missing and links to the docs that teach recording.
     await openView(PROJECTS_VIEW);
     expect(await screen.findByText('no ai work recorded yet')).toBeInTheDocument();
-    expect(screen.getByText('peasant ingest')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^how to record sessions/ })).toHaveAttribute('href', DOCS.record);
+    expect(screen.queryByText('peasant ingest')).not.toBeInTheDocument();
     // No ledger line without sessions.
     expect(screen.queryByText(/on this machine/)).not.toBeInTheDocument();
   });
@@ -773,7 +775,7 @@ describe('HomePage — the changes-first picker', () => {
       '2 projects and 5 sessions hidden by a saved selection'
       + 'a saved project selection is limiting what’s shown here. '
       + 'the data stays ingested and indexed; it is only hidden from this list.'
-      + 'run peasant kickstart to review or widen the selection.',
+      + 'change the selection, opens the docs in a new tab',
     );
   });
 

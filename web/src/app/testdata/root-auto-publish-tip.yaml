@@ -3,6 +3,6 @@ requiredNames:
 cases:
   - name: home-guidance-can-be-dismissed-without-changing-the-transcript-exit
     session: {id: s-tip, project: alpha, syncStatus: new, state: unpublished}
-    copy: "tick auto-publish when you publish, and later pushes publish on their own. or run /peasant auto in claude-code."
-    command: /peasant auto
+    copy: "your sessions can publish on their own, redacted. set up automatic publishing, opens the docs in a new tab"
+    docs: set up automatic publishing
     dismiss: dismiss auto-publish tip

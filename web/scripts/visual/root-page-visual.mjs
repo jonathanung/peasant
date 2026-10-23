@@ -64,7 +64,7 @@ const FEATURE_GROUPS = [
   { label: 'root page', signatures: ['data-root-session-list', 'data-home-bounded'] },
   { label: 'recursive session family', signatures: ['data-session-group-child', 'session-group-rows:', 'var(--sp-5) + var(--sp-4)'] },
   { label: 'parent-attached session disclosure', signatures: ['data-session-family'] },
-  { label: 'automatic publishing reminder', signatures: ['dismiss auto-publish tip', 'tick auto-publish when you publish'] },
+  { label: 'automatic publishing reminder', signatures: ['dismiss auto-publish tip', 'your sessions can publish on their own'] },
   { label: 'fairtrade publish state', signatures: ['pub-state-text'] },
 ]
 const FIXTURE = YAML.parse(readFileSync(join(HERE, 'testdata/root-page.yaml'), 'utf8'))
@@ -555,9 +555,9 @@ async function runPopulated(browser, gate, theme, viewport, answers) {
       const range = document.createRange()
       range.selectNodeContents(text)
       const lines = [...range.getClientRects()]
-      return { copy: text.textContent, brand: !!aside.querySelector('[data-brand="claude"]'), dismiss: !!aside.querySelector('button[aria-label="dismiss auto-publish tip"]'), font: getComputedStyle(text).fontFamily, size: getComputedStyle(text).fontSize, left: box.left, right: box.right, width: innerWidth, textRight: Math.max(...lines.map((line) => line.right)), textLeft: Math.min(...lines.map((line) => line.left)) }
+      return { copy: text.textContent, docs: aside.querySelector('a[data-docs-topic="autoPublish"][target="_blank"]')?.getAttribute('href') ?? null, dismiss: !!aside.querySelector('button[aria-label="dismiss auto-publish tip"]'), font: getComputedStyle(text).fontFamily, size: getComputedStyle(text).fontSize, left: box.left, right: box.right, width: innerWidth, textRight: Math.max(...lines.map((line) => line.right)), textLeft: Math.min(...lines.map((line) => line.left)) }
     })
-    if (!tip || !tip.copy.includes('tick auto-publish when you publish') || !tip.copy.includes('/peasant auto') || !tip.brand || !tip.dismiss) fail(`${where}: the actual automatic publishing tip or its exit is missing`)
+    if (!tip || !tip.copy.includes('your sessions can publish on their own') || !tip.docs || tip.copy.includes('/peasant auto') || !tip.dismiss) fail(`${where}: the actual automatic publishing tip, its docs link or its exit is missing`)
     if (tip.left < 0 || tip.right > tip.width + 1 || tip.textRight > tip.right + 1 || tip.textLeft < tip.left - 1) fail(`${where}: the mounted tip overflows its phone or desktop bounds ${JSON.stringify(tip)}`)
     if (!/atkinson/i.test(tip.font) || parseFloat(tip.size) < 16) fail(`${where}: the tip body violates the canonical font or 16px floor ${JSON.stringify(tip)}`)
     const probe = await probeStyles(page, where)

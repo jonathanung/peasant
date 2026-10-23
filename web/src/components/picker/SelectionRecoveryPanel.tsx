@@ -5,6 +5,7 @@ import type {
   ProjectSelectionState,
 } from '@/lib/api/map';
 import { TeachingEmptyState } from '@/lib/ft-ui';
+import { DocsLink } from '@/components/DocsLink';
 
 export enum ProjectListState {
   Projects = 'projects',
@@ -60,12 +61,10 @@ export function SelectionRecoveryPanel({
             <span>it is not available for a future push.</span>
             <span>peasant did not delete data.</span>
             <span>
-              to change the selection, run{' '}
-              <code className="font-mono">peasant kickstart</code>.
+              <DocsLink topic="selection">change the selection</DocsLink>
             </span>
           </span>
         }
-        command="peasant kickstart"
         privacy={null}
       />
     </section>

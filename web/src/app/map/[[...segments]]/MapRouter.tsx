@@ -5,8 +5,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { IngestTeach } from '@/components/IngestTeach';
 import { FeedbackPanel, Skeleton } from '@/lib/ft-ui';
-import { ExplainerToggle, useExplainer } from '@/components/Explainer';
-import { ProjectPicker, PickerExplainer, rowsFromSummaries } from '@/components/picker/ProjectPicker';
+import { DocsLink } from '@/components/DocsLink';
+import { ProjectPicker, rowsFromSummaries } from '@/components/picker/ProjectPicker';
 import {
   ProjectListState,
   SelectionRecoveryPanel,
@@ -89,8 +89,6 @@ function MapPicker() {
   );
   const [error, setError] = useState<unknown>(null);
   const [reload, setReload] = useState(0);
-  // Distinct key from the per-project map's own explainer ("map").
-  const explainer = useExplainer('map-picker');
 
   useEffect(() => {
     let cancelled = false;
@@ -119,22 +117,12 @@ function MapPicker() {
   return (
     <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
       <Breadcrumbs items={[{ label: 'map' }]} />
-      <div>
-        <div className="flex items-start gap-2">
-          <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
-            Map
-          </h1>
-          <ExplainerToggle explainer={explainer} />
-        </div>
-        <p className="text-sm text-ink-3 mt-1">
-          pick a project to see its code map: how the files connect, and who shaped them.
-        </p>
+      <div className="flex items-center gap-2">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
+          map
+        </h1>
+        <DocsLink topic="codeMap" variant="icon">how to read the code map</DocsLink>
       </div>
-
-      {/* Same on-screen column meaning Home has, so /map isn't tooltip-only. */}
-      {summaries !== null && summaries.projects.length > 0 && (
-        <PickerExplainer explainer={explainer} destination="map" />
-      )}
 
       {error !== null && (
         <div className="flex flex-col items-start gap-3">

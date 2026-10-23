@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DOCS } from '@/lib/docs';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -682,7 +683,7 @@ const tipCases = tipRoot.cases.map((row) => requireRecord(row, 'root automatic p
 requireUniqueNames(tipCases, 'root automatic publishing tip cases');
 if (tipCases.map((row) => row.name).sort().join() !== requiredTipNames.sort().join()) throw new Error('automatic publishing tip cases differ from the required names');
 for (const row of tipCases) {
-  requireExactRequiredFields(row, ['name', 'session', 'copy', 'command', 'dismiss'], 'root automatic publishing tip case');
+  requireExactRequiredFields(row, ['name', 'session', 'copy', 'docs', 'dismiss'], 'root automatic publishing tip case');
   const spec = requireRecord(row.session, 'automatic publishing tip session') as unknown as SessionSpec;
   it(String(row.name), async () => {
     const requests = serve([spec]);
@@ -690,8 +691,11 @@ for (const row of tipCases) {
     const list = await screen.findByRole('region', { name: 'sessions' });
     const tip = screen.getByRole('complementary', { name: 'auto-publish tip' });
     expect(tip.textContent?.replace(/\s+/g, ' ').trim()).toBe(row.copy);
-    expect(tip.querySelector('code')).toHaveTextContent(String(row.command));
-    expect(tip.querySelector('[data-brand="claude"]')).not.toBeNull();
+    // How to set it up lives in the docs: the tip links there and teaches no command.
+    const docs = within(tip).getByRole('link', { name: new RegExp(`^${String(row.docs)}`) });
+    expect(docs).toHaveAttribute('href', DOCS.autoPublish);
+    expect(docs).toHaveAttribute('target', '_blank');
+    expect(tip.querySelector('code')).toBeNull();
     const exit = await within(list).findByRole('link', { name: spec.id });
     expect(exit).toHaveAttribute('href', `/projects/${PROJECTS[spec.project].hash}/${spec.id}`);
     fireEvent.click(within(tip).getByRole('button', { name: String(row.dismiss) }));

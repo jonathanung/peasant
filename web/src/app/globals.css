@@ -399,18 +399,6 @@ body {
 .stagger-5 { animation-delay: 0.25s; }
 .stagger-6 { animation-delay: 0.3s; }
 
-/* The Explainer "?" box slides+fades in on open; height isn't animated (content
-   is variable) — a short translate/opacity reads as "appeared" without layout
-   thrash. Paired with prefers-reduced-motion below. */
-@keyframes explainer-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.animate-explainer-in {
-  animation: explainer-in 0.22s ease-out both;
-}
-
 /* Honor the OS "reduce motion" setting: freeze the shimmer to a static fill and
    drop the entrance translates/fades to instant. The skeletons stay visible
    (just not pulsing), so loading is still legible. */
@@ -420,8 +408,7 @@ body {
     background: var(--surface-2);
   }
   .animate-fade-up,
-  .animate-fade-in,
-  .animate-explainer-in {
+  .animate-fade-in {
     animation: none;
   }
 }
@@ -895,3 +882,25 @@ textarea::placeholder {
     min-inline-size: var(--target-min);
   }
 }
+
+/* ============================================
+   DOCS LINKS
+   ============================================
+   How-to lives in the docs; the app links to it (components/DocsLink.tsx).
+   The glyph marks a link that opens outside the app. Tokens only. */
+.docs-link { gap: var(--sp-2); text-decoration: none; }
+.docs-link .docs-link-glyph { width: var(--ic-sm); height: var(--ic-sm); flex: none; }
+.docs-link-inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  color: var(--ink-strong);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+.docs-link-inline .docs-link-glyph { width: var(--ic-sm); height: var(--ic-sm); flex: none; align-self: center; }
+@media (hover: hover) and (pointer: fine) {
+  .docs-link-inline:hover { color: var(--amber); text-decoration-style: solid; }
+}
+.docs-link-icon .lucide { width: var(--ic-md); height: var(--ic-md); }

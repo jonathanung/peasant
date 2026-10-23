@@ -11,7 +11,7 @@ import {
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { CONNECTION } from '@/components/ConnectionState';
 import { Term } from '@/components/Term';
-import { Explainer, ExplainerToggle, useExplainer } from '@/components/Explainer';
+import { DocsLink } from '@/components/DocsLink';
 import { useChannel } from '@/contexts/WebSocketContext';
 import {
   TimeStrip,
@@ -120,7 +120,6 @@ export function MapShell({
   const { data: sessionsData, connected, error: sessionsError } = useChannel<SessionsPayload>(SESSIONS_SUB);
   const navigate = useNavigate();
   const nowMs = useMemo(() => Date.now(), []);
-  const explainer = useExplainer('map');
 
   // -- Ambient data (sessions channel) --------------------------------------
   const sessions = useMemo(() => sessionsData?.sessions ?? [], [sessionsData]);
@@ -406,23 +405,6 @@ export function MapShell({
       aria-label={`Map of ${displayProject(projectName)}`}
       data-tour="project-map"
     >
-      {/* "What am I looking at?" — the toggle sits on its own line and the box
-          below spans the content column instead of collapsing inside a flex header. */}
-      <ExplainerToggle explainer={explainer} />
-      <Explainer explainer={explainer} title="What am I looking at?">
-        <p>
-          The whole codebase as boxes and lines. Each box is a{' '}
-          <Term k="node">code area</Term> (a folder or file); each line is a{' '}
-          <Term k="structureEdge">connection</Term>, meaning one area uses another.
-        </p>
-        <p>
-          Bright boxes were <Term k="coverage">built with AI on record</Term>;{' '}
-          <Term k="darkMatter">dim ones</Term> predate it. Red marks a{' '}
-          <Term k="violation">tangle</Term>. Click a box to see the conversations
-          that shaped it, or use the map&rsquo;s <span className="text-ink-2">detail</span>{' '}
-          control to open every area down to its folders.
-        </p>
-      </Explainer>
 
       {/* One-line state notes keep stale or degraded data unambiguous. */}
       {sessionsError ? <StatusNote>Live conversation updates are unavailable. The code map remains available; retry the Peasant connection to refresh the conversation rail.</StatusNote> : null}
@@ -547,9 +529,12 @@ export function MapPageClient({ projectHash, projectName: requestedProjectName }
     <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
       <Breadcrumbs items={[{ label: 'map', href: '/map' }, { label: cleanName }]} />
 
-      <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
-        {cleanName}
-      </h1>
+      <div className="flex items-center gap-2">
+        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
+          {cleanName}
+        </h1>
+        <DocsLink topic="codeMap" variant="icon">how to read the code map</DocsLink>
+      </div>
 
       {/* Keyed by project: /map/A → /map/B stays in the same route segment,
           so without the key React would keep the old shell's state (stale

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DOCS } from '@/lib/docs';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { MapRouter } from './MapRouter';
@@ -9,11 +10,6 @@ vi.mock('next/navigation', () => ({
   usePathname: () => '/map',
   useRouter: () => ({ replace: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
-}));
-vi.mock('@/components/Explainer', () => ({
-  Explainer: ({ children }: { children: ReactNode }) => <div>{children}</div>,
-  ExplainerToggle: () => null,
-  useExplainer: () => ({ open: false }),
 }));
 
 const fetchProjectSummaries = vi.fn();
@@ -83,7 +79,8 @@ describe('MapRouter project discovery', () => {
     fetchProjectSummaries.mockResolvedValue(fixture.summary);
     render(<MapRouter />);
 
-    expect(await screen.findByText('peasant ingest')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /^how to record sessions/ })).toHaveAttribute('href', DOCS.record);
+    expect(screen.queryByText('peasant ingest')).not.toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'project selection recovery' })).not.toBeInTheDocument();
   });
 

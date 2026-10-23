@@ -45,8 +45,6 @@
   flex: none;
 }
 .home-tip-copy { margin: 0; flex: 1 1 auto; min-width: 0; max-width: none; font-size: var(--fs-body); line-height: var(--lh-body); }
-.home-tip-copy .pv-name { vertical-align: -0.125em; }
-.home-tip-command { font-family: var(--font-mono); font-size: var(--fs-label); color: var(--ink-strong); background: var(--surface-2); padding: 0 var(--sp-1); }
 .home-tip-dismiss {
   flex: none;
   margin-left: auto;

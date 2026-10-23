@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DOCS } from '@/lib/docs';
 import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { AutoPublishRule, LocalSettingsResponse, SyncAuthResponse } from '@peasant-labs/schema';
@@ -295,11 +296,13 @@ describe('settings page village and projects', () => {
     expect(within(rowOf('village.connected')).getByText('@alice-dev')).toBeInTheDocument();
   });
 
-  it('shows the saved selection and points to peasant kickstart without a control that edits it', async () => {
+  it('shows the saved selection and links to the docs to change it, without a control that edits it', async () => {
     await mountPage('projects');
     const row = rowOf('selection.mode');
     expect(row).toBe(rowOf('selection.harnesses'));
-    expect(within(row).getByText('peasant kickstart')).toBeInTheDocument();
+    // How to change the selection lives in the docs; the row teaches no command.
+    expect(within(row).getByRole('link', { name: /^change the selection/ })).toHaveAttribute('href', DOCS.selection);
+    expect(row.textContent).not.toContain('peasant kickstart');
     expect(within(row).queryByRole('switch')).toBeNull();
     expect(within(row).queryByRole('combobox')).toBeNull();
     expect(within(row).queryByRole('button', { name: /^edit/ })).toBeNull();

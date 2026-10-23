@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, SearchIcon } from "lucide-react";
 import { displayProject } from "@/lib/quality/utils";
-import { Explainer, type ExplainerState } from "@/components/Explainer";
 import { Term } from "@/components/Term";
 import { Skeleton } from "@/lib/skeleton";
 import { Input, Tooltip } from "@/lib/ft-ui";
@@ -97,36 +96,6 @@ export function rowsFromSessions(sessions: SessionSummary[]): PickerRow[] {
       openChanges: null,
     }))
     .sort(byRecency);
-}
-
-/**
- * The shared "What am I looking at?" explainer for BOTH picker surfaces, so the
- * column meaning lives on screen (not only in the header tooltips) and the two
- * surfaces can't drift. `destination` only swaps the closing call-to-action.
- */
-export function PickerExplainer({
-  explainer,
-  destination,
-}: {
-  explainer: ExplainerState;
-  destination: "changes" | "map" | "sessions";
-}) {
-  return (
-    <Explainer explainer={explainer} title="what am I looking at?">
-      <p>
-        Each row is a project this tool found recorded AI conversations for. The
-        columns show <Term k="coverage">recorded files</Term> out of total project
-        files, when it was last worked on, and how many{" "}
-        <Term k="change">lines of work</Term> (branches) haven&rsquo;t been merged
-        back into the main version yet.
-      </p>
-      <p>A recorded file has an edit captured during a saved AI conversation.</p>
-      {/* Every destination's noun IS its key ("changes" / "map" / "sessions"),
-          so the copy reads straight off it rather than through a ternary chain
-          that has to grow with each new destination. */}
-      <p>Click a project to see its {destination}.</p>
-    </Explainer>
-  );
 }
 
 const PICKER_GRID =

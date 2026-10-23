@@ -5,7 +5,7 @@ import { useEnter } from '@/lib/motion/enter';
 import Link from 'next/link';
 import { ExternalLink, EyeOff, Folder, Laptop, Lock, Plug, Send, SlidersHorizontal, UserRound, Users, type LucideIcon } from 'lucide-react';
 import { LocalSettingKind, isHarness, type AutoPublishRule, type LocalSetting, type LocalSettingsResponse, type SyncAuthResponse } from '@peasant-labs/schema';
-import { Button, Chip, CommandBlock, FeedbackPanel, ProviderName, SettingGroup, SettingRow, SettingsLayout } from '@/lib/ft-ui';
+import { Button, Chip, FeedbackPanel, ProviderName, SettingGroup, SettingRow, SettingsLayout } from '@/lib/ft-ui';
 import { fetchSettings, fetchVillageAuth, fetchVillageCollectives, updateSetting } from '@/lib/api/settings';
 import {
   NOT_IN_PEASANT_CONFIG,
@@ -25,6 +25,7 @@ import {
   type SettingsSectionId,
 } from '@/lib/settings/catalog';
 import { ReadOnlyRow, SettingKeyRow } from '@/components/settings/SettingKeyRow';
+import { DocsLink } from '@/components/DocsLink';
 import { VillageAccountRow } from '@/components/settings/VillageAccountRow';
 import { CustomPatterns } from '@/components/settings/CustomPatterns';
 import { AutoPublishRules, type CollectiveNames } from '@/components/settings/AutoPublishRules';
@@ -261,9 +262,9 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
               keys={['selection.mode', ...(harnesses ? ['selection.harnesses'] : [])]}
               label="record sessions from"
               value={optionLabel('selection.mode', String(shownValue(mode)))}
-              help={`${selectionSummary(mode, harnesses)}the page shows the selection; peasant kickstart changes it.`}
+              help={selectionSummary(mode, harnesses).trim()}
               tag={tagOf(mode)}
-              action={<CommandBlock command="peasant kickstart" label="peasant kickstart, which edits the selection" className="stg-command" />}
+              action={<DocsLink topic="selection">change the selection</DocsLink>}
             />
           ) : null,
           branches ? (
@@ -290,7 +291,7 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
             />
           ) : projectMode ? <SettingKeyRow key="project-mode" setting={projectMode} onSaved={onSaved} /> : null,
         ],
-        notes: <p className="stg-note">this only filters lists and search. recorded sessions stay until you run peasant prune.</p>,
+        notes: <p className="stg-note">this only filters lists and search; recorded sessions stay. <DocsLink topic="prune" variant="inline">remove recorded sessions</DocsLink></p>,
       };
     },
     sources: () => {
@@ -362,14 +363,14 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
             keys={version ? [version.key] : []}
             label="settings"
             value={<code className="stg-code">config.yaml</code>}
-            help={`in peasant's config folder: ~/.config/peasant, unless XDG_CONFIG_HOME or --config says otherwise.${version ? ` format version ${describeValue(version)}.` : ''}`}
+            help={<>in peasant&apos;s config folder.{version ? ` format version ${describeValue(version)}.` : ''} <DocsLink topic="settingsFiles" variant="inline">where it lives</DocsLink></>}
           />,
           <ReadOnlyRow
             key="hooks"
             keys={[]}
             label="auto-publish rules"
             value={<code className="stg-code">hooks.yaml</code>}
-            help="in the same config folder. peasant village auto and this page write it."
+            help="in the same config folder. this page writes it."
           />,
           retired.length > 0 ? (
             <ReadOnlyRow

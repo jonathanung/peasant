@@ -8,7 +8,7 @@ import { AllSessions } from '@/components/sessions/AllSessions';
 import { GroupedSessionsSection } from '@/components/sessions/GroupedSessionsSection';
 import { useSessionTitles } from '@/hooks/useSessionTitles';
 import { SkeletonList } from '@/lib/skeleton';
-import { TeachingEmptyState } from '@/lib/ft-ui';
+import { IngestTeach } from '@/components/IngestTeach';
 import { displayProject } from '@/lib/quality/utils';
 import { parseProjectHash } from '@/lib/navigation/projectRoutes';
 import type { SessionsPayload, SessionSummary } from '@/types/messages';
@@ -148,13 +148,7 @@ export function SessionsRouter() {
           titles={sessionTitles}
           heading="sessions"
           onScopeUnavailable={handleScopeUnavailable}
-          emptyState={
-            <TeachingEmptyState
-              title="no sessions recorded for this project yet"
-              body="run the command below in your terminal to scan this computer for ai coding conversations and index what it finds."
-              command="peasant ingest"
-            />
-          }
+          emptyState={<IngestTeach headline="no sessions recorded for this project yet" />}
         />
       )}
 
@@ -169,11 +163,7 @@ export function SessionsRouter() {
             title="sessions"
           />
         ) : (
-          <TeachingEmptyState
-            title="no sessions recorded for this project yet"
-            body="run the command below in your terminal to scan this computer for ai coding conversations and index what it finds."
-            command="peasant ingest"
-          />
+          <IngestTeach headline="no sessions recorded for this project yet" />
         )
       )}
     </div>

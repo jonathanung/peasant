@@ -318,6 +318,11 @@ the server serves the newly built assets before you trust a screenshot or a comp
 
 ## Documentation
 
+- How-to lives only in the docs (peasantlabs.org/docs). The local web app links to the page or
+  section that teaches a task (`web/src/lib/docs.ts`, rendered by `DocsLink`, opened in a new tab)
+  and does not restate commands or steps. What stays in the app: an error naming its recovery, the
+  offline notice's start command, consent and redaction review, and a repository-specific remedy
+  or uninstall command the docs cannot know.
 - Keep the user-visible behavior and the examples accurate. Do not document planned behavior as
   shipped.
 - Generate the CLI reference pages with `make docs-cli`. Do not hand-edit generated CLI pages.

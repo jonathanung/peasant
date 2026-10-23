@@ -6,6 +6,7 @@ import type { LocalSetting, SyncAuthResponse } from '@peasant-labs/schema';
 import { Button, Chip } from '@/lib/ft-ui';
 import { logOutOfVillage } from '@/lib/api/settings';
 import { tagOf } from '@/lib/settings/catalog';
+import { DocsLink } from '@/components/DocsLink';
 
 function hostOf(url: string | undefined): string | undefined {
   if (!url) return undefined;
@@ -57,8 +58,8 @@ export function VillageAccountRow({ auth, readError, onRetry, connected, onLogge
   const help = auth === null
     ? readError ? 'the sign-in could not be read.' : 'reading the sign-in on this computer.'
     : signedIn
-      ? `signed in with github${host ? ` on ${host}` : ''}. log out removes the key from this computer; peasant village logout also revokes it online.`
-      : 'sign in with peasant village login, or from the publish popup.';
+      ? <>signed in with github{host ? ` on ${host}` : ''}. log out removes the key from this computer, not online. <DocsLink topic="signIn" variant="inline">revoke it online</DocsLink></>
+      : <>sign in from the publish popup. <DocsLink topic="signIn" variant="inline">other ways to sign in</DocsLink></>;
 
   return (
     <div className={`srow srow-${status}`} data-status={status} data-setting-keys="village.connected">
