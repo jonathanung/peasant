@@ -1,6 +1,7 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { WebSocketProvider } from '@/contexts/WebSocketContext';
 import { ServerCapabilitiesProvider } from '@/contexts/ServerCapabilitiesContext';
 import { PublishProvider } from '@/contexts/PublishContext';
@@ -9,6 +10,37 @@ import { LocalSidebar } from '@/components/LocalSidebar';
 import { LocalOfflineNotice } from '@/components/LocalOfflineNotice';
 import { CommandPalette } from '@/components/command/CommandPalette';
 import { DevAnnotateOverlay } from '@/components/dev/DevAnnotateOverlay';
+import { playEnter } from '@/lib/motion/enter';
+
+/** The transcript holds dialogs that position against the screen, so it only fades in. */
+const FADE_ONLY = ['/projects'];
+
+/**
+ * A page arriving in the shell: the page body fades and rises into place on
+ * each route change (lib/motion/enter.ts), and only fades where a page holds
+ * screen-positioned dialogs, so they never ride a moving box. The first page
+ * is already on screen when the app starts, so it does not play.
+ */
+function usePageEnter(): void {
+  const pathname = usePathname() ?? '/';
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const main = document.querySelector('main');
+    if (!main) return;
+    const rise = !FADE_ONLY.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+    return playEnter(main, { rise });
+  }, [pathname]);
+}
+
+function PageEnter() {
+  usePageEnter();
+  return null;
+}
+
 /**
  * LayoutShell wraps the app in the WebSocket provider and renders the
  * persistent chrome: fairtrade's sidebar beside the page (a top bar with a
@@ -32,6 +64,7 @@ export function LayoutShell({ children }: { children: ReactNode }) {
             <LocalOfflineNotice />
             {children}
           </AppSidebarLayout>
+          <PageEnter />
           <CommandPalette />
           {process.env.NODE_ENV === 'development' && <DevAnnotateOverlay />}
         </PublishProvider>

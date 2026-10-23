@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEnter } from '@/lib/motion/enter';
 import Link from 'next/link';
 import { ExternalLink, Laptop, Lock, Users } from 'lucide-react';
 import { LocalSettingKind, isHarness, type AutoPublishRule, type LocalSetting, type LocalSettingsResponse, type SyncAuthResponse } from '@peasant-labs/schema';
@@ -150,6 +151,10 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
     await Promise.all([readAuth(), readSettings()]);
   }, [readAuth, readSettings]);
 
+  // A section switch keeps the page: its body fades and rises into place instead.
+  const sectionBody = useRef<HTMLDivElement>(null);
+  useEnter(sectionBody, section.id);
+
   const settings = load.state === 'ready' ? load.data.settings : null;
   const byKey = useMemo(() => new Map((settings ?? []).map((setting) => [setting.key, setting])), [settings]);
 
@@ -157,15 +162,17 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
     return (
       <div className="iu-page stg-page" data-settings-section={section.id}>
         <SectionNav current={section} />
-        <PageHead section={section} />
-        {load.state === 'loading' ? (
-          <FeedbackPanel variant="loading" title="reading your settings" />
-        ) : (
-          <FeedbackPanel variant="error" title="the settings could not be read">
-            <span className="stg-load-error">{load.error}</span>
-            <Button variant="secondary" size="sm" onClick={() => { setLoad({ state: 'loading' }); void readSettings(); }}>try again</Button>
-          </FeedbackPanel>
-        )}
+        <div ref={sectionBody} className="stg-body">
+          <PageHead section={section} />
+          {load.state === 'loading' ? (
+            <FeedbackPanel variant="loading" title="reading your settings" />
+          ) : (
+            <FeedbackPanel variant="error" title="the settings could not be read">
+              <span className="stg-load-error">{load.error}</span>
+              <Button variant="secondary" size="sm" onClick={() => { setLoad({ state: 'loading' }); void readSettings(); }}>try again</Button>
+            </FeedbackPanel>
+          )}
+        </div>
       </div>
     );
   }
@@ -373,54 +380,56 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
   return (
     <div className="iu-page stg-page" data-settings-section={section.id}>
       <SectionNav current={section} />
-      <PageHead section={section} />
-      {section.id === 'redaction' && <RedactionCategories />}
-      <div className="stg-groups">
-        {section.groups.map((id) => {
-          const group = SETTINGS_GROUPS.find((candidate) => candidate.id === id)!;
-          const body = bodies[group.id]();
-          const rows = body.rows.filter((node) => node !== null && node !== undefined);
-          // A key this page does not place renders in its group, after the rows the group places.
-          const unplaced = (settings ?? []).filter((setting) => !consumed.has(setting.key) && groupOf(setting.key) === group.id);
-          unplaced.forEach((setting) => consumed.add(setting.key));
-          const content = (
-            <>
-              {rows}
-              {unplaced.map((setting) => <SettingKeyRow key={setting.key} setting={setting} onSaved={onSaved} />)}
-              {body.notes}
-            </>
-          );
-          // A section that shows one group is that group: the page title names it.
-          if (single) {
-            return (
-              <div key={group.id} className="srow-group stg-panel" data-group={group.id}>
-                {body.description && <p className="srow-group-description">{body.description}</p>}
-                <div className="srow-rows">{content}</div>
-              </div>
+      <div ref={sectionBody} className="stg-body">
+        <PageHead section={section} />
+        {section.id === 'redaction' && <RedactionCategories />}
+        <div className="stg-groups">
+          {section.groups.map((id) => {
+            const group = SETTINGS_GROUPS.find((candidate) => candidate.id === id)!;
+            const body = bodies[group.id]();
+            const rows = body.rows.filter((node) => node !== null && node !== undefined);
+            // A key this page does not place renders in its group, after the rows the group places.
+            const unplaced = (settings ?? []).filter((setting) => !consumed.has(setting.key) && groupOf(setting.key) === group.id);
+            unplaced.forEach((setting) => consumed.add(setting.key));
+            const content = (
+              <>
+                {rows}
+                {unplaced.map((setting) => <SettingKeyRow key={setting.key} setting={setting} onSaved={onSaved} />)}
+                {body.notes}
+              </>
             );
-          }
-          return (
-            <SettingGroup
-              key={group.id}
-              data-group={group.id}
-              label={group.label}
-              defaultOpen
-              count={(body.count ?? rows.length) + unplaced.length}
-              noun={body.noun}
-              description={body.description}
-            >
-              {content}
-            </SettingGroup>
-          );
-        })}
+            // A section that shows one group is that group: the page title names it.
+            if (single) {
+              return (
+                <div key={group.id} className="srow-group stg-panel" data-group={group.id}>
+                  {body.description && <p className="srow-group-description">{body.description}</p>}
+                  <div className="srow-rows">{content}</div>
+                </div>
+              );
+            }
+            return (
+              <SettingGroup
+                key={group.id}
+                data-group={group.id}
+                label={group.label}
+                defaultOpen
+                count={(body.count ?? rows.length) + unplaced.length}
+                noun={body.noun}
+                description={body.description}
+              >
+                {content}
+              </SettingGroup>
+            );
+          })}
+        </div>
+        <p className="stg-saves">
+          changes save right away, to config.yaml. anything tagged <Chip size="sm" className="srow-tag">{NOT_IN_PEASANT_CONFIG}</Chip> can be changed here, not in peasant config.
+        </p>
+        <p className="stg-pointer">
+          <Users className="stg-pointer-icon" aria-hidden="true" />
+          <span>collective settings live on each collective&apos;s page, <a href={onlineCollectivesHref()} target="_blank" rel="noreferrer">online</a>.</span>
+        </p>
       </div>
-      <p className="stg-saves">
-        changes save right away, to config.yaml. anything tagged <Chip size="sm" className="srow-tag">{NOT_IN_PEASANT_CONFIG}</Chip> can be changed here, not in peasant config.
-      </p>
-      <p className="stg-pointer">
-        <Users className="stg-pointer-icon" aria-hidden="true" />
-        <span>collective settings live on each collective&apos;s page, <a href={onlineCollectivesHref()} target="_blank" rel="noreferrer">online</a>.</span>
-      </p>
     </div>
   );
 }
