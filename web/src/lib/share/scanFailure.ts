@@ -41,10 +41,49 @@ function unwrap(detail: string): string {
   return body || 're-scan to try again.';
 }
 
+/**
+ * Text the line never carries: JSON, a web address, or the online service's
+ * name. A reason with any of them waits behind details. Every other reason
+ * stays in the line, on one line: a refused category or count is the what,
+ * why and fix the redaction invariants keep visible.
+ */
+const NOT_FOR_THE_LINE = /[{}]|https?:\/\/|village|peasant online/i;
+
+/** The failure line's reason: the server's own words, on one line, unless they cannot stand there. */
+function lineReason(message: string): string {
+  const reason = message.replace(/\s+/g, ' ').trim();
+  if (reason === '' || NOT_FOR_THE_LINE.test(reason)) return 'details say why.';
+  return /[.!?]$/.test(reason) ? reason : `${reason}.`;
+}
+
 export function classifyScanFailure(detail: string): ScanFailure {
   const message = unwrap(detail);
   if (STALE_INDEX.some((marker) => detail.includes(marker))) {
     return { kind: 'needs-reindex', line: 'this session needs a quick re-index before it can be published. re-scan runs it on this computer.', message, detail };
   }
-  return { kind: 'other', line: `the scan failed, so publish is off. ${message}`, message, detail };
+  return { kind: 'other', line: `the scan failed, so publish is off. ${lineReason(message)}`, message, detail };
 }
+
+/** Why the one-session re-index stopped, as the client and the server name it. */
+export type ReindexFailureCode =
+  | 'ingest_running'
+  | 'session_ingest_timeout'
+  | 'session_not_recorded'
+  | 'unreachable'
+  | 'other';
+
+const REINDEX_LINES: Record<ReindexFailureCode, string> = {
+  ingest_running: 'another index update is running on this computer. re-scan when it finishes.',
+  session_ingest_timeout: 'updating this session’s index took too long and was stopped. re-scan to try again.',
+  session_not_recorded: 'this session is not recorded on this computer yet.',
+  unreachable: 'the peasant app on this computer stopped answering. re-scan to try again.',
+  other: 'details say why.',
+};
+
+/** The line for a re-index that did not finish; its whole reason goes to details. */
+export function reindexFailureLine(code: ReindexFailureCode): string {
+  return `the re-index did not finish, so publish is off. ${REINDEX_LINES[code]}`;
+}
+
+/** The line for a re-index that finished while the scan still refuses the session. */
+export const REINDEX_DID_NOT_REPAIR = 'the re-index ran, but the scan still refuses this session, so publish is off. details say why.';

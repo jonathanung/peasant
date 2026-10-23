@@ -18,9 +18,9 @@ import {
 import { useRedactionPipeline, type RedactionScanTarget } from '@/lib/share/redactionScan';
 import { DEFAULT_REDACTION_LEVEL } from '@/lib/share/redactions';
 import { guardReviewMatches } from '@/lib/share/reviewMatches';
-import { classifyScanFailure } from '@/lib/share/scanFailure';
+import { classifyScanFailure, REINDEX_DID_NOT_REPAIR, reindexFailureLine, type ReindexFailureCode } from '@/lib/share/scanFailure';
 import { checkingStage, type CheckingStep } from '@/lib/share/checkingStage';
-import { reindexSession } from '@/lib/api/ingest';
+import { reindexSession, SessionReindexError } from '@/lib/api/ingest';
 import { fetchSettings } from '@/lib/api/settings';
 import { AutomaticPublishingError, enableAutomaticPublishing } from './automaticPublishing';
 import { onlineCollectivesHref } from '@/lib/village/links';
@@ -76,7 +76,7 @@ type CollectivesRead =
 /** A step before the push that stopped; retry runs it again. */
 type Blocked = { stoppedAt: string; retry?: () => void };
 /** The one-session re-index that heals a stale local index. */
-type Reindex = { status: 'idle' | 'running' } | { status: 'done'; notes: string[] } | { status: 'failed'; message: string };
+type Reindex = { status: 'idle' | 'running' } | { status: 'done'; notes: string[] } | { status: 'failed'; code: ReindexFailureCode; message: string };
 type AutomaticPreference = { status: 'loading' } | { status: 'ready'; offer: boolean } | { status: 'error'; message: string };
 
 export interface TranscriptPublishOptions {
@@ -389,7 +389,10 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
         setReindex({ status: 'done', notes });
         runScan(true);
       })
-      .catch((error: unknown) => { if (!controller.signal.aborted) setReindex({ status: 'failed', message: messageOf(error) }); })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setReindex({ status: 'failed', code: error instanceof SessionReindexError ? error.code : 'other', message: messageOf(error) });
+      })
       .finally(() => { if (reindexRun.current === controller) reindexRun.current = null; });
   }, [failure?.kind, runScan, sessionId]);
 
@@ -401,9 +404,9 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   const failureShown = failure == null
     ? null
     : failure.kind === 'needs-reindex' && reindex.status === 'failed'
-      ? { line: `the scan failed, so publish is off. ${oneLine(reindex.message)}`, detail: `${reindex.message}\n\n${failure.message}` }
+      ? { line: reindexFailureLine(reindex.code), detail: `${reindex.message}\n\n${failure.message}` }
       : failure.kind === 'needs-reindex' && reindex.status === 'done'
-        ? { line: 'the scan failed, so publish is off. this session’s index could not be repaired on this computer; details say why.', detail: [failure.message, ...reindex.notes].join('\n\n') }
+        ? { line: REINDEX_DID_NOT_REPAIR, detail: [failure.message, ...reindex.notes].join('\n\n') }
         : { line: failure.line, detail: failure.message };
   const scanProp = healing
     ? undefined

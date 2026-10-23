@@ -275,11 +275,11 @@ describe('stale local index', () => {
     const user = userEvent.setup();
     await runStep('open', user);
     await runStep('rescan', user);
-    await waitFor(() => expect(latestDialogProps.scan?.failure).toBe(`the scan failed, so publish is off. ${busy}`), WAIT);
+    await waitFor(() => expect(latestDialogProps.scan?.failure).toBe('the re-index did not finish, so publish is off. another index update is running on this computer. re-scan when it finishes.'), WAIT);
     expect(latestDialogProps.state).toBe('scan-failed');
     expect(latestDialogProps.scan?.failureDetail).toBe(`${busy}\n\n${envelope.error}`);
     expect(latestDialogProps.checking).toBeUndefined();
-    expect(dialog().textContent).toContain(busy);
+    expect(dialog().textContent).toContain('another index update is running on this computer. re-scan when it finishes.');
     expect(dialog().textContent).not.toContain('{"error"');
     expect(primaryButton()).toBeDisabled();
     await runStep('rescan', user);
@@ -295,7 +295,7 @@ describe('stale local index', () => {
     const user = userEvent.setup();
     await runStep('open', user);
     await runStep('rescan', user);
-    await waitFor(() => expect(latestDialogProps.scan?.failure).toBe('the scan failed, so publish is off. this session’s index could not be repaired on this computer; details say why.'), { timeout: 6000 });
+    await waitFor(() => expect(latestDialogProps.scan?.failure).toBe('the re-index ran, but the scan still refuses this session, so publish is off. details say why.'), { timeout: 6000 });
     expect(latestDialogProps.state).toBe('scan-failed');
     expect(latestDialogProps.scan?.failureDetail).toBe(`${envelope.error}\n\n${note}`);
     expect(primaryButton()).toBeDisabled();
