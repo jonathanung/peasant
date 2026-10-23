@@ -99,7 +99,7 @@ function CanvasShimmer({ note }: { note?: string }) {
 
 /** One-line status note (plain and factual — the caption voice). */
 function StatusNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-ink-3">{children}</p>;
+  return <p className="font-mono text-[length:var(--fs-label)] text-ink-3">{children}</p>;
 }
 
 type FetchState = 'idle' | 'loading' | 'done' | 'error';
@@ -408,19 +408,18 @@ export function MapShell({
     >
 
       {/* One-line state notes keep stale or degraded data unambiguous. */}
-      {sessionsError ? <StatusNote>Live conversation updates are unavailable. The code map remains available; retry the Peasant connection to refresh the conversation rail.</StatusNote> : null}
-      {!sessionsError && !sessionsData ? <StatusNote>{connected ? 'Waiting for live conversation updates. The code map is ready independently.' : CONNECTION.staleNote}</StatusNote> : null}
+      {sessionsError ? <StatusNote>live updates stopped. the map still works; reload the page to refresh the conversation list.</StatusNote> : null}
+      {!sessionsError && !sessionsData ? <StatusNote>{connected ? 'waiting for live updates. the map is ready.' : CONNECTION.staleNote}</StatusNote> : null}
       {!sessionsError && !connected && sessionsData && <StatusNote>{CONNECTION.staleNote}</StatusNote>}
       {graph && !graph.repoFound && (
         <StatusNote>
-          The project path didn&rsquo;t resolve to a git repository. The map is built from
-          recorded activity.
+          this folder isn&rsquo;t a git repository, so the map shows recorded work only.
         </StatusNote>
       )}
       {graph && graph.repoFound && graph.parsedLanguages.length === 0 && (
         <StatusNote>
-          Structure parsing is not yet available for this project&rsquo;s languages. The map
-          is built from recorded activity.
+          peasant can&rsquo;t read this project&rsquo;s languages yet, so the map shows recorded
+          work only.
         </StatusNote>
       )}
 

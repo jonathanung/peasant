@@ -204,7 +204,7 @@ describe('MapShell — one map without lenses', () => {
   ws.errorCode = 'selection_visibility';
     render(<MapShell projectHash={PROJECT_HASH} projectName={PROJECT} />);
     expect(await screen.findByTestId('map-canvas')).toBeInTheDocument();
-    expect(screen.getByText(/Live conversation updates are unavailable/)).toBeInTheDocument();
+    expect(screen.getByText(/live updates stopped/)).toBeInTheDocument();
   });
 
   it('shows the shimmer (never a blank screen) while the graph loads', async () => {
@@ -271,7 +271,7 @@ describe('MapShell — one map without lenses', () => {
     render(<MapShell projectHash={PROJECT_HASH} projectName={PROJECT} />);
     const node = await screen.findByTestId('map-canvas');
     expect(
-      screen.getByText(/Structure parsing is not yet available for this project’s languages/),
+      screen.getByText(/peasant can’t read this project’s languages yet/),
     ).toBeInTheDocument();
     // One view, no lens fallback: nothing to draw as edges, nodes still render.
     expect(node).toHaveAttribute('data-structure-edges', '0');
