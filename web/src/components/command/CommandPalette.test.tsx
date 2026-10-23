@@ -12,8 +12,8 @@ import {
   type Command,
 } from './CommandPalette';
 import { projectViewerStateFixture } from '@/components/picker/projectViewerStateFixtures';
-import { loadShellHeaderManifest, paletteFailures } from '../../../scripts/visual/shell-header-manifest.mjs';
-import { SHELL_HEADER_CASES } from '@/test/fixtures/shellHeaderCases';
+import { loadShellChromeManifest, paletteFailures } from '../../../scripts/visual/shell-chrome-manifest.mjs';
+import { SHELL_CHROME_CASES } from '@/test/fixtures/shellChromeCases';
 
 const push = vi.fn();
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
@@ -28,7 +28,7 @@ vi.mock('@/hooks/useTheme', () => ({ useTheme: () => ({ theme: 'light', toggle }
 // also proves an experimental server brings no route-only section back.
 const CODE_MAP_ENABLED: ReadonlySet<string> = new Set(['code_map_navigation_v1']);
 let capabilities: ReadonlySet<string> = CODE_MAP_ENABLED;
-const shellManifest = loadShellHeaderManifest();
+const shellManifest = loadShellChromeManifest();
 vi.mock('@/contexts/ServerCapabilitiesContext', () => ({
   useServerCapabilities: () => ({
     status: 'ready',
@@ -172,7 +172,7 @@ describe('CommandPalette', () => {
   // The palette links to what the header links to and nothing more: no
   // per-project jumps into changes or the code map, and no "go to" command for
   // a route-only section — with or without the code-map capability.
-  it.each(SHELL_HEADER_CASES.paletteCapabilities.map((set) => [set.name, set.tokens] as const))('holds the shell manifest palette rules with capability set %s advertised', async (_name, tokens) => {
+  it.each(SHELL_CHROME_CASES.paletteCapabilities.map((set) => [set.name, set.tokens] as const))('holds the shell manifest palette rules with capability set %s advertised', async (_name, tokens) => {
     capabilities = new Set(tokens);
     open();
     // Let any first-open request settle before reading the commands.

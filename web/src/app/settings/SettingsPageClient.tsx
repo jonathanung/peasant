@@ -194,7 +194,7 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
               <span className="srow-label">your collectives</span>
               <span className="srow-help">who you publish to. you join and manage them online.</span>
             </span>
-            <a className="btn btn-secondary btn-sm" href={onlineCollectivesHref(auth.villageUrl)} target="_blank" rel="noreferrer">
+            <a className="btn btn-secondary btn-sm" href={onlineCollectivesHref()} target="_blank" rel="noreferrer">
               <ExternalLink aria-hidden="true" />open online
             </a>
           </div>
@@ -419,16 +419,19 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
       </p>
       <p className="stg-pointer">
         <Users className="stg-pointer-icon" aria-hidden="true" />
-        <span>collective settings live on each collective&apos;s page, <a href={onlineCollectivesHref(auth?.villageUrl)} target="_blank" rel="noreferrer">online</a>.</span>
+        <span>collective settings live on each collective&apos;s page, <a href={onlineCollectivesHref()} target="_blank" rel="noreferrer">online</a>.</span>
       </p>
     </div>
   );
 }
 
-/** The links between the settings sections. */
+/**
+ * The links between the settings sections, for a phone: from 768px up the
+ * sidebar lists them (settings.css hides this strip there).
+ */
 function SectionNav({ current }: { current: SettingsSection }) {
   return (
-    <nav className="tabs stg-sections" aria-label="settings">
+    <nav className="tabs stg-sections" aria-label="settings sections">
       {SETTINGS_SECTIONS.map((section) => (
         <Link
           key={section.id}

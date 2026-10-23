@@ -161,7 +161,7 @@ describe('settings page groups', () => {
     expect(SETTINGS_SECTIONS.map(({ id, label, groups }) => ({ id, name: label, groups: [...groups] }))).toEqual(sections.map(({ id, name, groups }) => ({ id, name, groups })));
     for (const section of sections) {
       await mountPage(section.id as SettingsSectionId);
-      const nav = screen.getByRole('navigation', { name: 'settings' });
+      const nav = screen.getByRole('navigation', { name: 'settings sections' });
       expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(sections.map(({ name }) => name));
       expect(within(nav).getByRole('link', { name: section.name })).toHaveAttribute('aria-current', 'page');
       expect(within(nav).getByRole('link', { name: section.name })).toHaveAttribute('href', `/settings?section=${section.id}`);

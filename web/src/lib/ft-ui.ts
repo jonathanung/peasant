@@ -90,6 +90,10 @@ import {
   PublishDialog as FtPublishDialog,
   PUBLISH_STATES as FT_PUBLISH_STATES,
   PUBLISH_DIALOG_STATES as FT_PUBLISH_DIALOG_STATES,
+  // the shared app sidebar
+  AppSidebar as FtAppSidebar,
+  AppSidebarLayout as FtAppSidebarLayout,
+  APP_SIDEBAR_APPS as FT_APP_SIDEBAR_APPS,
 } from '@peasant-labs/fairtrade/ui';
 
 /**
@@ -870,3 +874,72 @@ export const PUBLISH_STATES = FT_PUBLISH_STATES;
 export const PUBLISH_DIALOG_STATES = FT_PUBLISH_DIALOG_STATES;
 export const PublishBar = FtPublishBar;
 export const PublishDialog = FtPublishDialog as unknown as ComponentType<PublishDialogProps>;
+
+// ---------------------------------------------------------------------------
+// The shared app sidebar, and the layout that places it beside the page.
+// ---------------------------------------------------------------------------
+
+/** One entry of the sidebar's online / local / docs switcher. */
+export interface AppSidebarApp {
+  id: string;
+  label: string;
+  href?: string;
+  target?: string;
+  rel?: string;
+}
+
+/** One nav row: a link with `href`, a button with only `onSelect`. */
+export interface AppSidebarItem {
+  id: string;
+  /** Rendered as given, never lowercased. */
+  label: string;
+  href?: string;
+  onSelect?: (id: string) => void;
+  icon?: ComponentType<{ 'aria-hidden'?: boolean | 'true' | 'false' }>;
+  swatch?: string;
+  /** The item leaves this app: a trailing marker and a spoken suffix. */
+  external?: boolean;
+  title?: string;
+  depth?: 0 | 1;
+  target?: string;
+  rel?: string;
+}
+
+export interface AppSidebarGroup {
+  id: string;
+  /** A visible label, shown while the sidebar is expanded. */
+  label?: string;
+  /** The nav landmark's name; defaults to the label, then the id. */
+  ariaLabel?: string;
+  items: AppSidebarItem[];
+}
+
+export interface AppSidebarProps {
+  app: string;
+  apps?: readonly AppSidebarApp[];
+  groups: readonly AppSidebarGroup[];
+  currentId?: string;
+  homeHref?: string;
+  brand?: string;
+  account?: { handle: string; href?: string };
+  accountSlot?: ReactNode;
+  /** A router link; receives href, className, aria-current, title, target, rel, onClick and children. */
+  LinkComponent?: ComponentType<{ href: string } & AnchorHTMLAttributes<HTMLAnchorElement>>;
+  storageKey?: string | null;
+  defaultCollapsed?: boolean;
+  defaultWidth?: number;
+  minWidth?: number;
+  maxWidth?: number;
+  onCollapsedChange?: (collapsed: boolean) => void;
+  label?: string;
+  className?: string;
+}
+export const AppSidebar = FtAppSidebar as unknown as ComponentType<AppSidebarProps>;
+
+export interface AppSidebarLayoutProps {
+  sidebar: ReactNode;
+  children: ReactNode;
+  className?: string;
+}
+export const AppSidebarLayout = FtAppSidebarLayout as unknown as ComponentType<AppSidebarLayoutProps>;
+export const APP_SIDEBAR_APPS = FT_APP_SIDEBAR_APPS as unknown as readonly AppSidebarApp[];

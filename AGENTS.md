@@ -282,21 +282,26 @@ the server serves the newly built assets before you trust a screenshot or a comp
   `home` leads the nav instead. Do not rename or delete the label or the routes silently.
 - `/share` is the canonical publish route: one-session links open the transcript popup;
   multi-session and wizard-step links retain the wizard. It stays
-  outside the fairtrade section registry, and the local header does not link to it. `LOCAL_APP_SECTIONS` in fairtrade owns the registry:
-  `home | settings` in the nav, then `analytics | changes | code map` by route only.
+  outside the fairtrade section registry, and the local sidebar does not link to it. `LOCAL_APP_SECTIONS` in fairtrade owns the registry:
+  `home | online | settings` in the nav (`online` is the label of the `village` id, whose route stays
+  `/village`), then `analytics | changes | code map` by route only.
   `GRAPH_APP_SECTIONS` is its deprecated alias with the earlier three-entry value. Derive the nav
   and routes from the registry (`web/src/lib/nav/sections.ts`) and fail loudly on an unmapped id.
-  A nav section this app has no page for stays out of the header until its page ships, so the
-  header never carries a dead link. Nothing in the header or the command palette links to a
+  A nav section this app has no page for stays out of the sidebar until its page ships, so the
+  sidebar never carries a dead link. Nothing in the sidebar or the command palette links to a
   route-only section; its routes still resolve by URL. Do not add a `/push` alternate route.
-- The local header is one row: the `peasant` home link, search (⌘K), the nav sections other than
-  home, and an icon-only theme toggle. It carries no connection indicator. When the local app is
-  unreachable (`GET /api/v1/health` fails or the WebSocket stays down), fairtrade's
-  `LocalOfflineBanner` shows at the top of the page under the header, with the start command and
-  `try again`. Its copy says the app on this computer is not running and that the internet is
-  fine; never replace it with copy that reads as an internet outage. `web/scripts/visual/testdata/shell-header.yaml` is the
-  required-name manifest for the header, and the component tests and the mounted shell gates
-  read it.
+- The local chrome is fairtrade's `AppSidebar` (`web/src/components/LocalSidebar.tsx`): the
+  `peasant` home link, the registry's nav sections, a `collectives` link that opens online, search
+  (⌘K) and the theme toggle in their own group, the app switcher, and the account row while this
+  computer is signed in. On a settings page it lists the settings sections under a way back home.
+  Below 768px it is a top bar whose menu opens the same nav as a drawer. It carries no connection
+  indicator. When the local app is unreachable (`GET /api/v1/health` fails or the WebSocket stays
+  down), fairtrade's `LocalOfflineBanner` shows at the top of the page column, in the page flow
+  (pinned there where the screen has room), with the start command and `try again`. Its copy says
+  the app on this computer is not running and that the internet is fine; never replace it with copy
+  that reads as an internet outage. `web/scripts/visual/testdata/shell-chrome.yaml` is the
+  required-name manifest for the sidebar, and the component tests and the mounted shell gates read
+  it.
 - When you replace the share-bridge UI, keep these semantics: auto-scan of uncached selections;
   caching of success and of honest failure, keyed by `(level, session)`, across navigation;
   explicit re-scan; continuation disabled when any session failed; fail-closed behavior on a

@@ -2,4 +2,3 @@ navRoutes:
   - [home, /]
   - [village, /village]
   - [settings, /settings]
-headerIds: [village, settings]

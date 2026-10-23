@@ -1,6 +1,6 @@
 /* The local shell manifest: loader and checks shared by the component tests and the mounted gates.
 
-   testdata/shell-header.yaml names what the local app header must carry, what must not come
+   testdata/shell-chrome.yaml names what the local app's sidebar must carry, what must not come
    back, which route-only sections must still resolve, which palette commands are forbidden or
    required, and what the offline notice's live region announces. This module is the one reader
    of that file. The DOM checks are self-contained
@@ -14,12 +14,12 @@ import YAML from 'yaml'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 export const WEB_ROOT = resolve(HERE, '..', '..')
-export const SHELL_HEADER_FIXTURE = join(HERE, 'testdata', 'shell-header.yaml')
+export const SHELL_CHROME_FIXTURE = join(HERE, 'testdata', 'shell-chrome.yaml')
 
 /** The names the manifest must carry. A row deleted from the fixture fails the loader. */
 export const REQUIRED_NAMES = Object.freeze({
-  show: Object.freeze(['brand', 'search', 'theme', 'settings', 'village']),
-  hide: Object.freeze(['connection-pill', 'share-button', 'section-nav']),
+  show: Object.freeze(['brand', 'home', 'search', 'theme', 'settings', 'village']),
+  hide: Object.freeze(['connection-pill', 'share-button', 'section-nav', 'header-row']),
   routes: Object.freeze(['/analytics', '/review', '/map']),
   paletteForbid: Object.freeze(['proj-changes:', 'proj-map:']),
   paletteRequire: Object.freeze(['nav:/', 'nav:/village', 'action:theme']),
@@ -31,11 +31,11 @@ export const REQUIRED_NAMES = Object.freeze({
  * @typedef {{ mount: string, project?: boolean }} RouteItem
  * @typedef {{ forbid: string[], require: string[] }} PaletteRules
  * @typedef {{ stopped: string, stillStopped: string, back: string }} Announcements
- * @typedef {{ show: Record<string, ShowItem>, hide: Record<string, HideItem>, routes: Record<string, RouteItem>, palette: PaletteRules, announcements: Announcements }} ShellHeaderManifest
+ * @typedef {{ show: Record<string, ShowItem>, hide: Record<string, HideItem>, routes: Record<string, RouteItem>, palette: PaletteRules, announcements: Announcements }} ShellChromeManifest
  */
 
 const fail = (what) => {
-  throw new Error(`${SHELL_HEADER_FIXTURE}: ${what}`)
+  throw new Error(`${SHELL_CHROME_FIXTURE}: ${what}`)
 }
 
 const record = (value, path) => {
@@ -70,9 +70,9 @@ const requireNames = (section, names, path) => {
  * Parses and validates the manifest. Strict: unknown fields, missing required names and
  * malformed rows all throw.
  * @param {string} [source]
- * @returns {ShellHeaderManifest}
+ * @returns {ShellChromeManifest}
  */
-export function loadShellHeaderManifest(source = readFileSync(SHELL_HEADER_FIXTURE, 'utf8')) {
+export function loadShellChromeManifest(source = readFileSync(SHELL_CHROME_FIXTURE, 'utf8')) {
   const document = YAML.parseDocument(source, { strict: true, uniqueKeys: true })
   if (document.errors.length) fail(`invalid YAML: ${document.errors.map((error) => error.message).join('; ')}`)
   const root = record(document.toJS(), 'root')
@@ -128,13 +128,13 @@ export function loadShellHeaderManifest(source = readFileSync(SHELL_HEADER_FIXTU
   exactKeys(announcements, ['stopped', 'stillStopped', 'back'], ['stopped', 'stillStopped', 'back'], 'announcements')
   for (const key of ['stopped', 'stillStopped', 'back']) nonEmptyString(announcements[key], `announcements.${key}`)
 
-  return /** @type {ShellHeaderManifest} */ (root)
+  return /** @type {ShellChromeManifest} */ (root)
 }
 
 /**
  * Per show item, whether the page it links to exists in this web app's source. An item with no
  * `page` is always expected.
- * @param {ShellHeaderManifest} manifest
+ * @param {ShellChromeManifest} manifest
  * @returns {Record<string, boolean>}
  */
 export function shippedItems(manifest, webRoot = WEB_ROOT) {
@@ -153,16 +153,16 @@ export function routePageFile(path, webRoot = WEB_ROOT) {
 }
 
 /**
- * Checks the mounted header against the manifest and returns every failure (empty when it holds).
+ * Checks the mounted sidebar against the manifest and returns every failure (empty when it holds).
  * Self-contained so it can run in a browser via page.evaluate.
- * @param {ShellHeaderManifest} manifest
+ * @param {ShellChromeManifest} manifest
  * @param {{ theme: 'light' | 'dark', shipped: Record<string, boolean> }} context
  * @returns {string[]}
  */
-export function headerFailures(manifest, context) {
+export function chromeFailures(manifest, context) {
   const failures = []
-  const header = document.querySelector('header')
-  if (!header) return ['no <header> is mounted']
+  const chrome = document.querySelector('.asb')
+  if (!chrome) return ['no sidebar (.asb) is mounted']
   const textOf = (element) => (element.textContent || '').replace(/\s+/g, ' ').trim()
 
   for (const [name, item] of Object.entries(manifest.show)) {
@@ -180,26 +180,28 @@ export function headerFailures(manifest, context) {
     }
     if (item.labels) {
       const expected = item.labels[context.theme]
-      const actual = element.getAttribute('aria-label')
-      if (actual !== expected) failures.push(`${name}: labelled ${JSON.stringify(actual)} in the ${context.theme} theme, expected ${JSON.stringify(expected)}`)
+      const actual = element.getAttribute('aria-label') ?? textOf(element)
+      if (actual !== expected) failures.push(`${name}: named ${JSON.stringify(actual)} in the ${context.theme} theme, expected ${JSON.stringify(expected)}`)
     }
     if (item.icon && !element.querySelector('svg')) failures.push(`${name}: has no leading glyph`)
   }
 
-  const headerText = textOf(header)
+  const chromeText = textOf(chrome)
   for (const [name, item] of Object.entries(manifest.hide)) {
     if (item.selector && document.querySelector(item.selector)) failures.push(`${name}: present (${item.selector})`)
     for (const text of item.text || []) {
-      if (headerText.includes(text)) failures.push(`${name}: the header reads ${JSON.stringify(text)}`)
+      if (chromeText.includes(text)) failures.push(`${name}: the sidebar reads ${JSON.stringify(text)}`)
     }
   }
 
-  // Nothing outside the page body may link to a route-only section: not the header, the offline
+  // Nothing outside the page body may link to a route-only section: not the sidebar, the offline
   // notice, or any nav mounted beside them. The page body (<main>) may (a code-map breadcrumb links
   // to /map), and so may nothing in an open dialog (the palette is checked on its own).
   const hrefs = [...document.querySelectorAll('a[href]')]
     .filter((link) => !link.closest('main') && !link.closest('[role="dialog"]'))
-    .map((link) => new URL(link.getAttribute('href'), 'http://local.invalid').pathname.replace(/\/+$/, '') || '/')
+    .map((link) => new URL(link.getAttribute('href'), 'http://local.invalid'))
+    .filter((url) => url.origin === 'http://local.invalid')
+    .map((url) => url.pathname.replace(/\/+$/, '') || '/')
   for (const path of Object.keys(manifest.routes)) {
     if (hrefs.some((href) => href === path || href.startsWith(`${path}/`))) failures.push(`route ${path}: the persistent chrome links to it`)
   }
@@ -209,7 +211,7 @@ export function headerFailures(manifest, context) {
 /**
  * Checks the open command palette's commands against the manifest's palette rules and returns
  * every failure. Self-contained so it can run in a browser via page.evaluate.
- * @param {ShellHeaderManifest} manifest
+ * @param {ShellChromeManifest} manifest
  * @returns {string[]}
  */
 export function paletteFailures(manifest) {
@@ -234,40 +236,76 @@ export function paletteFailures(manifest) {
    mounted gates run them. Self-contained for page.evaluate like the checks above. */
 
 /**
- * Checks the header's geometry: one row of fairtrade's --nav-h at the current width, no horizontal
- * overflow of the header itself (the page body's width is its own page's concern), and every item the manifest expects visible, inside the header row, and reachable by a
- * pointer (the element at its centre is the item or inside it). Returns every failure.
- * @param {ShellHeaderManifest} manifest
+ * Checks the sidebar's geometry. At 768px and up (fairtrade's sidebar breakpoint) the sidebar is a
+ * column on the left, from the top of the screen to its bottom, and every item the manifest expects
+ * is visible inside it and reachable by a pointer (the element at its centre is the item or inside
+ * it). Below that it is a top bar of fairtrade's --nav-h across the screen, holding the brand and
+ * the menu button; its items live in the drawer, and are held to the same rules while the drawer is
+ * open. Nothing in the chrome overflows sideways. Returns every failure.
+ * @param {ShellChromeManifest} manifest
  * @param {{ shipped: Record<string, boolean> }} context
  * @returns {string[]}
  */
-export function headerGeometryFailures(manifest, context) {
+export function chromeGeometryFailures(manifest, context) {
   const failures = []
-  const header = document.querySelector('header')
-  if (!header) return ['no <header> is mounted']
-  const navHeight = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'))
-  const box = header.getBoundingClientRect()
-  if (!Number.isFinite(navHeight) || navHeight <= 0) failures.push('--nav-h is not defined on the root')
-  else if (Math.abs(box.height - navHeight) > 0.5) failures.push(`the header is ${box.height}px tall, not one ${navHeight}px row`)
-  if (box.left < 0 || box.right > window.innerWidth + 0.5) failures.push(`the header spans ${box.left}..${box.right}px in a ${window.innerWidth}px viewport`)
-  if (header.scrollWidth > header.clientWidth) failures.push(`the header overflows: scrollWidth ${header.scrollWidth} > clientWidth ${header.clientWidth}`)
-
-  for (const [name, item] of Object.entries(manifest.show)) {
-    if (context.shipped[name] === false) continue
-    const element = document.querySelector(item.selector)
-    if (!element) continue // headerFailures reports a missing item
+  const chrome = document.querySelector('.asb')
+  if (!chrome) return ['no sidebar (.asb) is mounted']
+  const panel = chrome.querySelector('.asb-panel')
+  const bar = chrome.querySelector('.asb-bar')
+  const wide = window.matchMedia('(min-width: 768px)').matches
+  const drawerOpen = chrome.getAttribute('data-drawer-open') === 'true'
+  const visible = (element) => {
+    if (!element) return false
     const rect = element.getBoundingClientRect()
     const style = getComputedStyle(element)
-    if (style.display === 'none' || style.visibility === 'hidden' || rect.width === 0 || rect.height === 0) {
-      failures.push(`${name}: not visible`)
-      continue
-    }
-    if (rect.left < 0 || rect.right > window.innerWidth + 0.5) failures.push(`${name}: clipped horizontally (${rect.left}..${rect.right}px)`)
-    if (rect.top < box.top - 0.5 || rect.bottom > box.bottom + 0.5) failures.push(`${name}: outside the header row (${rect.top}..${rect.bottom}px vs ${box.top}..${box.bottom}px)`)
+    return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0
+  }
+  const reachable = (name, element) => {
+    const rect = element.getBoundingClientRect()
+    if (rect.left < -0.5 || rect.right > window.innerWidth + 0.5) failures.push(`${name}: clipped horizontally (${rect.left}..${rect.right}px)`)
     const x = Math.max(0, Math.min(window.innerWidth - 1, rect.left + rect.width / 2))
     const y = Math.max(0, Math.min(window.innerHeight - 1, rect.top + rect.height / 2))
     const hit = document.elementFromPoint(x, y)
     if (!hit || (hit !== element && !element.contains(hit))) failures.push(`${name}: covered at its centre by ${hit ? hit.tagName.toLowerCase() + (hit.className ? '.' + String(hit.className).split(/\s+/).join('.') : '') : 'nothing'}`)
+  }
+  if (wide) {
+    if (!visible(panel)) return ['the sidebar column is not visible on a wide screen']
+    const box = panel.getBoundingClientRect()
+    if (Math.abs(box.left) > 0.5) failures.push(`the sidebar starts ${box.left}px from the left edge`)
+    if (Math.abs(box.top) > 0.5 || Math.abs(box.bottom - window.innerHeight) > 1) failures.push(`the sidebar spans ${box.top}..${box.bottom}px of a ${window.innerHeight}px screen`)
+    if (visible(bar)) failures.push('the phone top bar shows on a wide screen')
+  } else {
+    if (!visible(bar)) return ['the top bar is not visible on a narrow screen']
+    const navHeight = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'))
+    const box = bar.getBoundingClientRect()
+    if (!Number.isFinite(navHeight) || navHeight <= 0) failures.push('--nav-h is not defined on the root')
+    else if (Math.abs(box.height - navHeight) > 0.5) failures.push(`the top bar is ${box.height}px tall, not one ${navHeight}px row`)
+    if (Math.abs(box.top) > 0.5 || box.left < -0.5 || box.right > window.innerWidth + 0.5) failures.push(`the top bar spans ${box.left}..${box.right}px from ${box.top}px in a ${window.innerWidth}px screen`)
+    for (const [name, selector] of [['brand', '.asb-bar .asb-brand'], ['menu', '.asb-bar .asb-menu']]) {
+      const element = chrome.querySelector(selector)
+      if (!visible(element)) failures.push(`${name}: not visible in the top bar`)
+      else if (!drawerOpen) reachable(name, element)
+    }
+    if (!drawerOpen) {
+      if (visible(panel)) failures.push('the drawer shows while closed')
+      return failures
+    }
+    if (!visible(panel)) return [...failures, 'the drawer is open but not visible']
+  }
+  if (panel.scrollWidth > panel.clientWidth + 0.5) failures.push(`the sidebar overflows: scrollWidth ${panel.scrollWidth} > clientWidth ${panel.clientWidth}`)
+  for (const [name, item] of Object.entries(manifest.show)) {
+    if (context.shipped[name] === false) continue
+    const element = document.querySelector(item.selector)
+    if (!element) continue // chromeFailures reports a missing item
+    if (!visible(element)) {
+      failures.push(`${name}: not visible`)
+      continue
+    }
+    const rect = element.getBoundingClientRect()
+    const box = panel.getBoundingClientRect()
+    if (rect.left < box.left - 0.5 || rect.right > box.right + 0.5) failures.push(`${name}: outside the sidebar (${rect.left}..${rect.right}px vs ${box.left}..${box.right}px)`)
+    // A tall list may scroll inside the column; an item below the fold is not covered, only unseen.
+    if (rect.bottom <= window.innerHeight && rect.top >= 0) reachable(name, element)
   }
   return failures
 }
@@ -291,37 +329,39 @@ export function loadNoticePinnedQuery(fixturePath = APP_SHELL_GEOMETRY_FIXTURE) 
 }
 
 /**
- * Checks that the page body clears the chrome above it. Only the one-row header is fixed. The
- * offline notice, while it shows, sits directly under the header: pinned there (position:fixed)
+ * Checks that the page body clears the chrome above it. On a wide screen nothing sits above the
+ * page (the sidebar is a column beside it); on a narrow one the sidebar's top bar does. The offline
+ * notice, while it shows, sits in the page flow directly under that: pinned there (position:sticky)
  * where the screen has room — `pinnedQuery`, the notice-pinned variant (loadNoticePinnedQuery) —
- * and at the top of the page, scrolling with it, anywhere else (so on a small or zoomed screen it
- * is never fixed). <main>'s top padding must equal the header height plus the notice height
- * (--app-header-height), or the header height alone when no notice shows. The root's
- * scroll-padding-top keeps focused elements clear of what is fixed: the header plus the notice
- * where it is pinned, the header alone elsewhere. <main> is not focusable at rest (no tabindex): a
- * click in the page must never make it the focus. Returns every failure and the measured fields.
- * Self-contained for page.evaluate.
+ * and scrolling with the page anywhere else (never fixed, never sticky). <main> starts right after
+ * the chrome and the notice, with no top padding of its own. The root's scroll-padding-top keeps
+ * focused elements clear of what stays on screen: the pinned notice where it is pinned, the top bar
+ * (fairtrade's --nav-h) elsewhere. <main> is not focusable at rest (no tabindex): a click in the page
+ * must never make it the focus. Returns every failure and the measured fields. Self-contained for
+ * page.evaluate.
  * @param {string} pinnedQuery
- * @returns {{ failures: string[], chrome: number, header: number, notice: number, mainPaddingTop: number, scrollPaddingTop: number,
- *   noticeShown: boolean, pinnedViewport: boolean, noticeFixed: boolean, noticeTop: number | null, documentTop: number | null }}
+ * @returns {{ failures: string[], chrome: number, header: number, notice: number, mainTop: number, scrollPaddingTop: number,
+ *   noticeShown: boolean, pinnedViewport: boolean, noticePinned: boolean, noticeTop: number | null, documentTop: number | null }}
  */
 export function chromeClearance(pinnedQuery) {
   const failures = []
-  const header = document.querySelector('header')
+  const chrome = document.querySelector('.asb')
   const main = document.querySelector('main')
   if (typeof pinnedQuery !== 'string' || !pinnedQuery.startsWith('(')) {
-    return { failures: [`chromeClearance needs the notice-pinned media query, got ${JSON.stringify(pinnedQuery)}`], chrome: 0, header: 0, notice: 0, mainPaddingTop: 0, scrollPaddingTop: 0, noticeShown: false, pinnedViewport: false, noticeFixed: false, noticeTop: null, documentTop: null }
+    return { failures: [`chromeClearance needs the notice-pinned media query, got ${JSON.stringify(pinnedQuery)}`], chrome: 0, header: 0, notice: 0, mainTop: 0, scrollPaddingTop: 0, noticeShown: false, pinnedViewport: false, noticePinned: false, noticeTop: null, documentTop: null }
   }
   const pinnedViewport = window.matchMedia(pinnedQuery).matches
-  const empty = { chrome: 0, header: 0, notice: 0, mainPaddingTop: 0, scrollPaddingTop: 0, noticeShown: false, pinnedViewport, noticeFixed: false, noticeTop: null, documentTop: null }
-  if (!header || !main) return { failures: ['the header or <main> is not mounted'], ...empty }
-  const headerHeight = header.getBoundingClientRect().height
-  if (getComputedStyle(header).position !== 'fixed') failures.push(`the header is position:${getComputedStyle(header).position}, not fixed`)
+  const empty = { chrome: 0, header: 0, notice: 0, mainTop: 0, scrollPaddingTop: 0, noticeShown: false, pinnedViewport, noticePinned: false, noticeTop: null, documentTop: null }
+  if (!chrome || !main) return { failures: ['the sidebar or <main> is not mounted'], ...empty }
+  const bar = chrome.querySelector('.asb-bar')
+  const barShown = !!bar && getComputedStyle(bar).display !== 'none'
+  const headerHeight = barShown ? bar.getBoundingClientRect().height : 0
+  const navHeight = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'))
   const section = document.querySelector('section[aria-label="peasant is not running"]')
   // The host wrapper around fairtrade's banner is what the page positions and measures.
   const notice = section ? section.parentElement : null
   let noticeHeight = 0
-  let noticeFixed = false
+  let noticePinned = false
   let noticeTop = null
   let documentTop = null
   if (notice) {
@@ -329,34 +369,33 @@ export function chromeClearance(pinnedQuery) {
     noticeHeight = box.height
     noticeTop = box.top
     documentTop = box.top + window.scrollY
-    let fixedAncestor = ''
+    const position = getComputedStyle(notice).position
+    noticePinned = position === 'sticky'
+    if (chrome.contains(notice)) failures.push('the offline notice is inside the sidebar')
     for (let el = notice; el && el !== document.documentElement; el = el.parentElement) {
-      if (getComputedStyle(el).position === 'fixed') { fixedAncestor = el === notice ? 'itself' : el.tagName.toLowerCase(); break }
+      if (getComputedStyle(el).position === 'fixed') { failures.push(`the notice rides in a fixed ${el === notice ? 'box of its own' : el.tagName.toLowerCase()}`); break }
     }
-    noticeFixed = fixedAncestor === 'itself'
-    if (header.contains(notice)) failures.push('the offline notice is inside the header')
-    if (pinnedViewport) {
-      if (!noticeFixed) failures.push(`on a ${window.innerWidth}×${window.innerHeight} screen the notice must be pinned under the header, but it is ${fixedAncestor ? `inside a fixed ${fixedAncestor}` : 'not fixed'}`)
-      else if (Math.abs(box.top - headerHeight) > 1) failures.push(`the pinned notice starts ${box.top}px down the screen, not at the ${headerHeight}px header bottom`)
-    } else {
-      if (fixedAncestor) failures.push(`on a ${window.innerWidth}×${window.innerHeight} screen the notice must scroll with the page, but ${fixedAncestor === 'itself' ? 'it is' : `it rides in a fixed ${fixedAncestor}`} fixed`)
-      if (Math.abs(documentTop - headerHeight) > 1) failures.push(`the notice starts ${documentTop}px down the page, not at the ${headerHeight}px header bottom`)
-    }
+    if (pinnedViewport && !noticePinned) failures.push(`on a ${window.innerWidth}×${window.innerHeight} screen the notice must be pinned (sticky) at the top of the page, but it is position:${position}`)
+    if (!pinnedViewport && noticePinned) failures.push(`on a ${window.innerWidth}×${window.innerHeight} screen the notice must scroll with the page, but it is sticky`)
+    // Pinned, it rides at the chrome's bottom on screen however far the page is scrolled; in the
+    // page flow, it starts there on the page.
+    if (noticePinned && Math.abs(box.top - headerHeight) > 1) failures.push(`the pinned notice sits ${box.top}px down the screen, not at the ${headerHeight}px chrome bottom`)
+    if (!noticePinned && Math.abs(documentTop - headerHeight) > 1) failures.push(`the notice starts ${documentTop}px down the page, not at the ${headerHeight}px chrome bottom`)
   }
-  const mainPaddingTop = Number.parseFloat(getComputedStyle(main).paddingTop)
+  const mainTop = main.getBoundingClientRect().top + window.scrollY
   const expected = headerHeight + noticeHeight
-  if (Math.abs(mainPaddingTop - expected) > 1) {
-    failures.push(`<main> clears ${mainPaddingTop}px but the header${notice ? ' plus the notice' : ''} is ${expected}px`)
-  }
-  // What stays on screen while the page scrolls: the header, plus the notice only where pinned.
-  const fixedHeight = headerHeight + (pinnedViewport ? noticeHeight : 0)
+  if (Math.abs(mainTop - expected) > 1) failures.push(`<main> starts ${mainTop}px down the page, but the chrome${notice ? ' plus the notice' : ''} is ${expected}px`)
+  const mainPadding = Number.parseFloat(getComputedStyle(main).paddingTop)
+  if (mainPadding > 0.5) failures.push(`<main> pads its top by ${mainPadding}px; nothing fixed sits over it`)
+  // What stays on screen while the page scrolls: the pinned notice where pinned, the top bar elsewhere.
+  const fixedHeight = pinnedViewport ? noticeHeight : navHeight
   const scrollPaddingTop = Number.parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop)
   if (!Number.isFinite(scrollPaddingTop) || Math.abs(scrollPaddingTop - fixedHeight) > 1) {
-    failures.push(`the root's scroll-padding-top is ${getComputedStyle(document.documentElement).scrollPaddingTop}, but ${Math.round(fixedHeight)}px stays fixed at the top (the header${pinnedViewport && notice ? ' plus the pinned notice' : ''}), so focused elements can scroll under it`)
+    failures.push(`the root's scroll-padding-top is ${getComputedStyle(document.documentElement).scrollPaddingTop}, but ${Math.round(fixedHeight)}px stays on screen at the top (${pinnedViewport ? 'the pinned notice' : 'the top bar'}), so focused elements can scroll under it`)
   }
   // The notice's focus move is the one moment <main> may carry a tabindex (it drops it on blur).
   if (main.hasAttribute('tabindex') && document.activeElement !== main) {
     failures.push(`<main> carries tabindex="${main.getAttribute('tabindex')}" at rest, so a click in the page would focus it`)
   }
-  return { failures, chrome: expected, header: headerHeight, notice: noticeHeight, mainPaddingTop, scrollPaddingTop, noticeShown: !!notice, pinnedViewport, noticeFixed, noticeTop, documentTop }
+  return { failures, chrome: expected, header: headerHeight, notice: noticeHeight, mainTop, scrollPaddingTop, noticeShown: !!notice, pinnedViewport, noticePinned, noticeTop, documentTop }
 }

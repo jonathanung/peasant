@@ -9,7 +9,7 @@ import {
 } from '@/test/strictYaml';
 
 /** The pages and capability sets the shell component tests hold the manifest on. */
-export interface ShellHeaderCases {
+export interface ShellChromeCases {
   pages: Array<{ name: string; pathname: string }>;
   paletteCapabilities: Array<{ name: string; tokens: string[] }>;
 }
@@ -28,19 +28,19 @@ function rows(value: unknown, path: string, fields: readonly string[], required:
   return records;
 }
 
-function load(): ShellHeaderCases {
-  const path = resolve(process.cwd(), 'src/components/testdata/shell_header_cases.yaml');
-  const root = requireRecord(parseStrictYAML(readFileSync(path, 'utf8'), 'shell header cases'), 'shell header cases');
-  requireExactRequiredFields(root, ['pages', 'paletteCapabilities'], 'shell header cases');
-  const pages = rows(root.pages, 'shell header cases.pages', ['name', 'pathname'], REQUIRED_PAGES);
+function load(): ShellChromeCases {
+  const path = resolve(process.cwd(), 'src/components/testdata/shell_chrome_cases.yaml');
+  const root = requireRecord(parseStrictYAML(readFileSync(path, 'utf8'), 'shell chrome cases'), 'shell chrome cases');
+  requireExactRequiredFields(root, ['pages', 'paletteCapabilities'], 'shell chrome cases');
+  const pages = rows(root.pages, 'shell chrome cases.pages', ['name', 'pathname'], REQUIRED_PAGES);
   pages.forEach((row) => {
-    if (typeof row.pathname !== 'string' || !row.pathname.startsWith('/')) throw new Error(`shell header cases page ${String(row.name)} needs an absolute pathname`);
+    if (typeof row.pathname !== 'string' || !row.pathname.startsWith('/')) throw new Error(`shell chrome cases page ${String(row.name)} needs an absolute pathname`);
   });
-  const sets = rows(root.paletteCapabilities, 'shell header cases.paletteCapabilities', ['name', 'tokens'], REQUIRED_CAPABILITY_SETS);
+  const sets = rows(root.paletteCapabilities, 'shell chrome cases.paletteCapabilities', ['name', 'tokens'], REQUIRED_CAPABILITY_SETS);
   sets.forEach((row) => {
-    if (!Array.isArray(row.tokens) || row.tokens.some((token) => typeof token !== 'string')) throw new Error(`shell header cases capability set ${String(row.name)} needs a token list`);
+    if (!Array.isArray(row.tokens) || row.tokens.some((token) => typeof token !== 'string')) throw new Error(`shell chrome cases capability set ${String(row.name)} needs a token list`);
   });
-  return root as unknown as ShellHeaderCases;
+  return root as unknown as ShellChromeCases;
 }
 
-export const SHELL_HEADER_CASES = load();
+export const SHELL_CHROME_CASES = load();
