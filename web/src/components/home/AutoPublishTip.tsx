@@ -16,8 +16,8 @@ export function AutoPublishTip() {
     <aside aria-label="auto-publish tip" className="home-tip">
       <Zap className="home-tip-icon" aria-hidden="true" />
       <p className="home-tip-copy">
-        your sessions can publish on their own, redacted.{' '}
-        <DocsLink topic="autoPublish" variant="inline">set up automatic publishing</DocsLink>
+        publish sessions automatically, with secrets hidden.{' '}
+        <DocsLink topic="autoPublish" variant="inline">set up</DocsLink>
       </p>
       <button type="button" className="btn btn-ghost btn-sm btn-icon home-tip-dismiss" aria-label="dismiss auto-publish tip" onClick={() => setDismissed(true)}>
         <X aria-hidden="true" />
