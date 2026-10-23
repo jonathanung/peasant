@@ -283,17 +283,18 @@ the server serves the newly built assets before you trust a screenshot or a comp
 - `/share` is the canonical publish route: one-session links open the transcript popup;
   multi-session and wizard-step links retain the wizard. It stays
   outside the fairtrade section registry, and the local sidebar does not link to it. `LOCAL_APP_SECTIONS` in fairtrade owns the registry:
-  `home | online | settings` in the nav (`online` is the label of the `village` id, whose route stays
-  `/village`), then `analytics | changes | code map` by route only.
+  `home | settings` in the nav, then `online | analytics | changes | code map` by route only
+  (`online` is the label of the `village` id, whose route stays `/village`).
   `GRAPH_APP_SECTIONS` is its deprecated alias with the earlier three-entry value. Derive the nav
   and routes from the registry (`web/src/lib/nav/sections.ts`) and fail loudly on an unmapped id.
   A nav section this app has no page for stays out of the sidebar until its page ships, so the
   sidebar never carries a dead link. Nothing in the sidebar or the command palette links to a
   route-only section; its routes still resolve by URL. Do not add a `/push` alternate route.
 - The local chrome is fairtrade's `AppSidebar` (`web/src/components/LocalSidebar.tsx`): the
-  `peasant` home link, the registry's nav sections, a `collectives` link that opens online, search
-  (⌘K) and the theme toggle in their own group, the app switcher (local, current, beside links that
-  open online and the docs), and the account row while this computer is signed in. On a settings page it lists the settings sections under a way back home.
+  `peasant` home link, the registry's nav sections, a `collectives` link that opens online (the
+  local app's one link to online), search (⌘K) and the theme toggle in their own group, the app
+  switcher (local, current, beside a link that opens the docs), and the account row while this
+  computer is signed in. On a settings page it lists the settings sections under a way back home.
   Below 768px it is a top bar whose menu opens the same nav as a drawer. It carries no connection
   indicator. When the local app is unreachable (`GET /api/v1/health` fails or the WebSocket stays
   down), fairtrade's `LocalOfflineBanner` shows at the top of the page column, in the page flow

@@ -7,6 +7,13 @@ Release, which holds the signed artifacts and checksums.
 
 ## [Unreleased]
 
+### Changed
+- The local web's sidebar no longer shows "online" twice. The online page
+  leaves the section nav and the app switcher drops its online entry; the
+  collectives link is the local app's way to online. The online page stays at
+  `/village`, reached by its address like analytics, changes and the code map.
+- Re-pin Fairtrade to 0.0.34.
+
 ## [0.11.0] - 2026-10-23
 
 ### Added
