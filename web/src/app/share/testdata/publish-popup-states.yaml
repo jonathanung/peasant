@@ -617,7 +617,7 @@ cases:
     push: published
     steps: [open, remove Acme Platform, publish]
     expect:
-      bar: { state: published, text: 'published, 0 collectives, up to date', action: update }
+      bar: { state: published, text: 'published, up to date', action: update }
       popup:
         heading: updated, no collective can read it
         texts: [village.peasantlabs.org/transcripts/]
@@ -632,7 +632,7 @@ cases:
     push: approval
     steps: [open, remove Acme Platform, remove Acme Company, add ML Reading Group, publish]
     expect:
-      bar: { state: published, text: 'published, 0 collectives, up to date', action: update }
+      bar: { state: published, text: 'published, up to date', action: update }
       popup:
         heading: submitted to ML Reading Group
         texts: [ML Reading Group shows it once its owner approves.]

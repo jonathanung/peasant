@@ -79,7 +79,10 @@ export function barModel(options: {
   const { publication, audienceKnown, newTurns, publishingTo } = options;
   if (publishingTo !== undefined) return { state: 'publishing', collectives: publishingTo };
   const readers = approvedReaders(publication);
-  const collectives = audienceKnown ? readers.length : undefined;
+  // No collective is not "nobody": a transcript published without one can
+  // still be public, which this read does not report, so the count is left
+  // out rather than shown as 0.
+  const collectives = audienceKnown && readers.length > 0 ? readers.length : undefined;
   if (publication.state !== 'published') {
     if (publication.outsideSelection) return { state: 'outside-lists' };
     if (publication.autoPublish) return { state: 'auto-publish' };
