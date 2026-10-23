@@ -23,7 +23,7 @@ import {
 import { formatMinutes } from '@/lib/home/rootStats';
 import { parseProjectHash, transcriptHref } from '@/lib/navigation/projectRoutes';
 import { displayProject } from '@/lib/quality/utils';
-import { cleanSessionTitle } from '@/lib/sessions/title';
+import { cleanSessionTitle } from '@peasant-labs/fairtrade/ui';
 import { formatRelative } from '@/app/review/[[...segments]]/format';
 
 const tokenFormat = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });

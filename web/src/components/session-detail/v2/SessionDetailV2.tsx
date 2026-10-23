@@ -11,6 +11,7 @@ import {
   TranscriptViewer,
   adaptTranscript,
   annotateTranscript,
+  cleanSessionTitle,
   computeAnalytics,
   computePersonalMedians,
   type AdaptTranscriptOptions,
@@ -48,7 +49,6 @@ import {
 import { TurnLabelPopover } from './canvas/TurnLabelPopover';
 import { TurnTouchedFiles } from './panels/TurnTouchedFiles';
 import { adaptQualitySessions } from '@/lib/quality/types';
-import { cleanSessionTitle } from '@/lib/sessions/title';
 import { useTranscriptPublish } from './publish/useTranscriptPublish';
 import { SessionNotIndexed } from './SessionNotIndexed';
 

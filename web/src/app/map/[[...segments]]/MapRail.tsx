@@ -3,8 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, FileCode, FolderOpen, RotateCw, X } from 'lucide-react';
-import { TranscriptOutcomeChip as OutcomeChip, formatRelative, summarizePrompt } from '@peasant-labs/fairtrade/ui';
-import { cleanSessionTitle } from '@/lib/sessions/title';
+import { TranscriptOutcomeChip as OutcomeChip, cleanSessionTitle, formatRelative, summarizePrompt } from '@peasant-labs/fairtrade/ui';
 import { ProviderName, RailSection, Skeleton } from '@/lib/ft-ui';
 import { Skeleton as SkeletonBox } from '@/lib/skeleton';
 import type { DecodedMapNodeDetailPayload, DecodedTaskSummary } from '@/lib/api/map';
