@@ -100,7 +100,7 @@ function withRules(rules: AutoPublishRule[]): LocalSettingsResponse {
 /** Mounts one section of the page, the account section unless named, once its groups show. */
 async function mountPage(section: SettingsSectionId = 'account') {
   render(<SettingsPageClient section={section} />);
-  await screen.findByRole('heading', { level: 1, name: settingsSection(section).label });
+  await screen.findByRole('heading', { level: 2, name: settingsSection(section).label });
   await waitFor(() => expect(document.querySelector('[data-group]')).not.toBeNull());
 }
 
@@ -171,18 +171,22 @@ describe('settings page groups', () => {
     }
   });
 
-  it('leads with a breadcrumb back to home and settings, and carries no save footnote', async () => {
+  it('titles the page settings above the section bar, names the section in its column, and carries no save footnote', async () => {
     await mountPage('redaction');
-    const trail = screen.getByRole('navigation', { name: 'Breadcrumb' });
-    expect(within(trail).getByRole('link', { name: 'home' })).toHaveAttribute('href', '/');
-    expect(within(trail).getByRole('link', { name: 'settings' })).toHaveAttribute('href', '/settings');
-    expect(within(trail).getByText('redaction')).toHaveClass('cur');
+    // One page title, as fairtrade's demo and the online app place it: on the
+    // page edge, before the section bar, with no breadcrumb.
+    const title = screen.getByRole('heading', { level: 1, name: 'settings' });
+    const bar = screen.getByRole('navigation', { name: 'settings sections' });
+    expect(title.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 2, name: 'redaction' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).toBeNull();
     expect(document.body.textContent).not.toContain('changes save right away');
   });
 
   it('opens the default section for a missing or unknown section id', async () => {
     render(<SettingsPageClient section="no-such-section" />);
-    expect(await screen.findByRole('heading', { level: 1, name: 'account' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'account' })).toBeInTheDocument();
   });
 
   it('shows every key the server serves in exactly one group, the one the page names for it', async () => {

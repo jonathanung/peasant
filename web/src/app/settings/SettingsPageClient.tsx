@@ -24,7 +24,6 @@ import {
 } from '@/lib/settings/catalog';
 import { ReadOnlyRow, SettingKeyRow } from '@/components/settings/SettingKeyRow';
 import { DocsLink } from '@/components/DocsLink';
-import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { VillageAccountRow } from '@/components/settings/VillageAccountRow';
 import { CustomPatterns } from '@/components/settings/CustomPatterns';
 import { AutoPublishRules, type CollectiveNames } from '@/components/settings/AutoPublishRules';
@@ -450,15 +449,19 @@ function NextLink({ href, ...rest }: { href: string } & React.AnchorHTMLAttribut
 }
 
 /**
- * The settings page: a breadcrumb back to home and to settings, then
- * fairtrade's in-page section bar beside the section on a wide body, above it
- * on a narrow one. The app sidebar keeps its own nav, with settings current;
- * the bar is the one way between the sections, and the breadcrumb the way back.
+ * The settings page, as fairtrade's demo and the online app lay it out: the
+ * page's one title, settings, on the page edge, then fairtrade's in-page
+ * section bar beside the section on a wide body, above it on a narrow one,
+ * with the section's name heading its column. The app sidebar keeps its own
+ * nav with the settings gear current; the bar is the one way between the
+ * sections.
  */
 function SettingsFrame({ section, children }: { section: SettingsSection; children: ReactNode }) {
   return (
     <div className="asb-page stg-page" data-settings-section={section.id}>
-      <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'settings', href: '/settings' }, { label: section.label }]} />
+      <header className="iu-page-head">
+        <h1 className="iu-page-title page-title">settings</h1>
+      </header>
       <SettingsLayout sections={NAV_SECTIONS} currentId={section.id} LinkComponent={NextLink} label="settings sections">
         {children}
       </SettingsLayout>
@@ -468,8 +471,8 @@ function SettingsFrame({ section, children }: { section: SettingsSection; childr
 
 function PageHead({ section }: { section: SettingsSection }) {
   return (
-    <header className="iu-page-head stg-head">
-      <h1 className="iu-page-title page-title">{section.label}</h1>
+    <header className="stg-head">
+      <h2 className="stg-title">{section.label}</h2>
     </header>
   );
 }

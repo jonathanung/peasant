@@ -262,6 +262,16 @@
    bar (SettingsLayout), beside the section on a wide body, above it on a narrow one ── */
 .stg-body { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
 .stg-head { gap: var(--sp-3); }
+/* the section's name heads its column, under the page's one title */
+.stg-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: var(--lh-body);
+  color: var(--ink-strong);
+  text-transform: lowercase;
+}
 .stg-panel { max-width: 55rem; }
 .stg-groups { max-width: 55rem; }
 
