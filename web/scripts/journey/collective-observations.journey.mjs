@@ -27,7 +27,12 @@ async function history(request, kind, page = 1, revision) {
 async function open(page, theme) {
   await page.goto('/village');
   const html = page.locator('html');
-  if (await html.getAttribute('data-theme') !== theme) await page.getByRole('button', { name: /Switch to .* mode/ }).click();
+  if (await html.getAttribute('data-theme') !== theme) {
+    // The sidebar's theme item is named for the mode it switches to; on a phone it sits in the drawer.
+    const menu = page.locator('.asb-bar .asb-menu');
+    if (await menu.isVisible()) await menu.click();
+    await page.locator('.asb-panel').getByRole('button', { name: `${theme} mode`, exact: true }).click();
+  }
   await expect(html).toHaveAttribute('data-theme', theme);
   await expect(page.getByRole('heading', { name: 'online observations', exact: true })).toBeVisible();
   await expect(page.locator('.vobs')).toBeVisible();
@@ -188,6 +193,8 @@ async function exercise(row, { page, request }, info) {
     await expect(page.getByRole('form', { name: 'add a folder or repository', exact: true })).toHaveCount(0);
     if (row.mode === 'settings') return;
     const before = await saved(request);
+    // log out sits in the account section, the one settings opens on.
+    await page.getByRole('link', { name: 'account', exact: true }).click();
     await page.getByRole('button', { name: 'log out', exact: true }).click();
     await expect.poll(async () => (await request.get(local)).status()).toBe(401);
     await control(request, 'account', { name: 'bob' });
