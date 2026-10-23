@@ -3,7 +3,7 @@
 import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, ChevronUp, Copy, Link as LinkIcon, X } from 'lucide-react';
+import { Copy, Link as LinkIcon, X } from 'lucide-react';
 import { TrajectoryGraph } from '@peasant-labs/fairtrade/graph';
 // The demo's drop-in composite + its one wire→view adapter, plus the shared
 // transcript helpers, all render the SAME composite as the demo.
@@ -283,27 +283,19 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
     announceCopied('copied the link');
   }, [announceCopied, projectHash, sessionId]);
 
-  // Session metrics disclosure, collapsed by default: the transcript is what
-  // you came to read, and duration/turns/tools/tokens are reference figures.
-  // The composite's hero always renders that strip and exposes no prop for it,
-  // so the toggle lives in the header's more menu and the strip is hidden by a
-  // class on the wrapper below (see `.txn-metrics-collapsed` in globals.css).
-  // Only the `.metaitem` figures collapse — the harness and model chips in the
-  // same row are identity, so they stay put.
-  const [metricsOpen, setMetricsOpen] = useState(false);
-
   // The header's overflow actions. The viewer's own share and more menus are
   // off (`showTail={false}`), so these are the page's only secondary actions,
-  // carried by the publish bar's more menu.
+  // carried by the publish bar's more menu. The session's figures (duration,
+  // turns, tools, tokens) always show under the title, so nothing here hides
+  // or reveals them.
   const moreItems = useMemo<MenuItem[]>(() => [
-    {
-      label: metricsOpen ? 'hide details' : 'show details',
-      icon: metricsOpen ? ChevronUp : ChevronDown,
-      onSelect: () => setMetricsOpen((open) => !open),
-    },
     { label: 'copy as markdown', icon: Copy, onSelect: copyMarkdown },
     { label: 'copy link', icon: LinkIcon, onSelect: copyLink },
-  ], [copyLink, copyMarkdown, metricsOpen]);
+  ], [copyLink, copyMarkdown]);
+
+  // The filters rail opens on request: the page leads with the conversation
+  // and its outline, and the rail's collapsed strip keeps the filters a click away.
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // The publish bar and its popup. `/share?sessionId=` arrives here with
   // `?publish=open`; closing the popup drops that request from the route so a
@@ -512,7 +504,6 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
         data-tour="transcript-view"
         className={[
           'flex h-[var(--app-body-height)] flex-col',
-          metricsOpen ? '' : 'txn-metrics-collapsed',
           activeTab === 'highlights' ? '' : 'txn-hints-hidden',
         ]
           .filter(Boolean)
@@ -524,6 +515,8 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
             theme={theme}
             activeTab={activeTab}
             onTabChange={setActiveTab}
+            rightRailOpen={filtersOpen}
+            onRightRailOpenChange={setFiltersOpen}
             // Local capabilities: labelling is supported (via renderTurnActions);
             // contribute / visibility / edit / export are village-only or absent.
             capabilities={{
