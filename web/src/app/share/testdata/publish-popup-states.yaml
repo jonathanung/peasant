@@ -305,7 +305,7 @@ cases:
       bar: { state: published, text: 'published, 1 collective, up to date', action: update }
       popup:
         heading: publish “{title}”
-        texts: ['stopped while sharing it with Acme Company: sharing with this collective failed, so it cannot read the transcript: village answered 502']
+        texts: ['stopped while sharing it with Acme Company: sharing with this collective failed, so it cannot read the transcript.']
         primary: { label: retry, enabled: true }
       request: { add: [Acme Platform, Acme Company], remove: [] }
 
@@ -470,7 +470,7 @@ cases:
       bar: { state: published, text: 'published, 1 collective, up to date', action: update }
       popup:
         heading: publish “{title}”
-        texts: ['Village did not share the transcript with this collective']
+        texts: ['stopped while sharing it with']
         primary: { label: retry, enabled: true }
       request: { add: [Acme Platform, Acme Company], remove: [] }
 
@@ -500,7 +500,7 @@ cases:
       bar: { state: not-published, text: not published, action: publish }
       popup:
         heading: publish “{title}”
-        texts: ['sending the content: sending the content failed: village answered 502']
+        texts: ['stopped while sending the content: sending the content failed.']
         primary: { label: retry, enabled: true }
       request: { add: [Acme Platform, Acme Company], remove: [] }
 
@@ -515,7 +515,7 @@ cases:
       bar: { state: not-published, text: not published, action: publish }
       popup:
         heading: publish “{title}”
-        texts: ['reading your collectives online: The Village collectives could not be listed']
+        texts: ['stopped while reading your collectives: can’t reach peasant online right now.']
         primary: { label: retry, enabled: true }
       request: null
 
@@ -560,7 +560,7 @@ cases:
       bar: { state: not-published, text: not published, action: publish }
       popup:
         heading: publish “{title}”
-        texts: ['starting the github sign-in: github sign-in could not be started: connection refused']
+        texts: ['stopped while starting the github sign-in: can’t reach peasant online right now.']
         primary: { label: retry, enabled: true }
       request: null
 

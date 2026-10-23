@@ -903,9 +903,14 @@ export type PublishBarProps = ComponentProps<typeof FtPublishBar> & HTMLAttribut
  * available, and an inline reason plus retry while its preference cannot be
  * read. The shipped declaration types it as `string`; the component renders
  * whatever node it is handed.
+ *
+ * `stoppedDetail` is a stopped step's whole reason, for a details disclosure
+ * in the stopped box; the line itself carries only plain words. A package that
+ * does not render it yet ignores it.
  */
 export type PublishDialogProps = Omit<ComponentProps<typeof FtPublishDialog>, 'autoPublish'> & {
   autoPublish?: { checked: boolean; onChange: (checked: boolean) => void; hint?: ReactNode };
+  stoppedDetail?: string;
 };
 export type PublishDialogState = PublishDialogProps['state'];
 export type PublishAccessItem = NonNullable<PublishDialogProps['access']>[number];

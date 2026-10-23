@@ -20,6 +20,7 @@ import { DEFAULT_REDACTION_LEVEL } from '@/lib/share/redactions';
 import { guardReviewMatches } from '@/lib/share/reviewMatches';
 import { classifyScanFailure, REINDEX_DID_NOT_REPAIR, reindexFailureLine, reindexRetryable, type ReindexFailureCode } from '@/lib/share/scanFailure';
 import { checkingStage, type CheckingStep } from '@/lib/share/checkingStage';
+import { stepWithReason } from '@/lib/share/publishFailure';
 import { reindexSession, SessionReindexError } from '@/lib/api/ingest';
 import { fetchSettings } from '@/lib/api/settings';
 import { AutomaticPublishingError, enableAutomaticPublishing } from './automaticPublishing';
@@ -73,8 +74,8 @@ type CollectivesRead =
   | { status: 'ready'; collectives: LocalVillageCollective[] }
   | { status: 'error'; message: string };
 
-/** A step before the push that stopped; retry runs it again. */
-type Blocked = { stoppedAt: string; retry?: () => void };
+/** A step before the push that stopped; retry runs it again. `detail` is the whole reason, for details only. */
+type Blocked = { stoppedAt: string; detail?: string; retry?: () => void };
 /** The one-session re-index that heals a stale local index. */
 type Reindex = { status: 'idle' | 'running' } | { status: 'done'; notes: string[] } | { status: 'failed'; code: ReindexFailureCode; message: string };
 type AutomaticPreference = { status: 'loading' } | { status: 'ready'; offer: boolean } | { status: 'error'; message: string };
@@ -170,7 +171,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   const [automaticPreference, setAutomaticPreference] = useState<AutomaticPreference>({ status: 'loading' });
   const [automaticNonce, setAutomaticNonce] = useState(0);
   const [automaticChecked, setAutomaticChecked] = useState(false);
-  const [automaticFailure, setAutomaticFailure] = useState<string | null>(null);
+  const [automaticFailure, setAutomaticFailure] = useState<Blocked | null>(null);
   const automaticRuleIds = useRef(new Map<string, string>());
 
   const openPopup = useCallback(() => {
@@ -439,17 +440,17 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   // guessed them would publish as a first publish, or update a list it cannot
   // show.
   const blocked: Blocked | null = automaticFailure !== null
-    ? { stoppedAt: automaticFailure }
+    ? automaticFailure
     : signInFailure != null
     ? {
-      stoppedAt: signInFailure.step === 'check'
-        ? `checking this computer’s peasant online sign-in: ${oneLine(signInFailure.message)}`
-        : `starting the github sign-in: ${oneLine(signInFailure.message)}`,
+      stoppedAt: stepWithReason(signInFailure.step === 'check' ? 'checking whether this computer is signed in' : 'starting the github sign-in', signInFailure.message),
+      detail: signInFailure.message,
       retry: signInFailure.step === 'start' ? connect : () => { setSignInFailure(null); setSignIn('unknown'); },
     }
     : read.status === 'error'
       ? {
-        stoppedAt: read.transcriptMissing ? `reading whether this is published: ${TRANSCRIPT_MISSING}` : `reading whether this is published: ${oneLine(read.message)}`,
+        stoppedAt: read.transcriptMissing ? `reading whether this is published: ${TRANSCRIPT_MISSING}` : stepWithReason('reading whether this is published', read.message),
+        detail: read.message,
         retry: read.transcriptMissing ? undefined : reread,
       }
       : read.status === 'ready' && publication === null
@@ -457,7 +458,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
         : read.status === 'ready' && publication?.state === 'published' && !read.audienceKnown
         ? { stoppedAt: 'reading who can read it online', retry: reread }
         : collectivesRead.status === 'error'
-          ? { stoppedAt: `reading your collectives online: ${oneLine(collectivesRead.message)}`, retry: () => setCollectivesNonce((nonce) => nonce + 1) }
+          ? { stoppedAt: stepWithReason('reading your collectives', collectivesRead.message), detail: collectivesRead.message, retry: () => setCollectivesNonce((nonce) => nonce + 1) }
           : null;
 
   // Publish only from a clean scan of the content now on the page, signed in,
@@ -532,12 +533,12 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       setDraft((current) => (current ? { add: current.add, remove: current.remove.filter((id) => !removed.has(id)) } : current));
     } catch (error) {
       if (error instanceof AutomaticPublishingError) {
-        setAutomaticFailure(oneLine(error.message, 700));
+        setAutomaticFailure({ stoppedAt: `${stepWithReason(error.step, error.cause)}. ${error.remedy}`, detail: error.message });
         reread();
       } else if (error instanceof PublishingRequestError && error.status === 401) {
         setSignIn('signed-out');
       } else {
-        setOutcome({ kind: 'stopped', stoppedAt: `sending it to peasant online: ${oneLine(messageOf(error))}` });
+        setOutcome({ kind: 'stopped', stoppedAt: stepWithReason('sending it to peasant online', messageOf(error)), detail: messageOf(error) });
       }
     } finally {
       setSubmitting(false);
@@ -584,7 +585,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   const checking = checkingStep === null ? undefined : checkingStage(checkingStep, { turns: turns.length, elapsedMs: stepElapsedMs });
 
   const stopped = dialogState === 'stopped'
-    ? (blocked ?? (outcome?.kind === 'stopped' ? { stoppedAt: outcome.stoppedAt, retry: /push --force/.test(outcome.stoppedAt) ? undefined : () => { void runPublish(); } } : null))
+    ? (blocked ?? (outcome?.kind === 'stopped' ? { stoppedAt: outcome.stoppedAt, detail: outcome.detail, retry: /push --force/.test(outcome.stoppedAt) ? undefined : () => { void runPublish(); } } : null))
     : null;
 
   const menuItems = publication?.autoPublish || automaticFailure
@@ -631,7 +632,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
           onChange: () => {},
           hint: (
             <>
-              <span role="alert">automatic publishing is unavailable: {oneLine(automaticPreference.message)}</span>{' '}
+              <span role="alert" title={automaticPreference.message}>{stepWithReason('automatic publishing is unavailable', automaticPreference.message)}</span>{' '}
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAutomaticNonce((nonce) => nonce + 1)}>retry</button>
             </>
           ),
@@ -670,6 +671,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       onConnect={connect}
       joinHref={onlineCollectivesHref()}
       stoppedAt={stopped?.stoppedAt}
+      stoppedDetail={stopped?.detail}
       onRecover={blocked?.retry ? recover : undefined}
       onRetry={blocked === null ? stopped?.retry : undefined}
       done={outcome && outcome.kind !== 'stopped' ? outcome.done : undefined}

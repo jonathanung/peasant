@@ -18,6 +18,7 @@ import type {
 } from '@peasant-labs/schema';
 import type { PublishAccessItem as AccessItem, PublishState } from '@/lib/ft-ui';
 import { pushRequestBody } from '@/lib/share/push';
+import { stepWithReason } from '@/lib/share/publishFailure';
 import type { SelectableRedactionLevel } from '@/lib/share/redactions';
 export { reviewMatches } from '@/lib/share/reviewMatches';
 export type { ReviewMatch } from '@/lib/share/reviewMatches';
@@ -280,7 +281,8 @@ export function oneLine(text: string, limit = 220): string {
 }
 
 export type PublishOutcome =
-  | { kind: 'stopped'; stoppedAt: string }
+  /** `detail` is the server's whole reason, for details only. */
+  | { kind: 'stopped'; stoppedAt: string; detail?: string }
   | {
     kind: 'done' | 'waits-approval';
     done: {
@@ -303,10 +305,9 @@ function stepSubject(step: SyncPushStepResult, names: ReadonlyMap<string, string
   }
 }
 
-/** The step's subject, with the server's reason when it gave one. */
-function stepLine(step: SyncPushStepResult, names: ReadonlyMap<string, string>): string {
-  const subject = stepSubject(step, names);
-  return step.reason ? `${subject}: ${oneLine(step.reason)}` : subject;
+/** The step's subject, with the server's reason when it gave one a reader can use; the whole reason for details. */
+function stepLine(step: SyncPushStepResult, names: ReadonlyMap<string, string>): { stoppedAt: string; detail?: string } {
+  return { stoppedAt: stepWithReason(stepSubject(step, names), step.reason), detail: step.reason || undefined };
 }
 
 /**
@@ -339,12 +340,12 @@ export function publishOutcome(options: {
   const steps = result.steps ?? [];
   if (result.status === 'held') {
     const reason = steps.find((step) => step.step === 'content')?.reason;
-    return { kind: 'stopped', stoppedAt: reason ? `waiting for this session’s ingest to finish: ${oneLine(reason)}` : 'waiting for this session’s ingest to finish' };
+    return { kind: 'stopped', stoppedAt: stepWithReason('waiting for this session’s ingest to finish', reason), detail: reason || undefined };
   }
   if (result.status === 'error') {
     const failed = steps.find((step) => step.outcome === 'failed');
-    if (failed) return { kind: 'stopped', stoppedAt: stepLine(failed, names) };
-    return { kind: 'stopped', stoppedAt: result.error ? `publishing: ${oneLine(result.error)}` : 'publishing' };
+    if (failed) return { kind: 'stopped', ...stepLine(failed, names) };
+    return { kind: 'stopped', stoppedAt: stepWithReason('publishing', result.error), detail: result.error || undefined };
   }
   const url = result.transcriptUrl ?? fallbackUrl;
   if (!url) return { kind: 'stopped', stoppedAt: 'reading the transcript’s link' };
@@ -370,7 +371,7 @@ export function publishOutcome(options: {
   if (missed) {
     const step = steps.find((entry) => entry.step === 'add_collective' && entry.collectiveId === missed);
     const name = names.get(missed) ?? 'a collective';
-    return { kind: 'stopped', stoppedAt: step ? stepLine(step, names) : `sharing it with ${name}` };
+    return step ? { kind: 'stopped', ...stepLine(step, names) } : { kind: 'stopped', stoppedAt: `sharing it with ${name}` };
   }
 
   // A pull request is named only when exactly one waits for this repository:
