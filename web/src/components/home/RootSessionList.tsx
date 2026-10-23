@@ -23,6 +23,7 @@ import {
 import { formatMinutes } from '@/lib/home/rootStats';
 import { parseProjectHash, transcriptHref } from '@/lib/navigation/projectRoutes';
 import { displayProject } from '@/lib/quality/utils';
+import { cleanSessionTitle } from '@/lib/sessions/title';
 import { formatRelative } from '@/app/review/[[...segments]]/format';
 
 const tokenFormat = new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 });
@@ -40,9 +41,11 @@ function rowTitle(
   titles: ReadonlyMap<string, string>,
   previews: ReadonlyMap<string, string>,
 ): { text: string; untitled: boolean } {
-  const generated = titles.get(id);
+  const title = titles.get(id);
+  const generated = title ? cleanSessionTitle(title) : '';
   if (generated) return { text: generated, untitled: false };
-  const preview = previews.get(id)?.replace(/\s+/g, ' ').trim();
+  const prompt = previews.get(id);
+  const preview = prompt ? cleanSessionTitle(prompt) : '';
   if (preview) {
     const cut = preview.length > PREVIEW_TITLE_LIMIT ? `${preview.slice(0, PREVIEW_TITLE_LIMIT - 1).trimEnd()}…` : preview;
     return { text: `“${cut}”`, untitled: true };
