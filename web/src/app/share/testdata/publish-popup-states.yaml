@@ -515,7 +515,7 @@ cases:
       bar: { state: not-published, text: not published, action: publish }
       popup:
         heading: publish “{title}”
-        texts: ['reading your collectives on village: The Village collectives could not be listed']
+        texts: ['reading your collectives online: The Village collectives could not be listed']
         primary: { label: retry, enabled: true }
       request: null
 
@@ -530,7 +530,7 @@ cases:
       bar: { state: new-turns, text: 'published, 6 new turns', action: update }
       popup:
         heading: update “{title}”
-        texts: [reading who can read it on village]
+        texts: [reading who can read it online]
         primary: { label: retry, enabled: true }
       request: null
 
@@ -602,7 +602,7 @@ cases:
     push: published
     steps: [arrive]
     expect:
-      bar: { alert: 'village no longer holds this transcript: run peasant village push --force for this session', retry: false }
+      bar: { alert: 'peasant online no longer holds this transcript: run peasant village push --force for this session', retry: false }
       popup:
         heading: publish “{title}”
         texts: ['run peasant village push --force for this session']

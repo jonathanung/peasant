@@ -112,7 +112,7 @@ export class ObservationController {
     if (this.state.fetching || !this.state.catalog) return;
     const epoch = this.epoch, scope = this.state.catalog.scope, request = this.request();
     this.fetchRequest = request;
-    this.emit({ fetching: true, issue: undefined, status: 'fetching Village metadata; saved evidence remains available' });
+    this.emit({ fetching: true, issue: undefined, status: 'fetching online metadata; saved evidence remains available' });
     try {
       const answer = await fetchCollectiveObservations(request.signal);
       if (epoch !== this.epoch) return;

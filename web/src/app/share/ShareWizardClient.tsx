@@ -303,7 +303,7 @@ type WizardStep = 'select' | 'redact' | 'submit';
 const WIZARD_STEPS: FtWizardStep[] = [
   { id: 'select', label: 'choose' },
   { id: 'redact', label: 'redact' },
-  { id: 'submit', label: 'submit' },
+  { id: 'submit', label: 'publish' },
 ];
 
 // Deep-link contract. Three visible steps; legacy step names keep working by
@@ -627,18 +627,18 @@ export function ShareWizardClient() {
 
   return (
     <div className="share-page max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
-      <Breadcrumbs items={[{ label: 'contribute' }]} />
+      <Breadcrumbs items={[{ label: 'publish' }]} />
 
       {/* Page title block. */}
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
-          Contribute
+          publish
         </h1>
       </div>
 
       {/* Wizard shell: steps register their actions; the shell renders those tools
           with back and progress in the persistent footer. */}
-        <section className="swz share-wizard" aria-label="publish to village" data-tour="share-nav">
+        <section className="swz share-wizard" aria-label="publish online" data-tour="share-nav">
 
         {/* Step rail — completed = olive+check, current = amber, locked = dim/disabled. */}
         <div className="swz-head">
@@ -648,7 +648,7 @@ export function ShareWizardClient() {
             completed={completed as Set<string>}
             reachable={reachable as Set<string>}
             onJump={(id) => setStep(id as WizardStep)}
-            aria-label="Contribute progress"
+            aria-label="publish progress"
           />
         </div>
 

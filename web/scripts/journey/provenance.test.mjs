@@ -31,7 +31,7 @@ for (const row of f.cases) test(row.name, { timeout: 5000 }, async t => {
     return;
   }
   mkdirSync(join(root, '_next'));
-  const html = `<html>${row.mode === 'body' ? '' : 'village-page village observations'}<script src="/_next/app.js"></script></html>`;
+  const html = `<html>${row.mode === 'body' ? '' : 'village-page online observations'}<script src="/_next/app.js"></script></html>`;
   const asset = 'village-page /village';
   mkdirSync(join(root, 'village')); writeFileSync(join(root, 'village/index.html'), html); writeFileSync(join(root, '_next/app.js'), asset);
   const server = createServer((req, res) => { res.end(req.url === '/village' ? (row.mode === 'stale' ? 'old body' : html) : (row.mode === 'asset' ? 'old asset' : asset)); });

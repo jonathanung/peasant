@@ -255,7 +255,7 @@ export function PushStep({
   useLayoutEffect(() => {
     onFooterActionsChange(
       phase === 'idle' || phase === 'error'
-        ? { primary: { label: phase === 'error' ? 'Try again' : 'Submit', onClick: start } }
+        ? { primary: { label: phase === 'error' ? 'try again' : 'publish', onClick: start } }
         : null,
     );
     return () => onFooterActionsChange(null);
@@ -279,7 +279,7 @@ export function PushStep({
               app chrome; the composite carries the two-column split. */}
           <p className="px-1 text-xs text-ink-3">
             {selectedSessions.length} session
-            {selectedSessions.length === 1 ? '' : 's'} will be uploaded to village.
+            {selectedSessions.length === 1 ? '' : 's'} will be uploaded to peasant online.
           </p>
           <p className="px-1 text-xs text-ink-3">
             Annotations and commit links travel with the transcript — minus whatever
@@ -294,7 +294,7 @@ export function PushStep({
                 its own page, in the publish popup. */}
             <p className="text-xs text-ink-2">
               A first publication is{' '}
-              <span className="font-medium text-ink">private</span> on village, and an
+              <span className="font-medium text-ink">private</span> on peasant online, and an
               update keeps who can read it. Share a transcript with a collective from
               its own page. Your local copy is untouched and stays in{' '}
               <span className="font-mono text-ink">{LOCAL_SYNC_PATH}</span>.
@@ -346,7 +346,7 @@ export function PushStep({
               rel="noopener noreferrer"
               iconRight={ExternalLinkIcon}
             >
-              open village
+              open online
             </Button>
           </div>
         </div>

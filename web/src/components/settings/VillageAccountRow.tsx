@@ -50,14 +50,14 @@ export function VillageAccountRow({ auth, readError, onRetry, connected, onLogge
   };
 
   const label = auth === null
-    ? 'village sign-in'
+    ? 'peasant online sign-in'
     : signedIn
       ? <>connected as <strong className="stg-strong">@{auth.username}</strong></>
       : 'not connected';
   const help = auth === null
     ? readError ? 'the sign-in could not be read.' : 'reading the sign-in on this computer.'
     : signedIn
-      ? `signed in with github${host ? ` on ${host}` : ''}. log out removes the key from this computer; peasant village logout also revokes it on village.`
+      ? `signed in with github${host ? ` on ${host}` : ''}. log out removes the key from this computer; peasant village logout also revokes it online.`
       : 'sign in with peasant village login, or from the publish popup.';
 
   return (

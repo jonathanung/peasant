@@ -60,7 +60,7 @@ export function presentObservations(state: ObservationState) {
   }
   return {
     accountLabel: catalog?.scope.userId ?? 'no selected account loaded',
-    villageLabel: catalog?.scope.villageUrl ?? 'saved Village observations',
+    villageLabel: catalog?.scope.villageUrl ?? 'saved online observations',
     domains: [domain('catalog', catalog?.fetch.catalog), domain('history', catalog?.fetch.history), domain('associations', catalog?.fetch.associations)],
     collectives: catalog?.collectives.map(row => ({
       id: row.id, name: row.name, description: row.description ?? undefined,
@@ -82,6 +82,6 @@ export function presentObservations(state: ObservationState) {
     fetching: state.fetching, fetchDisabled: !catalog || state.loading,
     status: state.loading ? 'reading saved local observations' : state.status ?? (
       catalog?.fetch.catalog.lastCompletedAt && catalog.collectives.length === 0 ? 'catalog was fetched; no saved relevant collectives' : undefined),
-    issue: state.issue ? { message: state.issue, retry: 'Retry the local read, or check Village sign-in in settings. Already saved effects are retained.' } : undefined,
+    issue: state.issue ? { message: state.issue, retry: 'Retry the local read, or check the online sign-in in settings. Already saved effects are retained.' } : undefined,
   };
 }

@@ -37,8 +37,8 @@ export default function VillagePageClient() {
   }
   return <div className="village-page">
     <div className="village-page-context">
-      <h1>village observations</h1>
-      <p><Link href="/settings">village sign-in, automatic publishing rules and hooks remain in settings.</Link></p>
+      <h1>online observations</h1>
+      <p><Link href="/settings">online sign-in, automatic publishing rules and hooks remain in settings.</Link></p>
     </div>
     <div className="village-page-tools">
       <Button onClick={() => { void controller.load(); }} disabled={state.loading}>reload saved observations</Button>

@@ -29,7 +29,7 @@ async function open(page, theme) {
   const html = page.locator('html');
   if (await html.getAttribute('data-theme') !== theme) await page.getByRole('button', { name: /Switch to .* mode/ }).click();
   await expect(html).toHaveAttribute('data-theme', theme);
-  await expect(page.getByRole('heading', { name: 'village observations', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'online observations', exact: true })).toBeVisible();
   await expect(page.locator('.vobs')).toBeVisible();
 }
 async function filterPanel(page) {

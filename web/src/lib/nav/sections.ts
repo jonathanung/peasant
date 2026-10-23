@@ -58,7 +58,7 @@ const ROUTES: Record<LocalSectionId, SectionRoute | null> = {
   },
   settings: {
     href: '/settings',
-    title: 'Manage recording, redaction, Village sign-in, and automatic publishing.',
+    title: 'Manage recording, redaction, online sign-in, and automatic publishing.',
   },
   analytics: {
     href: '/analytics',

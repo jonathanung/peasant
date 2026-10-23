@@ -335,7 +335,7 @@ export function publishOutcome(options: {
 }): PublishOutcome {
   const { response, sessionId, names, audienceBefore, audienceAfter, requestedAdds, fallbackUrl } = options;
   const result = response.sessions.find((session) => session.sessionId === sessionId);
-  if (!result) return { kind: 'stopped', stoppedAt: 'reading village’s answer' };
+  if (!result) return { kind: 'stopped', stoppedAt: 'reading the answer from peasant online' };
   const steps = result.steps ?? [];
   if (result.status === 'held') {
     const reason = steps.find((step) => step.step === 'content')?.reason;

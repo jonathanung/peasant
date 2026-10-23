@@ -20,6 +20,7 @@ import { DEFAULT_REDACTION_LEVEL } from '@/lib/share/redactions';
 import { guardReviewMatches } from '@/lib/share/reviewMatches';
 import { fetchSettings } from '@/lib/api/settings';
 import { AutomaticPublishingError, enableAutomaticPublishing } from './automaticPublishing';
+import { onlineCollectivesHref } from '@/lib/village/links';
 import {
   accessItems,
   accessSummary,
@@ -45,16 +46,8 @@ import {
 /** How often the popup asks whether the browser sign-in finished. */
 const SIGN_IN_POLL_MS = 2000;
 
-/** The village the reader signs in to, when the server does not name one. */
-function defaultVillageUrl(): string {
-  return process.env.NEXT_PUBLIC_COMMONS_URL ?? 'https://village.peasantlabs.org';
-}
-
-/** Where village lists the collectives a reader can create or join. */
-const VILLAGE_COLLECTIVES_PATH = '/groups';
-
 /** The recovery when village no longer holds the transcript a receipt names. */
-const TRANSCRIPT_MISSING = 'village no longer holds this transcript: run peasant village push --force for this session';
+const TRANSCRIPT_MISSING = 'peasant online no longer holds this transcript: run peasant village push --force for this session';
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -387,7 +380,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
     : signInFailure != null
     ? {
       stoppedAt: signInFailure.step === 'check'
-        ? `checking this computer’s village sign-in: ${oneLine(signInFailure.message)}`
+        ? `checking this computer’s peasant online sign-in: ${oneLine(signInFailure.message)}`
         : `starting the github sign-in: ${oneLine(signInFailure.message)}`,
       retry: signInFailure.step === 'start' ? connect : () => { setSignInFailure(null); setSignIn('unknown'); },
     }
@@ -399,9 +392,9 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       : read.status === 'ready' && publication === null
         ? { stoppedAt: 'reading this session: it is not recorded on this computer yet; run peasant ingest, then retry', retry: reread }
         : read.status === 'ready' && publication?.state === 'published' && !read.audienceKnown
-        ? { stoppedAt: 'reading who can read it on village', retry: reread }
+        ? { stoppedAt: 'reading who can read it online', retry: reread }
         : collectivesRead.status === 'error'
-          ? { stoppedAt: `reading your collectives on village: ${oneLine(collectivesRead.message)}`, retry: () => setCollectivesNonce((nonce) => nonce + 1) }
+          ? { stoppedAt: `reading your collectives online: ${oneLine(collectivesRead.message)}`, retry: () => setCollectivesNonce((nonce) => nonce + 1) }
           : null;
 
   // Publish only from a clean scan of the content now on the page, signed in,
@@ -481,7 +474,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       } else if (error instanceof PublishingRequestError && error.status === 401) {
         setSignIn('signed-out');
       } else {
-        setOutcome({ kind: 'stopped', stoppedAt: `sending it to village: ${oneLine(messageOf(error))}` });
+        setOutcome({ kind: 'stopped', stoppedAt: `sending it to peasant online: ${oneLine(messageOf(error))}` });
       }
     } finally {
       setSubmitting(false);
@@ -588,7 +581,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       accessSummary={mode === 'update' ? accessSummary(activeDraft, names) : undefined}
       onPublish={() => { void runPublish(); }}
       onConnect={connect}
-      joinHref={`${villageUrl ?? defaultVillageUrl()}${VILLAGE_COLLECTIVES_PATH}`}
+      joinHref={onlineCollectivesHref(villageUrl)}
       stoppedAt={stopped?.stoppedAt}
       onRecover={blocked?.retry ? recover : undefined}
       onRetry={blocked === null ? stopped?.retry : undefined}

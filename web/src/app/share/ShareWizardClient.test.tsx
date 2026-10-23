@@ -218,7 +218,7 @@ describe('ShareWizardClient', () => {
     await user.click(screen.getByText('Retry'));
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: 'Contribute' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'publish' })).toBeInTheDocument();
     });
   });
 
@@ -325,7 +325,7 @@ describe('ShareWizardClient', () => {
     render(<PublishProvider><ShareWizardClient /></PublishProvider>);
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { level: 1, name: 'Contribute' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1, name: 'publish' })).toBeInTheDocument();
     });
     // Selection is project-primary: the project name is shown directly in the
     // picker. The per-step "Projects" header was removed per UI feedback —
@@ -512,7 +512,7 @@ describe('ShareWizardClient', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('shows the three visible steps in the indicator (choose / redact / submit), with no labels step', async () => {
+  it('shows the three visible steps in the indicator (choose / redact / publish), with no labels step', async () => {
     const mockConfig = { enabled: true, web: ['sessions'], tui: [] };
     mockConfigSpy.mockReturnValue({
       config: mockConfig,
@@ -542,9 +542,9 @@ describe('ShareWizardClient', () => {
     render(<PublishProvider><ShareWizardClient /></PublishProvider>);
 
     const nav = await screen.findByRole('navigation', {
-      name: 'Contribute progress',
+      name: 'publish progress',
     });
-    for (const label of ['choose', 'redact', 'submit']) {
+    for (const label of ['choose', 'redact', 'publish']) {
       expect(within(nav).getByText(label)).toBeInTheDocument();
     }
     // The labels step asked for labels the push never sent, so it is gone.

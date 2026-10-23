@@ -218,7 +218,7 @@ describe('CommandPalette', () => {
       await new Promise((r) => setTimeout(r, 250));
     });
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/api/v1/search'));
-    expect(screen.queryByText('Messages')).not.toBeInTheDocument();
+    expect(screen.queryByText('messages')).not.toBeInTheDocument();
   });
 
   it('searches transcripts and deep-links a Messages hit to its task turn', async () => {
@@ -236,7 +236,7 @@ describe('CommandPalette', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/v1/search?q=pipeline&view=grouped&limit=20')));
     const hit = await screen.findByText('fix the [pipeline] retry');
-    expect(screen.getAllByText('Messages')).toHaveLength(2);
+    expect(screen.getAllByText('messages')).toHaveLength(2);
     expect(screen.getAllByTestId('search-annotation')).toHaveLength(2);
     expect(screen.getAllByTestId('search-annotation')[0]).toHaveTextContent('alpha-main·main·selected');
     expect(screen.getAllByTestId('search-annotation')[1]).toHaveTextContent('alpha-feature·main·unselected');

@@ -17,4 +17,4 @@ cases:
     asset: /app/village/
     find: '(0,a.jsxs)("div",{className:"village-page",children:'
     replace: '(0,a.jsxs)("section",{className:"village-page",hidden:!0,children:'
-    expectedError: village observations
+    expectedError: online observations

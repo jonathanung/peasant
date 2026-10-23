@@ -611,13 +611,13 @@ export function AutoPublishRules({ rules, onRulesChange, collectives, collective
           <fieldset className="stg-collectives" disabled={busy}>
             <legend className="label">publish to</legend>
             {!signedIn ? (
-              <p className="stg-note">sign in to village to pick collectives: run peasant village login, or sign in from the publish popup.</p>
+              <p className="stg-note">sign in to peasant online to pick collectives: run peasant village login, or sign in from the publish popup.</p>
             ) : collectivesError !== null ? (
-              <p className="stg-note" role="alert">the collectives could not be read from village: {collectivesError}</p>
+              <p className="stg-note" role="alert">the collectives could not be read from peasant online: {collectivesError}</p>
             ) : collectives === null ? (
-              <p className="stg-note">reading your collectives from village.</p>
+              <p className="stg-note">reading your collectives from peasant online.</p>
             ) : collectiveChoices.length === 0 ? (
-              <p className="stg-note">this account is in no collective yet. join or create one on village first.</p>
+              <p className="stg-note">this account is in no collective yet. join or create one online first.</p>
             ) : collectiveChoices.map(([id, name]) => (
               <Checkbox
                 key={id}
