@@ -155,7 +155,7 @@ describe('SessionsRouter', () => {
     // The cross-project grouped response is never rendered; the route falls
     // back to the flat project list from the sessions channel instead.
     expect(await screen.findByText('agent-a1')).toBeInTheDocument();
-    expect(screen.getByText('ingested session transcripts for this project.')).toBeInTheDocument();
+    expect(screen.queryByText(/ingested session transcripts/)).not.toBeInTheDocument();
     expect(screen.queryByText('agent-other')).not.toBeInTheDocument();
   });
 

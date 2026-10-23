@@ -105,7 +105,8 @@ type FetchState = 'idle' | 'loading' | 'done' | 'error';
 /**
  * The map shell — search row, canvas + rail two-column, time strip. Used on
  * the /map/{project} route. The export name and the `projectName` prop are the
- * stable contract; `showLedger` adds the header ledger line on /map/{project}.
+ * stable contract; `showLedger` marks the /map/{project} page: it opens on the
+ * navigator and keeps the way back to where the reader came from.
  */
 export function MapShell({
   projectHash,
@@ -423,13 +424,6 @@ export function MapShell({
         </p>
       </Explainer>
 
-      {showLedger && mySessions.length > 0 && (
-        <p className="text-sm text-ink-3">
-          <span className="font-mono tabular-nums">{mySessions.length.toLocaleString()}</span>{' '}
-          AI conversation{mySessions.length !== 1 ? 's' : ''}, on your machine. Nothing has left it.
-        </p>
-      )}
-
       {/* One-line state notes keep stale or degraded data unambiguous. */}
       {sessionsError ? <StatusNote>Live conversation updates are unavailable. The code map remains available; retry the Peasant connection to refresh the conversation rail.</StatusNote> : null}
       {!sessionsError && !sessionsData ? <StatusNote>{connected ? 'Waiting for live conversation updates. The code map is ready independently.' : CONNECTION.staleNote}</StatusNote> : null}
@@ -553,14 +547,9 @@ export function MapPageClient({ projectHash, projectName: requestedProjectName }
     <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
       <Breadcrumbs items={[{ label: 'map', href: '/map' }, { label: cleanName }]} />
 
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
-          {cleanName}
-        </h1>
-        <p className="text-sm text-ink-3 mt-1">
-          Browse code areas first, then open the spatial map to inspect their relationships.
-        </p>
-      </div>
+      <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
+        {cleanName}
+      </h1>
 
       {/* Keyed by project: /map/A → /map/B stays in the same route segment,
           so without the key React would keep the old shell's state (stale

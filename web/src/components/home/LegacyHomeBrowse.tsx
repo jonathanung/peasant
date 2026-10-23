@@ -92,7 +92,7 @@ export default function LegacyHomeBrowse({ view }: { view: 'projects' | 'grouped
         <ProjectPicker rows={rows} destination="sessions" statsPending={!settled} />
       </>}
       {view === 'grouped' && <GroupedSessionsSection variant="sessions" invalidationKey={data} titles={titles} heading="all sessions" />}
-      {view === 'flat' && <AllSessions sessions={sessions} titles={titles} title="every session" subtitle="every ingested session across projects, filterable and paged." />}
+      {view === 'flat' && <AllSessions sessions={sessions} titles={titles} title="every session" />}
     </DataState>}
   </div>;
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useChannel } from '@/contexts/WebSocketContext';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
@@ -120,17 +119,9 @@ export function SessionsRouter() {
     <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
       <Breadcrumbs items={[{ label: 'sessions', href: '/' }, { label }]} />
 
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
-          {label}
-        </h1>
-        <p className="text-sm text-ink-3 mt-1">
-          every recorded session in this project.{' '}
-          <Link href="/" className="underline underline-offset-2 hover:text-ink focus-mono">
-            all projects
-          </Link>
-        </p>
-      </div>
+      <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
+        {label}
+      </h1>
 
       {error && (
         <p role="alert" className="text-base leading-relaxed text-danger">
@@ -176,7 +167,6 @@ export function SessionsRouter() {
             sessions={scoped}
             titles={sessionTitles}
             title="sessions"
-            subtitle="ingested session transcripts for this project."
           />
         ) : (
           <TeachingEmptyState

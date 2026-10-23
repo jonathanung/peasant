@@ -384,10 +384,8 @@ describe('MapShell — one map without lenses', () => {
       `/projects/${PROJECT_HASH}/sess-new?turn=12&origin=Map`,
     );
 
-    // The clarifying sub-line under the recent-work eyebrow.
-    expect(
-      screen.getAllByText(/latest recorded conversations; hover one to light up what it shaped\./)[0],
-    ).toBeInTheDocument();
+    // No explainer sentence sits under the recent-work heading.
+    expect(screen.queryByText(/hover one to light up/)).not.toBeInTheDocument();
 
     // Each row carries a "touched" line — the first-two-segment modules of
     // its editedFiles — so the rail says WHAT a session shaped and WHERE.
@@ -728,12 +726,11 @@ describe('MapShell — one map without lenses', () => {
     }
   });
 
-  it('shows the ledger line only with showLedger (the /map/{project} header strip)', async () => {
+  it('keeps the way back on /map/{project} and carries no ledger sentence', async () => {
     window.history.replaceState({}, '', `/map/${PROJECT_HASH}?grain=file&scale=1.4&panX=12&panY=0`);
     render(<MapShell projectHash={PROJECT_HASH} projectName={PROJECT} showLedger />);
-    expect(
-      await screen.findByText(/AI conversations?, on your machine\. Nothing has left it\./),
-    ).toBeInTheDocument();
+    await screen.findAllByRole('link', { name: 'Open the conversation sess-new' });
+    expect(screen.queryByText(/Nothing has left it/)).not.toBeInTheDocument();
     const canonicalMapLocation = `${window.location.pathname}${window.location.search}`;
     expect((await screen.findAllByRole('link', { name: 'Open the conversation sess-new' }))[0])
       .toHaveAttribute(

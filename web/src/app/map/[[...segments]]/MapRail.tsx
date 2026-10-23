@@ -212,12 +212,6 @@ export function ProjectRail({
       </RailSection>
 
       <RailSection title="Recent AI conversations">
-        {/* Clarifying sub-line: say what this list is and that hovering reveals
-            what each conversation shaped on the canvas. */}
-        <p className="mb-2 text-[11px] leading-snug text-ink-3">
-          latest recorded conversations; hover one to light up what it
-          shaped.
-        </p>
         {recentTasks?.some((task) => task.outcome) && (
           <OutcomeHeuristicHelp className="mb-2" />
         )}

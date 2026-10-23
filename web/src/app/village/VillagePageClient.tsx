@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { zLocalContributionEvidenceKind, type LocalContributionEvidenceKind } from '@peasant-labs/schema';
 import { VillageObservations } from '@peasant-labs/fairtrade/ui';
@@ -38,7 +37,6 @@ export default function VillagePageClient() {
   return <div className="village-page">
     <div className="village-page-context">
       <h1>online observations</h1>
-      <p><Link href="/settings">online sign-in, automatic publishing rules and hooks remain in settings.</Link></p>
     </div>
     <div className="village-page-tools">
       <Button onClick={() => { void controller.load(); }} disabled={state.loading}>reload saved observations</Button>
