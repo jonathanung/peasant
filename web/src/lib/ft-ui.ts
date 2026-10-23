@@ -50,6 +50,7 @@ import {
   Select as FtSelect,
   SessionGroupDisclosure as FtSessionGroupDisclosure,
   Sparkline as FtSparkline,
+  Pagination as FtPagination,
   StatsStrip as FtStatsStrip,
   Popover as FtPopover,
   ProviderIcon as FtProviderIcon,
@@ -765,6 +766,18 @@ export interface SparklineProps {
   className?: string;
 }
 export const Sparkline = FtSparkline as unknown as ComponentType<SparklineProps>;
+
+/** Numbered pagination: prev and next around the page numbers, the current one marked. */
+export interface PaginationProps {
+  /** The current page, 1-based. */
+  page: number;
+  /** How many pages there are. */
+  total: number;
+  onChange: (page: number) => void;
+  siblingCount?: number;
+  label?: string;
+}
+export const Pagination = FtPagination as unknown as ComponentType<PaginationProps>;
 
 /** One option of a segmented control; the label may carry a tabular count. */
 export interface SegmentedOption {

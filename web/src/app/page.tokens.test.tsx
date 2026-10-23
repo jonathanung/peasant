@@ -85,20 +85,23 @@ describe('mounted Home opaque continuation', () => {
       return;
     }
     if (testCase.pages[''].ids.length) await screen.findByRole('link', { name: 'root-one' });
-    else await screen.findByRole('button', { name: 'load more' });
+    else await screen.findByRole('button', { name: 'next page' });
+    const idle = () => waitFor(() => expect(screen.getByRole('region', { name: 'sessions' })).not.toHaveAttribute('aria-busy'));
 
     if (testCase.name === 'short-and-empty-root-continuation' || testCase.name === 'empty-first-page-can-continue') {
       for (let index = 1; index < testCase.expectedTokens.length; index++) {
         expect(homeReads()).toHaveLength(index);
-        fireEvent.click(screen.getByRole('button', { name: 'load more' }));
+        fireEvent.click(screen.getByRole('button', { name: 'next page' }));
         await waitFor(() => expect(homeReads()).toHaveLength(index + 1));
-        await waitFor(() => expect(screen.queryByRole('button', { name: 'load more' })?.hasAttribute('disabled') ?? false).toBe(false));
+        await idle();
+        await waitFor(() => expect(screen.getByRole('button', { name: `page ${index + 1}` })).toHaveAttribute('aria-current', 'page'));
       }
       await screen.findByRole('link', { name: 'root-last' });
-      expect(screen.queryByRole('button', { name: 'load more' })).not.toBeInTheDocument();
+      // The server sent its last page: nothing follows it.
+      expect(screen.getByRole('button', { name: 'next page' })).toBeDisabled();
     }
     if (testCase.name === 'continuation-retries-same-token') {
-      fireEvent.click(screen.getByRole('button', { name: 'load more' }));
+      fireEvent.click(screen.getByRole('button', { name: 'next page' }));
       await screen.findByRole('button', { name: 'retry the session list' });
       expect(screen.getByRole('link', { name: 'root-one' })).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'retry the session list' }));
@@ -115,28 +118,34 @@ describe('mounted Home opaque continuation', () => {
       return;
     }
     if (testCase.refreshed) {
-      fireEvent.click(screen.getByRole('button', { name: 'load more' }));
-      await waitFor(() => expect(homeReads()).toHaveLength(2));
-      await waitFor(() => expect(screen.getByRole('button', { name: 'load more' })).not.toBeDisabled());
-      fireEvent.click(screen.getByRole('button', { name: 'load more' }));
-      await screen.findByRole('link', { name: 'root-last' });
       fireEvent.click(screen.getByRole('button', { name: 'subagents 1' }));
       await screen.findByRole('link', { name: 'child-one' });
       fireEvent.click(screen.getByRole('button', { name: 'load more subagents' }));
-      await waitFor(() => expect(homeReads()).toHaveLength(5));
+      await waitFor(() => expect(homeReads()).toHaveLength(3));
       await waitFor(() => expect(screen.getByRole('button', { name: 'load more subagents' })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole('button', { name: 'next page' }));
+      await waitFor(() => expect(homeReads()).toHaveLength(4));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'page 2' })).toHaveAttribute('aria-current', 'page'));
+      fireEvent.click(screen.getByRole('button', { name: 'next page' }));
+      await screen.findByRole('link', { name: 'root-last' });
+      // Back on the first page; every page read stays in the loaded window.
+      fireEvent.click(screen.getByRole('button', { name: 'page 1' }));
+      await screen.findByRole('link', { name: 'root-one' });
       const before = homeReads().length;
       fresh = true;
       fireEvent(window, new Event('focus'));
       await screen.findByRole('link', { name: 'fresh root-one' });
+      await idle();
       expect(tokens(homeReads().slice(before).filter(url => !url.searchParams.has('parentSessionId')))).toEqual(testCase.expectedTokens);
       expect(tokens(homeReads().slice(before).filter(url => url.searchParams.has('parentSessionId')))).toEqual(testCase.expectedChildTokens);
-      expect(screen.getByRole('button', { name: 'load more' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'next page' })).not.toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'page 3' }));
+      await screen.findByText('no sessions on this page.');
       expect(screen.queryByRole('link', { name: 'root-last' })).not.toBeInTheDocument();
       return;
     }
     if (testCase.name.endsWith('does-not-restart') || testCase.rejectRestart) {
-      fireEvent.click(screen.getByRole('button', { name: 'load more' }));
+      fireEvent.click(screen.getByRole('button', { name: 'next page' }));
       await screen.findByRole('button', { name: 'retry the session list' });
       expect(!!screen.queryByRole('link', { name: 'root-one' })).toBe(!testCase.rejectRestart);
     }
@@ -149,7 +158,7 @@ describe('mounted Home opaque continuation', () => {
     }
     if (testCase.name === 'project-filter-aborts-old-continuation') {
       await waitFor(() => expect(projectChoice('beta')).not.toBeNull());
-      fireEvent.click(screen.getByRole('button', { name: 'load more' }));
+      fireEvent.click(screen.getByRole('button', { name: 'next page' }));
       await waitFor(() => expect(releases).toHaveLength(1));
       const oldSignal = signals.at(-1)!;
       fresh = true;

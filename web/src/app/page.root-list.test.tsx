@@ -105,7 +105,7 @@ const REQUIRED_NAMES = [
   'published-counts',
   'auto-counts',
   'outside-selection-hidden',
-  'load-more',
+  'next-page',
   'pending-collectives-cannot-read',
   'parent-visible-child-grouped',
   'recursive-family-and-refresh',
@@ -320,17 +320,38 @@ function rowsOnScreen(list: HTMLElement): string[] {
   return [...list.querySelectorAll('tbody [data-session-id]')].map((node) => node.getAttribute('data-session-id') ?? '');
 }
 
-/** Presses load more until it is gone; returns the rows on screen after each step. */
-async function loadAll(list: HTMLElement): Promise<number[]> {
-  const pages = [rowsOnScreen(list).length];
-  for (let press = 0; press < 100; press++) {
-    const more = within(list).queryByRole('button', { name: 'load more' });
-    if (!more) break;
-    fireEvent.click(more);
-    await waitFor(() => expect(within(list).queryByRole('button', { name: 'load more' })?.hasAttribute('disabled') ?? false).toBe(false));
-    pages.push(rowsOnScreen(list).length);
+/** Waits until the list has no read in flight and shows a page of rows. */
+async function settled(list: HTMLElement): Promise<void> {
+  await waitFor(() => {
+    expect(list).not.toHaveAttribute('aria-busy');
+    expect(list.querySelector('[aria-label="Loading your sessions"]')).toBeNull();
+  });
+}
+
+/**
+ * Walks the pager from the first page to the last, pressing `next page`
+ * while it is enabled; returns the rows on each page and every row in order.
+ */
+async function readPages(list: HTMLElement): Promise<{ pages: number[]; rows: string[] }> {
+  await settled(list);
+  const first = within(list).queryByRole('button', { name: 'page 1' });
+  if (first && first.getAttribute('aria-current') !== 'page') {
+    fireEvent.click(first);
+    await waitFor(() => expect(first).toHaveAttribute('aria-current', 'page'));
   }
-  return pages;
+  const pages = [rowsOnScreen(list).length];
+  const rows = [...rowsOnScreen(list)];
+  for (let press = 0; press < 100; press++) {
+    const next = within(list).queryByRole('button', { name: 'next page' });
+    if (!next || next.hasAttribute('disabled')) break;
+    const before = rowsOnScreen(list).join();
+    fireEvent.click(next);
+    await waitFor(() => expect(rowsOnScreen(list).join()).not.toBe(before));
+    await settled(list);
+    pages.push(rowsOnScreen(list).length);
+    rows.push(...rowsOnScreen(list));
+  }
+  return { pages, rows };
 }
 
 function stateLabel(list: HTMLElement, id: string): string {
@@ -423,10 +444,13 @@ describe('root page publish filters', () => {
           expect(within(group as HTMLElement).getByRole('button')).toHaveAttribute('aria-expanded', 'false');
         }
       }
-       const pages = await loadAll(list);
+       const { pages, rows: everyRow } = await readPages(list);
       assertSessionsStat();
       expect(pages).toEqual(testCase.expectedPages ?? [testCase.expectedRows.length]);
-      expect(rowsOnScreen(list)).toEqual(testCase.expectedRows);
+      expect(everyRow).toEqual(testCase.expectedRows);
+      // The steps act on the last page, where the walk stopped.
+      const lastPage = testCase.expectedRows.slice(testCase.expectedRows.length - pages.at(-1)!);
+      expect(rowsOnScreen(list)).toEqual(lastPage);
 
       const errors = vi.spyOn(console, 'error');
       for (const step of testCase.steps ?? []) {
@@ -452,7 +476,7 @@ describe('root page publish filters', () => {
             expect(toggle).toHaveAttribute('aria-expanded', String(step.children.some((id) => specs.find((spec) => spec.id === id)?.parentSessionId === group.getAttribute('data-session-group'))));
           }
         }
-        expect(rowsOnScreen(list)).toEqual(testCase.expectedRows);
+        expect(rowsOnScreen(list)).toEqual(lastPage);
         assertSessionsStat();
         expect(list.querySelectorAll('[data-session-group]')).toHaveLength(new Set([...list.querySelectorAll('[data-session-group]')].map((node) => node.getAttribute('data-session-group'))).size);
         for (const child of children) {
@@ -471,7 +495,7 @@ describe('root page publish filters', () => {
           expect(cells).toHaveLength(6);
           const served = syncRow(spec, specs.indexOf(spec));
           expect(cells[1].textContent).toContain(PROJECTS[spec.project].name);
-          expect(cells[1].querySelector('a')?.getAttribute('href')).toContain(PROJECTS[spec.project].hash);
+          expect(cells[1].querySelector('a')).toBeNull();
           expect(cells[2].textContent?.trim()).toBe(served.turnCount.toLocaleString('en-US'));
           expect(cells[3].textContent?.trim()).toBe(formatMinutes(served.durationMs / 60_000));
           const started = Date.parse(served.startTime);
@@ -515,8 +539,8 @@ describe('root page publish filters', () => {
          fireEvent.click(button);
          expect(button).toHaveAttribute('aria-checked', 'true');
          if (!alreadySelected) await waitFor(() => expect(rowsOnScreen(list).length).toBe(Math.min(testCase.expectedCounts[key], 25)));
-         await loadAll(list);
-         expect(rowsOnScreen(list).length, `${key} rows`).toBe(testCase.expectedCounts[key]);
+         const { rows: listed } = await readPages(list);
+         expect(listed.length, `${key} rows`).toBe(testCase.expectedCounts[key]);
         assertSessionsStat();
       }
 
@@ -535,14 +559,15 @@ describe('root page list reads', () => {
     { id: 's-pub', project: 'beta', syncStatus: 'synced', state: 'published', audience: 2 },
   ];
 
-  it('links each row to its transcript and to its project changes', async () => {
+  it('links each row to its transcript only; the project is plain text', async () => {
     serve(SPECS);
     render(<HomePage />);
     const list = await screen.findByRole('region', { name: 'sessions' });
     await screen.findByRole('link', { name: 's-pub' });
     const row = list.querySelector('[data-session-id="s-pub"]')!.closest('tr')!;
     expect(within(row).getByRole('link', { name: 's-pub' })).toHaveAttribute('href', `/projects/${BETA_HASH}/s-pub`);
-    expect(within(row).getByRole('link', { name: 'changes in beta-project' })).toHaveAttribute('href', `/review/${BETA_HASH}`);
+    expect(within(row).getAllByRole('link')).toHaveLength(1);
+    expect(within(row).getByText('beta-project')).toBeInTheDocument();
   });
 
   it('ignores session broadcasts and refreshes the loaded list on focus', async () => {

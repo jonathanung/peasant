@@ -1,7 +1,7 @@
-/* Home (.home-*): the page head with the browse menu, the auto-publish tip, the
-   search and filters toolbar, the session table's cells and its footer. Layout
-   only: the controls, menus and the table are fairtrade's (.btn, .menu-*,
-   .tbl). Fairtrade tokens only, radius 0. */
+/* Home (.home-*): the page head, the auto-publish tip, the controls on the
+   table's header (search, filters, browse by), the session table's cells and
+   its pager. Layout only: the controls, menus, table and pager are fairtrade's
+   (.btn, .menu-*, .tbl, .pgn). Fairtrade tokens only, radius 0. */
 
 .home-page { gap: var(--sp-5); padding: var(--sp-7) var(--sp-6) var(--sp-8); }
 .home-browse { min-width: 0; overflow-x: auto; }
@@ -25,24 +25,39 @@
 .choice-menu-own-case { text-transform: none; overflow-wrap: anywhere; }
 .choice-menu-note { margin: 0; }
 
-/* the auto-publish tip: one line on a wide screen, the dismiss button at its end */
+/* the auto-publish tip: one line on a wide screen, the dismiss button at its
+   end. The button's glyph sits as far in from the right edge as the lead icon
+   sits from the left, and both centre on the first line of the copy. */
 .home-tip {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--sp-3);
   border: var(--bd-strong);
   background: var(--surface);
-  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+  padding: var(--sp-3) calc(var(--sp-4) - (var(--control-h-sm) - var(--ic-md)) / 2) var(--sp-3) var(--sp-4);
   color: var(--ink-2);
 }
-.home-tip-icon { width: var(--ic-md); height: var(--ic-md); color: var(--amber); flex: none; }
+.home-tip-icon {
+  width: var(--ic-md);
+  height: var(--ic-md);
+  margin-block: calc((var(--fs-body) * var(--lh-body) - var(--ic-md)) / 2);
+  color: var(--amber);
+  flex: none;
+}
 .home-tip-copy { margin: 0; flex: 1 1 auto; min-width: 0; max-width: none; font-size: var(--fs-body); line-height: var(--lh-body); }
 .home-tip-copy .pv-name { vertical-align: -0.125em; }
 .home-tip-command { font-family: var(--font-mono); font-size: var(--fs-label); color: var(--ink-strong); background: var(--surface-2); padding: 0 var(--sp-1); }
-.home-tip-dismiss { flex: none; margin-left: auto; }
+.home-tip-dismiss {
+  flex: none;
+  margin-left: auto;
+  margin-block: calc((var(--fs-body) * var(--lh-body) - var(--control-h-sm)) / 2);
+}
+.home-tip-dismiss .lucide { width: var(--ic-md); height: var(--ic-md); }
 
-/* search and filters */
+/* the board: the controls on the table's header, then the table and its pager */
+.home-board { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
 .home-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.home-toolbar-menus { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-left: auto; }
 .home-search {
   display: flex;
   align-items: center;
@@ -50,6 +65,8 @@
   flex: 1 1 20rem;
   max-width: 35rem;
   min-width: 0;
+  box-sizing: border-box;
+  height: var(--control-h);
   padding: 0 var(--sp-1) 0 var(--sp-3);
   border: var(--bd-strong);
   background: var(--canvas);
@@ -60,7 +77,7 @@
 .home-search input {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: var(--control-h);
+  height: 100%;
   border: 0;
   outline: none;
   background: transparent;
@@ -86,21 +103,35 @@
   font-variant-numeric: tabular-nums;
 }
 @media (pointer: coarse) {
-  .home-search input { min-height: var(--target-comfortable); }
+  .home-search { height: var(--target-comfortable); }
   .choice-menu-trigger, .home-tip-dismiss, .home-search-clear { min-height: var(--target-comfortable); }
   .home-tip-dismiss, .home-search-clear { min-width: var(--target-comfortable); }
 }
 
 /* the session table: a title, then the agent and its size */
 .home-list { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
-.home-table .tbl { min-width: 58rem; table-layout: fixed; }
-/* the column widths: session takes what is left */
+.home-table { margin-top: 0; }
+/* the page title names the table; its caption stays for screen readers */
+.home-table .tbl-caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+.home-table .tbl { min-width: 60rem; table-layout: fixed; }
+/* the column widths: session takes what is left, the figures take what their
+   longest value needs, and a long status ("published, 2 collectives, up to
+   date") takes two lines rather than holding a wide empty column for it */
 .home-table .tbl th:nth-child(2) { width: 12rem; }
 .home-table .tbl th:nth-child(3) { width: 4.5rem; }
 .home-table .tbl th:nth-child(4) { width: 6rem; }
 .home-table .tbl th:nth-child(5) { width: 6.5rem; }
-.home-table .tbl th:nth-child(6) { width: 19rem; }
-/* a long status ("published, 2 collectives, up to date") wraps inside its column */
+.home-table .tbl th:nth-child(6) { width: 16rem; }
 .home-table .tbl td:nth-child(6) .pub-state { white-space: normal; }
 .home-session-cell { display: flex; flex-direction: column; min-width: 0; }
 .home-session { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
@@ -116,19 +147,9 @@
 .home-session-meta { font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-mono); color: var(--ink-3); }
 .home-session-agent { display: inline-flex; vertical-align: -0.125em; }
 .home-session-phone { display: none; }
-.home-project { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
-.home-project-name { overflow-wrap: anywhere; }
-.home-project-changes {
-  width: fit-content;
-  font-family: var(--font-mono);
-  font-size: var(--fs-label);
-  color: var(--ink-3);
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
-}
+.home-project { display: block; min-width: 0; overflow-wrap: anywhere; }
 @media (hover: hover) and (pointer: fine) {
   a.home-session-title:hover { color: var(--amber); text-decoration: underline; text-underline-offset: 3px; }
-  .home-project-changes:hover { color: var(--ink); text-decoration-style: solid; }
 }
 
 .home-empty { margin: 0; padding: var(--sp-5) 0; border-block: var(--bd); color: var(--ink-2); font-size: var(--fs-body); }
@@ -144,11 +165,11 @@
   color: var(--ink-3);
 }
 .home-pager-range:only-child { margin-right: auto; }
+.home-pager .pgn { margin-left: auto; }
 
 @media (max-width: 47.99rem) {
   .home-page { padding: var(--sp-5) var(--sp-4) var(--sp-7); }
   .home-title { font-size: var(--fs-xl); }
-  .home-tip { align-items: flex-start; }
   .home-search { flex-basis: 100%; max-width: none; }
 
   /* A phone keeps the session column: the session cell carries the rest. */

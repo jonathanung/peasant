@@ -87,11 +87,13 @@ try {
     assert.ok(!subscriptions.some(frame => /"(?:sessions|quality|trends)"/.test(frame)), `Eager subscription: ${subscriptions}`);
     assert.equal(await page.locator('html').getAttribute('data-theme'), theme);
     assert.equal(await page.locator('[data-root-session-list] [data-session-id]').count(), 25);
-    await page.getByRole('button', { name: 'load more', exact: true }).click();
-    await page.getByRole('link', { name: 'session root-25', exact: true }).waitFor();
     await page.locator('[data-session-group="root-0"] button').click();
     await page.getByRole('link', { name: 'session child-0', exact: true }).waitFor();
     assert.equal(reads.at(-1).searchParams.has('publication'), false);
+    // The pager reads the next server page on request and shows one page at a time.
+    await page.getByRole('button', { name: 'next page', exact: true }).click();
+    await page.getByRole('link', { name: 'session root-25', exact: true }).waitFor();
+    assert.equal(await page.getByRole('link', { name: 'session root-0', exact: true }).count(), 0, 'One page at a time');
     const before = reads.length;
     fail = true;
     await page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -101,6 +103,8 @@ try {
     fail = false;
     await page.getByRole('button', { name: 'retry the session list' }).click();
     await page.getByRole('button', { name: 'retry the session list' }).waitFor({ state: 'detached' });
+    await page.getByRole('button', { name: 'page 1', exact: true }).click();
+    await page.getByRole('link', { name: 'session child-0', exact: true }).waitFor();
     await page.evaluate(() => window.scrollTo(0, 0));
     const servedChunk = await page.request.get(`${origin}/${relative(join(repo, 'web/out'), chunk)}`);
     assert.equal(servedChunk.status(), 200);

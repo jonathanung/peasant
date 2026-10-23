@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { useHomeSessions } from '@/hooks/useHomeSessions';
 import { SkeletonList } from '@/lib/skeleton';
 import Link from 'next/link';
@@ -10,6 +10,7 @@ import {
   PublishStateLabel,
   SessionGroupDisclosure,
   Button,
+  Pagination,
   type DataTableColumn,
 } from '@/lib/ft-ui';
 import { usePublicationAudience } from '@/hooks/useRootSessions';
@@ -19,7 +20,7 @@ import {
   type RootSessionRow,
 } from '@/lib/home/publishState';
 import { formatMinutes } from '@/lib/home/rootStats';
-import { parseProjectHash, reviewHref, transcriptHref } from '@/lib/navigation/projectRoutes';
+import { parseProjectHash, transcriptHref } from '@/lib/navigation/projectRoutes';
 import { displayProject } from '@/lib/quality/utils';
 import { formatRelative } from '@/app/review/[[...segments]]/format';
 
@@ -69,6 +70,8 @@ export interface RootSessionListProps {
   home: ReturnType<typeof useHomeSessions>;
   /** The publish-state filter the page set; it picks the empty copy. */
   filter: PublishFilter;
+  /** What the list is scoped to (filter, project); a new scope starts on the first page. */
+  scope: string;
   loading?: boolean;
 }
 
@@ -105,13 +108,64 @@ function SessionChildrenGroup({ parentId, childIds, expanded, onToggle, indent =
 
 /**
  * The root page's session list: one row per session with its publish state,
- * and `load more`. Home owns the server filters and pages; page lengths never
- * stand in for global totals or the complete project catalog, so the footer
- * counts the rows on screen, not the library.
+ * paged. Each page of the table is one page the server sent: the server pages
+ * by an opaque continuation and sends no total, so the pager numbers the pages
+ * read so far, plus the next one while the server says more follow. Only a
+ * press on the pager reads a page, and the table stays on the page it shows
+ * until the next one has arrived. Page lengths never stand in for global
+ * totals or the complete project catalog, so the footer counts the rows on
+ * screen, not the library. A new scope (filter, project) starts on the first page.
  */
-export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previews, home, filter, loading }: RootSessionListProps) {
+export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previews, home, filter, scope, loading }: RootSessionListProps) {
   const expandedGroups = home.expanded;
-  const visible = rows;
+  const root = home.groups.get('');
+  const serverPages = root?.pages;
+  // A page can come back short or empty and still have more after it, so the
+  // pager follows `next`, never a count.
+  const hasMore = (serverPages?.at(-1)?.next ?? '') !== '';
+  const reading = root?.loading ?? false;
+  // A session one page repeats from an earlier page stays on the earlier one.
+  const pageRows = useMemo(() => {
+    const seen = new Set<string>();
+    return (serverPages ?? []).map((served) => served.items.filter((row) => {
+      if (seen.has(row.sync.id)) return false;
+      seen.add(row.sync.id);
+      return true;
+    }));
+  }, [serverPages]);
+  const pageCount = Math.max(1, pageRows.length) + (hasMore && pageRows.length > 0 ? 1 : 0);
+  // `page` is the page shown; `wanted` is a page asked for while it is being
+  // read, shown once it arrives. A new scope starts over on the first page.
+  const [paging, setPaging] = useState<{ scope: string; page: number; wanted: number | null }>({ scope, page: 1, wanted: null });
+  if (paging.scope !== scope) setPaging({ scope, page: 1, wanted: null });
+  const { page, wanted } = paging;
+  // The asked-for page shows in the same render its rows arrive in.
+  const shown = wanted !== null && pageRows.length >= wanted ? wanted : page;
+  const current = Math.min(Math.max(1, shown), Math.max(1, pageRows.length));
+  const visible = pageRows[current - 1] ?? [];
+  const start = pageRows.slice(0, current - 1).reduce((sum, items) => sum + items.length, 0);
+  useEffect(() => {
+    if (wanted === null) return;
+    if (pageRows.length >= wanted) setPaging((state) => ({ ...state, page: wanted, wanted: null }));
+    else if (!reading && !hasMore) setPaging((state) => ({ ...state, wanted: null }));
+  }, [wanted, pageRows.length, reading, hasMore]);
+  const choose = (next: number) => {
+    if (next <= pageRows.length) {
+      setPaging((state) => ({ ...state, page: next, wanted: null }));
+    } else if (hasMore) {
+      setPaging((state) => ({ ...state, wanted: next }));
+      home.more();
+    }
+  };
+  // A new page starts at the table's top.
+  const top = useRef<HTMLElement>(null);
+  const turned = useRef(current);
+  useEffect(() => {
+    if (turned.current === current) return;
+    turned.current = current;
+    const box = top.current?.getBoundingClientRect();
+    if (box && box.top < 0) top.current?.scrollIntoView({ block: 'start' });
+  }, [current]);
 
   // Depth-first: each expanded child becomes its own row immediately after its
   // parent. Folded groups materialize nothing, so a deep chain stays bounded.
@@ -223,18 +277,8 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
         key: 'project',
         label: 'project',
         render: (_, row) => {
-          const hash = parseProjectHash(row.sync.projectHash);
           const name = displayProject(row.sync.projectName);
-          return (
-            <span className="home-project">
-              <span className="home-project-name">{name}</span>
-              {hash && (
-                <Link href={reviewHref(hash)} aria-label={`changes in ${name}`} className="home-project-changes focus-mono">
-                  changes
-                </Link>
-              )}
-            </span>
-          );
+          return <span className="home-project">{name}</span>;
         },
       },
       { key: 'turns', label: 'turns', align: 'right', render: (_, row) => row.sync.turnCount.toLocaleString('en-US') },
@@ -261,14 +305,11 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
     [titles, previews, audience, childGroups, expandedGroups, home, childCounts],
   );
 
-  // The server pages by an opaque continuation: a page can come back short or
-  // empty and still have more after it, so `load more` follows `next`, never a count.
-  const hasMore = (home.groups.get('')?.pages.at(-1)?.next ?? '') !== '';
-
+  const end = start + visible.length;
   return (
-    <section aria-label="sessions" className="home-list" data-root-session-list="true">
-      {loading ? <SkeletonList rows={6} label="Loading your sessions" /> : rows.length === 0 ? (
-        <p className="home-empty">{EMPTY_FILTER_COPY[filter]}</p>
+    <section ref={top} aria-label="sessions" aria-busy={reading || undefined} className="home-list" data-root-session-list="true">
+      {loading ? <SkeletonList rows={6} label="Loading your sessions" /> : visible.length === 0 ? (
+        <p className="home-empty">{current > 1 ? 'no sessions on this page.' : EMPTY_FILTER_COPY[filter]}</p>
       ) : (
         <DataTable<ListRow>
           caption="sessions on this computer"
@@ -282,12 +323,12 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
         />
       )}
 
-      {!loading && (rows.length > 0 || hasMore) && (
+      {!loading && (visible.length > 0 || pageCount > 1) && (
         <div className="home-pager">
-          {rows.length > 0 && <span className="home-pager-range tabular-nums">1 to {rows.length.toLocaleString('en-US')}</span>}
-          {hasMore && (
-            <Button variant="secondary" size="sm" disabled={home.groups.get('')?.loading} onClick={() => home.more()}>load more</Button>
-          )}
+          <span className="home-pager-range tabular-nums" role="status">
+            {wanted !== null && reading ? `reading page ${wanted}…` : visible.length > 0 ? `showing ${(start + 1).toLocaleString('en-US')}–${end.toLocaleString('en-US')}` : ''}
+          </span>
+          {pageCount > 1 && <Pagination page={current} total={pageCount} onChange={choose} label="session pages" />}
         </div>
       )}
     </section>

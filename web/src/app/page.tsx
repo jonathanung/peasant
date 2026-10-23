@@ -102,48 +102,56 @@ export default function HomePage() {
     },
   ];
 
+  // The table's controls sit on its header: search, then the filters and the
+  // browse menu. Search and filters act on the session table only.
+  const browseMenu = <ChoiceMenu
+    ariaLabel="browse by"
+    align="end"
+    trigger={<><Layers aria-hidden="true" />browse by: {BROWSE_LABELS[browse]}</>}
+    groups={[{
+      id: 'browse',
+      value: browse,
+      items: BROWSE_VIEWS.map(view => ({ value: view, label: BROWSE_LABELS[view] })),
+      onChoose: next => { if (isBrowseView(next)) setBrowse(next); },
+    }]}
+  />;
+
   return <div className="iu-page home-page" data-home-bounded="true">
     <header className="home-head" data-tour="home">
       <h1 className="iu-page-title home-title">sessions</h1>
-      <ChoiceMenu
-        ariaLabel="browse by"
-        align="end"
-        trigger={<><Layers aria-hidden="true" />browse by: {BROWSE_LABELS[browse]}</>}
-        groups={[{
-          id: 'browse',
-          value: browse,
-          items: BROWSE_VIEWS.map(view => ({ value: view, label: BROWSE_LABELS[view] })),
-          onChoose: next => { if (isBrowseView(next)) setBrowse(next); },
-        }]}
-      />
     </header>
     <AutoPublishTip />
     {discoveryError != null && <div className="flex flex-col items-start gap-3">
       <FeedbackPanel variant="error">{discoveryErrorMessage(discoveryError)}</FeedbackPanel>
       <Button variant="secondary" size="sm" onClick={() => home.retry()}>retry the session list</Button>
     </div>}
-    {browse === 'sessions' ? <>
-      {!selectionFailed && <div className="home-toolbar">
-        <label className="home-search">
+    <div className="home-board">
+      <div className="home-toolbar" data-home-toolbar="true">
+        {browse === 'sessions' && !selectionFailed && <label className="home-search">
           <Search className="home-search-icon" aria-hidden="true" />
           <input type="search" aria-label="search your sessions" placeholder="search titles, prompts, tool output" value={query} onChange={event => setQuery(event.target.value)} />
           {query && <button type="button" className="btn btn-ghost btn-sm btn-icon home-search-clear" aria-label="clear search" onClick={() => setQuery('')}><X aria-hidden="true" /></button>}
-        </label>
-        {!search && <ChoiceMenu
-          ariaLabel="filters"
-          align="end"
-          closeOnChoose={false}
-          onOpen={() => { if (home.projectError == null) void home.loadProjects(); }}
-          trigger={<><SlidersHorizontal aria-hidden="true" />filters{filterCount > 0 && <><span className="home-filter-count" aria-hidden="true">{filterCount}</span><span className="sr-only">, {filterCount} set</span></>}</>}
-          groups={filterGroups}
-          actions={[{ label: 'clear filters', disabled: filterCount === 0, onSelect: () => { setFilter('all'); setProject(null); } }]}
-        />}
-      </div>}
-      {!selectionFailed && (search ? <GroupedSessionsSection key={`${search}-${home.revision}`} variant="search" query={search} heading="search results" rowDetail={row => <SearchDetail row={row} />} />
-        : !roots?.pages.length && roots?.error != null ? null
-        : <RootSessionList rows={rows} childGroups={children} titles={titles} previews={previews} home={home} filter={filter} loading={!roots?.pages.length && roots?.error == null} />)}
-    </> : <section aria-label={`browse by ${BROWSE_LABELS[browse]}`} id={`home-browse-${browse}`} className="home-browse">
-      {!selectionFailed && <Suspense fallback={<SkeletonList rows={4} />}><LegacyHomeBrowse view={browse} /></Suspense>}
-    </section>}
+        </label>}
+        <div className="home-toolbar-menus">
+          {browse === 'sessions' && !selectionFailed && !search && <ChoiceMenu
+            ariaLabel="filters"
+            align="end"
+            closeOnChoose={false}
+            onOpen={() => { if (home.projectError == null) void home.loadProjects(); }}
+            trigger={<><SlidersHorizontal aria-hidden="true" />filters{filterCount > 0 && <><span className="home-filter-count" aria-hidden="true">{filterCount}</span><span className="sr-only">, {filterCount} set</span></>}</>}
+            groups={filterGroups}
+            actions={[{ label: 'clear filters', disabled: filterCount === 0, onSelect: () => { setFilter('all'); setProject(null); } }]}
+          />}
+          {browseMenu}
+        </div>
+      </div>
+      {browse === 'sessions' ? <>
+        {!selectionFailed && (search ? <GroupedSessionsSection key={`${search}-${home.revision}`} variant="search" query={search} heading="search results" rowDetail={row => <SearchDetail row={row} />} />
+          : !roots?.pages.length && roots?.error != null ? null
+          : <RootSessionList rows={rows} childGroups={children} titles={titles} previews={previews} home={home} filter={filter} scope={`${filter}:${project?.projectHash ?? ''}`} loading={!roots?.pages.length && roots?.error == null} />)}
+      </> : <section aria-label={`browse by ${BROWSE_LABELS[browse]}`} id={`home-browse-${browse}`} className="home-browse">
+        {!selectionFailed && <Suspense fallback={<SkeletonList rows={4} />}><LegacyHomeBrowse view={browse} /></Suspense>}
+      </section>}
+    </div>
   </div>;
 }

@@ -19,8 +19,8 @@
  * filter (all, not published, published, auto), the collapsed and expanded
  * child family, a search, the selection
  * notice, the selection recovery panel, and the empty install. Every filter's
- * membership is checked against the rows it lists, with `load more` pressed until
- * the list is complete.
+ * membership is checked against the rows it lists, walking every page of the
+ * table.
  *
  * Usage: CHROME_PATH=/path/to/chrome node scripts/visual/root-page-visual.mjs
  *        PLAYWRIGHT_MODULE may name an installed Playwright ESM entry when
@@ -348,18 +348,25 @@ async function browseBy(page, view) {
   await page.getByRole('menuitemradio', { name: view, exact: true }).click()
 }
 
-/** Presses load more until the list is complete and returns the rows listed. */
+/** Walks the pager from the first page to the last and returns how many rows it listed. */
 async function listedRows(page) {
-  for (let i = 0; i < 100; i++) {
-    const more = await page.evaluate(() => {
-      const button = [...document.querySelectorAll('[data-root-session-list] button')].find((candidate) => candidate.textContent.trim() === 'load more')
-      button?.click()
-      return !!button
-    })
-    if (!more) break
-    await pause(100)
+  const list = page.locator('[data-root-session-list]')
+  const idle = () => page.waitForFunction(() => !document.querySelector('[data-root-session-list]')?.hasAttribute('aria-busy'))
+  const first = list.getByRole('button', { name: 'page 1', exact: true })
+  if (await first.count() && await first.getAttribute('aria-current') !== 'page') {
+    await first.click()
+    await pause(150)
   }
-  return page.evaluate(() => document.querySelectorAll('[data-root-session-list] tbody [data-session-id]').length)
+  let listed = 0
+  for (let i = 0; i < 100; i++) {
+    await idle()
+    await pause(100)
+    listed += await list.locator('tbody [data-session-id]').count()
+    const next = list.getByRole('button', { name: 'next page', exact: true })
+    if (!await next.count() || await next.isDisabled()) break
+    await next.click()
+  }
+  return listed
 }
 
 async function resetList(page) {

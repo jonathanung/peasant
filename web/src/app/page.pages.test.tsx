@@ -16,7 +16,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 interface Fixture { name: string; roots: number; children: number; parentErrorCode?: string; cachedSessionId?: string; cachedProject?: string; accountAfterFailure?: string }
 const fixture = parse(readFileSync(resolve(process.cwd(), 'src/app/testdata/home-pages.yaml'), 'utf8')) as { requiredNames: string[]; cases: Fixture[]; publish: { request: unknown; response: unknown; loadedTokens: { parent: string | null; token: string }[]; failedRefreshTokens: { parent: string | null; token: string }[] } };
-const required = ['first-page-and-explicit-more', 'loaded-refresh-keeps-content-on-failure', 'stale-filter-response', 'lazy-children-and-child-more', 'account-change-clears-old-rows', 'collapsed-late-child-is-ignored', 'selection-refresh-clears-loaded-content', 'overlapping-refresh-does-not-race', 'collapse-cancels-expanded-refresh', 'collapsed-ancestor-skips-descendant-refresh', 'successful-refresh-invalidates-collapsed-family', 'successful-refresh-invalidates-collapsed-descendant', 'canonical-missing-parent-commits-refreshed-roots', 'generic-child404-retains-visible-content', 'publish-settlement-refreshes-loaded-window', 'publish-during-refresh-queues-one-loaded-window', 'selection-recovery-survives-failed-retry', 'selection-recovery-survives-account-reset'];
+const required = ['first-page-and-next-page', 'loaded-refresh-keeps-content-on-failure', 'stale-filter-response', 'lazy-children-and-child-more', 'account-change-clears-old-rows', 'collapsed-late-child-is-ignored', 'selection-refresh-clears-loaded-content', 'overlapping-refresh-does-not-race', 'collapse-cancels-expanded-refresh', 'collapsed-ancestor-skips-descendant-refresh', 'successful-refresh-invalidates-collapsed-family', 'successful-refresh-invalidates-collapsed-descendant', 'canonical-missing-parent-commits-refreshed-roots', 'generic-child404-retains-visible-content', 'publish-settlement-refreshes-loaded-window', 'publish-during-refresh-queues-one-loaded-window', 'selection-recovery-survives-failed-retry', 'selection-recovery-survives-account-reset'];
 expect([...fixture.requiredNames].sort()).toEqual([...required].sort());
 expect(fixture.cases.map(row => row.name).sort()).toEqual([...required].sort());
 
@@ -104,22 +104,31 @@ describe('mounted bounded Home', () => {
       expect(screen.getByRole('link', { name: 'title root-0' }).getAttribute('href')).toContain('root-0');
       expect(choiceRows('status').find(row => row.getAttribute('aria-checked') === 'true')).toHaveTextContent('all');
 
-      if (testCase.name === 'first-page-and-explicit-more') {
-        fireEvent.click(screen.getByRole('button', { name: 'load more' }));
+      if (testCase.name === 'first-page-and-next-page') {
+        fireEvent.click(screen.getByRole('button', { name: 'next page' }));
         await screen.findByRole('link', { name: 'title root-25' });
+        // One page at a time: the first page's rows leave the table.
+        expect(screen.queryByRole('link', { name: 'title root-0' })).not.toBeInTheDocument();
         expect(pageRequests().map(url => url.searchParams.get('pageToken'))).toEqual(['', 'after-first']);
+        // The server said more follow, so the pager offers the page after the ones read.
+        expect(screen.getByRole('button', { name: 'page 3' })).toBeInTheDocument();
+        // A page already read opens without asking the server again.
+        fireEvent.click(screen.getByRole('button', { name: 'page 1' }));
+        await screen.findByRole('link', { name: 'title root-0' });
+        expect(pageRequests()).toHaveLength(2);
       }
       if (testCase.name === 'loaded-refresh-keeps-content-on-failure') {
-        fireEvent.click(screen.getByRole('button', { name: 'load more' }));
-        await screen.findByRole('link', { name: 'title root-25' });
         fireEvent.click(screen.getByRole('button', { name: 'subagents 30' }));
         await screen.findByRole('link', { name: 'title child-0' });
+        fireEvent.click(screen.getByRole('button', { name: 'next page' }));
+        await screen.findByRole('link', { name: 'title root-25' });
         const before = pageRequests().length;
         fail = true;
         fireEvent(window, new Event('focus'));
         await screen.findByRole('button', { name: 'retry the session list' });
         expect(screen.getByRole('link', { name: 'title root-25' })).toBeInTheDocument();
-        expect(screen.getByRole('link', { name: 'title child-0' })).toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'page 1' }));
+        expect(await screen.findByRole('link', { name: 'title child-0' })).toBeInTheDocument();
         expect(tokens(pageRequests().slice(before))).toEqual(fixture.publish.failedRefreshTokens);
         fail = false;
         fireEvent.click(screen.getByRole('button', { name: 'retry the session list' }));
@@ -277,7 +286,7 @@ describe('mounted bounded Home', () => {
         await waitFor(() => expect(screen.getByRole('button', { name: 'subagents 1' })).toBeInTheDocument());
         await waitFor(() => expect(pageRequests().length).toBeGreaterThan(before));
         // Wait for the root replacement before reopening the discarded group.
-        await waitFor(() => expect(screen.getByRole('button', { name: 'load more' })).not.toBeDisabled());
+        await waitFor(() => expect(screen.getByRole('region', { name: 'sessions' })).not.toHaveAttribute('aria-busy'));
         const reopen = pageRequests().length;
         const toggles = screen.getAllByRole('button', { name: 'subagents 1' });
         fireEvent.click(toggles[descendant ? 1 : 0]);
@@ -314,10 +323,10 @@ describe('mounted bounded Home', () => {
         }
       }
       if (testCase.name.startsWith('publish-')) {
-        fireEvent.click(screen.getByRole('button', { name: 'load more' }));
-        await screen.findByRole('link', { name: 'title root-25' });
         fireEvent.click(screen.getByRole('button', { name: 'subagents 30' }));
         await screen.findByRole('link', { name: 'title child-0' });
+        fireEvent.click(screen.getByRole('button', { name: 'next page' }));
+        await screen.findByRole('link', { name: 'title root-25' });
         const before = pageRequests().length;
         const overlap = testCase.name === 'publish-during-refresh-queues-one-loaded-window';
         if (overlap) {
@@ -335,6 +344,8 @@ describe('mounted bounded Home', () => {
           holdPages = false;
           await act(async () => { releasePages.forEach(release => release()); });
         }
+        await waitFor(() => expect(screen.getByRole('region', { name: 'sessions' })).not.toHaveAttribute('aria-busy'));
+        fireEvent.click(screen.getByRole('button', { name: 'page 1' }));
         await waitFor(() => expect(screen.getByRole('link', { name: 'title root-0' }).closest('tr')).toHaveTextContent('published, up to date'));
         expect(tokens(pageRequests().slice(before))).toEqual(overlap ? [...fixture.publish.loadedTokens, ...fixture.publish.loadedTokens] : fixture.publish.loadedTokens);
         expect(screen.getByRole('link', { name: 'title child-0' })).toBeInTheDocument();
