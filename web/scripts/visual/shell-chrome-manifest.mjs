@@ -292,7 +292,21 @@ export function chromeGeometryFailures(manifest, context) {
     }
     if (!visible(panel)) return [...failures, 'the drawer is open but not visible']
   }
-  if (panel.scrollWidth > panel.clientWidth + 0.5) failures.push(`the sidebar overflows: scrollWidth ${panel.scrollWidth} > clientWidth ${panel.clientWidth}`)
+  // The aside holds two things: the column its items scroll in, which must not overflow sideways,
+  // and fairtrade's resize separator, whose hit target straddles the aside's edge on purpose. The
+  // separator may reach past the edge by at most half its width, and nothing may reach further.
+  const column = panel.querySelector(':scope > .asb-scroll')
+  if (!column) failures.push('the sidebar has no scroll column (.asb-scroll)')
+  else if (column.scrollWidth > column.clientWidth + 0.5) failures.push(`the sidebar overflows: scrollWidth ${column.scrollWidth} > clientWidth ${column.clientWidth}`)
+  const separator = panel.querySelector(':scope > .asb-resize')
+  let overhang = 0
+  if (visible(separator)) {
+    const rect = separator.getBoundingClientRect()
+    const edge = panel.getBoundingClientRect().left + panel.clientLeft + panel.clientWidth
+    overhang = Math.max(0, rect.right - edge)
+    if (overhang > rect.width / 2 + 0.5) failures.push(`the resize separator reaches ${overhang}px past the sidebar's edge, more than half its ${rect.width}px width`)
+  }
+  if (panel.scrollWidth > panel.clientWidth + Math.ceil(overhang) + 0.5) failures.push(`the sidebar overflows: scrollWidth ${panel.scrollWidth} > clientWidth ${panel.clientWidth} plus the separator's ${overhang}px`)
   for (const [name, item] of Object.entries(manifest.show)) {
     if (context.shipped[name] === false) continue
     const element = document.querySelector(item.selector)

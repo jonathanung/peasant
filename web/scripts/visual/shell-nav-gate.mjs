@@ -214,7 +214,14 @@ const assertChrome = async (page, theme, where, timeoutMs = 10000) => {
   if (!narrow) return last
   await page.click('.asb-bar .asb-menu')
   await page.waitForSelector('.asb[data-drawer-open="true"] .asb-panel', { visible: true, timeout: 5000 })
-  const drawer = await page.evaluate(chromeGeometryFailures, manifest, { shipped })
+  // The drawer opens with motion, and even under reduced motion its items take a frame to show
+  // after the panel does, so its geometry is polled until it holds, like the column's above.
+  const opened = Date.now()
+  let drawer = await page.evaluate(chromeGeometryFailures, manifest, { shipped })
+  while (drawer.length && Date.now() - opened < timeoutMs) {
+    await pause(150)
+    drawer = await page.evaluate(chromeGeometryFailures, manifest, { shipped })
+  }
   await page.keyboard.press('Escape')
   await page.waitForSelector('.asb[data-drawer-open="false"]', { timeout: 5000 })
   if (drawer.length) throw new Error(`the ${theme} drawer at ${where} does not hold the shell manifest: ${JSON.stringify(drawer)}`)

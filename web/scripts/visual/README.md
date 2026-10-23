@@ -334,7 +334,9 @@ the §5 regression gate. Needs both dev servers up: FAIRTRADE `pnpm dev` (:5180)
   padding and no tabindex at rest, and the root's `scroll-padding-top` equal to what stays on screen;
   theme attributes; and a palette that offers no per-project or route-only jump. The responsive arm
   repeats the chrome checks at every width in `src/test/testdata/shell_responsive.yaml`, down to the
-  320px `reflow` row. It checks the sidebar's own overflow, not the page body's.
+  320px `reflow` row. It checks the sidebar's own overflow, not the page body's: the `.asb-scroll`
+  column the items live in must not overflow sideways, and only fairtrade's resize separator, which
+  straddles the sidebar's edge, may reach past it, by at most half its width.
 - **keyboard after a click (chrome arm):** a click must never make `<main>` the focus, which would send
   Tab back to the top of the page and keyboard scrolling to the document instead of the pane clicked.
   On `/analytics` at 1440×800, scrolled down, a click on plain text (an element with text of its own,
