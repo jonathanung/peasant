@@ -292,21 +292,23 @@ export function chromeGeometryFailures(manifest, context) {
     }
     if (!visible(panel)) return [...failures, 'the drawer is open but not visible']
   }
-  // The aside holds two things: the column its items scroll in, which must not overflow sideways,
-  // and fairtrade's resize separator, whose hit target straddles the aside's edge on purpose. The
-  // separator may reach past the edge by at most half its width, and nothing may reach further.
+  // The aside holds three things: the column its items scroll in, which must not overflow
+  // sideways, and two controls fairtrade centres on the aside's edge on purpose: the resize
+  // separator and the collapse handle. Each may reach past the edge by at most half its width, and
+  // nothing may reach further.
   const column = panel.querySelector(':scope > .asb-scroll')
   if (!column) failures.push('the sidebar has no scroll column (.asb-scroll)')
   else if (column.scrollWidth > column.clientWidth + 0.5) failures.push(`the sidebar overflows: scrollWidth ${column.scrollWidth} > clientWidth ${column.clientWidth}`)
-  const separator = panel.querySelector(':scope > .asb-resize')
+  const edge = panel.getBoundingClientRect().left + panel.clientLeft + panel.clientWidth
   let overhang = 0
-  if (visible(separator)) {
-    const rect = separator.getBoundingClientRect()
-    const edge = panel.getBoundingClientRect().left + panel.clientLeft + panel.clientWidth
-    overhang = Math.max(0, rect.right - edge)
-    if (overhang > rect.width / 2 + 0.5) failures.push(`the resize separator reaches ${overhang}px past the sidebar's edge, more than half its ${rect.width}px width`)
+  for (const [name, control] of [['resize separator', panel.querySelector(':scope > .asb-resize')], ['collapse handle', panel.querySelector('.asb-toggle')]]) {
+    if (!visible(control)) continue
+    const rect = control.getBoundingClientRect()
+    const reach = Math.max(0, rect.right - edge)
+    if (reach > rect.width / 2 + 0.5) failures.push(`the ${name} reaches ${reach}px past the sidebar's edge, more than half its ${rect.width}px width`)
+    overhang = Math.max(overhang, reach)
   }
-  if (panel.scrollWidth > panel.clientWidth + Math.ceil(overhang) + 0.5) failures.push(`the sidebar overflows: scrollWidth ${panel.scrollWidth} > clientWidth ${panel.clientWidth} plus the separator's ${overhang}px`)
+  if (panel.scrollWidth > panel.clientWidth + Math.ceil(overhang) + 0.5) failures.push(`the sidebar overflows: scrollWidth ${panel.scrollWidth} > clientWidth ${panel.clientWidth} plus the edge controls' ${overhang}px`)
   for (const [name, item] of Object.entries(manifest.show)) {
     if (context.shipped[name] === false) continue
     const element = document.querySelector(item.selector)
