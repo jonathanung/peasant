@@ -41,6 +41,7 @@ type sessionReindexCase struct {
 	UserTurnsAfter          int    `yaml:"user_turns_after"`
 	NeighbourUserTurnsAfter int    `yaml:"neighbour_user_turns_after"`
 	ScanStatus              int    `yaml:"scan_status"`
+	NoNotes                 bool   `yaml:"no_notes"`
 }
 
 type sessionReindexFixture struct {
@@ -250,6 +251,9 @@ func TestSessionReindexRoute(t *testing.T) {
 			}
 			if body.Code != c.Code || !strings.Contains(said, c.Message) {
 				t.Fatalf("code %q said %q, want code %q containing %q", body.Code, said, c.Code, c.Message)
+			}
+			if c.NoNotes && len(body.Notes) != 0 {
+				t.Fatalf("notes = %q, want none: they must be about this session only", body.Notes)
 			}
 			if handler.sessionIngest {
 				t.Fatal("the run left the session re-index marked running")

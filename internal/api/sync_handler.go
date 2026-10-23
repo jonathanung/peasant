@@ -1213,9 +1213,13 @@ func (h *syncHandler) handleSyncIngestSession(w http.ResponseWriter, r *http.Req
 	// The run reports what it could not read as diagnostics and carries on:
 	// a recording it cannot capture again leaves the stored copy to be
 	// re-indexed instead. The notes say so; the scan that follows decides.
+	// Only this session's diagnostics are notes: the run also reports on the
+	// stored sessions it was scoped away from.
 	notes := make([]string, 0, len(result.Diagnostics))
 	for _, diagnostic := range result.Diagnostics {
-		notes = append(notes, diagnostic.Message)
+		if strings.Contains(diagnostic.Location, id.String()) || strings.Contains(diagnostic.Message, id.String()) {
+			notes = append(notes, diagnostic.Message)
+		}
 	}
 	w.Header().Set(defaults.HeaderContentType, defaults.ContentJSON.String())
 	_ = json.NewEncoder(w).Encode(sessionIngestResponse{Status: "done", Duration: time.Since(started).Round(time.Millisecond).String(), Notes: notes})

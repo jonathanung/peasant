@@ -13,7 +13,8 @@
 # to the last complete record and leaves the neighbour alone. A malformed
 # complete record still fails the capture closed: the run re-indexes the stored
 # copy instead and the route's notes name the record, so the scan that follows
-# decides and its details can say why.
+# decides and its details can say why. The notes are about this session only,
+# never about the stored sessions the run was scoped away from.
 required_names:
   - live-session-reindexes-only-itself
   - malformed-record-reindexes-stored-copy-and-names-it
@@ -42,6 +43,7 @@ cases:
     append_partial: true
     neighbour_append_turns: 2
     status: 200
+    no_notes: true
     user_turns_after: 473
     neighbour_user_turns_after: 3
     scan_status: 200
