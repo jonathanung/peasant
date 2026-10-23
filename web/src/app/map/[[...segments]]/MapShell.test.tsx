@@ -281,7 +281,7 @@ describe('MapShell — one map without lenses', () => {
   it('shows an error line when the graph call fails', async () => {
     stubFetch({ graph: 'error', review: 'error' });
     render(<MapShell projectHash={PROJECT_HASH} projectName={PROJECT} />);
-    expect(await screen.findByText('Could not load the map graph.')).toBeInTheDocument();
+    expect(await screen.findByText('couldn’t load the map.')).toBeInTheDocument();
   });
 
   // -- One map view -------------------------------------------------------------
@@ -551,7 +551,7 @@ describe('MapShell — one map without lenses', () => {
 
     // Interleaved commits — the unrecorded one is marked plainly.
     expect(screen.getAllByText('manual hotfix')[0]).toBeInTheDocument();
-    expect(screen.getAllByText('no AI conversation captured')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('no ai conversation captured')[0]).toBeInTheDocument();
 
     // Footnotes: retry loops /"files re-edited"/ files / cost-when-known.
     expect(screen.getAllByText("times the AI retried")[0]).toBeInTheDocument();
@@ -665,7 +665,7 @@ describe('MapShell — one map without lenses', () => {
 
     await user.click(screen.getByTestId('canvas-select-node'));
     expect(
-      (await screen.findAllByText('No recorded conversations touch this code.'))[0],
+      (await screen.findAllByText('no recorded conversations touch this code.'))[0],
     ).toBeInTheDocument();
   });
 

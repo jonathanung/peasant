@@ -362,7 +362,7 @@ describe('HomePage — the changes-first picker', () => {
     expect(screen.getByRole('link', { name: testCase.expectedLinkName })).toHaveAttribute('href', testCase.expectedHref);
 
     fireEvent.change(search, { target: { value: 'no matching project' } });
-    expect(screen.getByText('No projects match “', { exact: false }).closest('p')).toHaveTextContent('No projects match “no matching project”.');
+    expect(screen.getByText('no projects match “', { exact: false }).closest('p')).toHaveTextContent('no projects match “no matching project”.');
     fireEvent.change(search, { target: { value: testCase.searchQuery } });
     expect(screen.getByRole('link', { name: testCase.expectedLinkName })).toHaveAttribute('href', testCase.expectedHref);
   });

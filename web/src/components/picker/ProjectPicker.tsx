@@ -107,12 +107,14 @@ export function rowsFromSessions(sessions: SessionSummary[]): PickerRow[] {
 // `md:grid` or `md:block` utility here loses to them and the head never shows.
 const WIDE_COLUMNS = "md:grid-cols-[minmax(0,1fr)_104px_92px_104px_24px] md:gap-3";
 const PICKER_GRID =
-  `grid grid-cols-[repeat(3,minmax(0,1fr))_24px] gap-x-3 gap-y-2 ${WIDE_COLUMNS} items-center px-5`;
+  `grid grid-cols-[repeat(3,minmax(0,1fr))_24px] gap-x-3 gap-y-2 ${WIDE_COLUMNS} items-baseline px-5`;
 const PICKER_HEAD = `picker-head ${WIDE_COLUMNS} items-center px-5`;
 const NAME_CELL = "min-w-0 col-span-3 md:col-span-1";
-const END_CELL = "col-start-4 row-start-1 row-span-2 md:col-start-auto md:row-start-auto md:row-span-1";
+// the cells share their first baseline (a count with its bar under it, a name with its
+// folder under it); the chevron has none, so it centres on the row
+const END_CELL = "self-center col-start-4 row-start-1 row-span-2 md:col-start-auto md:row-start-auto md:row-span-1";
 const STAT_CELL = "picker-stat";
-const STAT_TEXT = "text-xs font-mono tabular-nums";
+const STAT_TEXT = "text-[length:var(--fs-label)] font-mono tabular-nums";
 
 /** A count's name on a phone, where the column headers are hidden. */
 function PhoneLabel({ children }: { children: string }) {
@@ -137,7 +139,7 @@ function CoverageCell({ row, pending }: { row: PickerRow; pending: boolean }) {
   }
   return (
     <span className="flex flex-col items-start gap-1 md:items-end">
-      <span className="text-xs font-mono text-ink-3 tabular-nums">
+      <span className="text-[length:var(--fs-label)] font-mono text-ink-3 tabular-nums">
         {has ? `${row.recordedFiles} of ${row.totalFiles}` : "—"}
       </span>
       {has && (
@@ -232,8 +234,8 @@ export function ProjectPicker({
       )}
 
       {visible.length === 0 ? (
-        <p className="border border-rule bg-surface px-5 py-6 text-center text-[13px] text-ink-3">
-          No projects match &ldquo;{query.trim()}&rdquo;.
+        <p className="border border-rule bg-surface px-5 py-6 text-center text-ink-3">
+          no projects match &ldquo;{query.trim()}&rdquo;.
         </p>
       ) : (
         <div className="border border-rule bg-surface">
@@ -277,9 +279,9 @@ export function ProjectPicker({
                     {coverageAccessibleName(row)}
                   </span>
                   <span className={NAME_CELL}>
-                    <span className="block text-[13px] font-medium text-ink truncate">{primary}</span>
+                    <span className="block font-medium text-ink [overflow-wrap:anywhere]">{primary}</span>
                     {showPath && (
-                      <span className="block font-mono text-[11px] text-ink-4 truncate" title={row.name}>
+                      <span className="block font-mono text-[length:var(--fs-label)] text-ink-3 truncate" title={row.name}>
                         {home ? "work not tied to a project" : row.name}
                       </span>
                     )}
@@ -314,8 +316,8 @@ export function ProjectPicker({
                   aria-label={`${primary} cannot be opened because its project identity is unavailable`}
                 >
                   <span className={NAME_CELL}>
-                    <span className="block text-[13px] font-medium text-ink truncate">{primary}</span>
-                    <span className="block font-mono text-[11px] text-ink-4 truncate">project identity unavailable</span>
+                    <span className="block font-medium text-ink [overflow-wrap:anywhere]">{primary}</span>
+                    <span className="block font-mono text-[length:var(--fs-label)] text-ink-3">project identity unavailable</span>
                   </span>
                   <span className={STAT_CELL} aria-label={coverageAccessibleName(row)}>
                     <PhoneLabel>recorded</PhoneLabel>

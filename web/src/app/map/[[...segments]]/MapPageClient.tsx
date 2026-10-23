@@ -92,7 +92,7 @@ function CanvasShimmer({ note }: { note?: string }) {
   return (
     <div className="flex h-full flex-col">
       <SkeletonBox className="min-h-0 flex-1" />
-      {note && <p className="px-3 py-2 text-xs text-ink-3">{note}</p>}
+      {note && <p className="px-3 py-2 text-[length:var(--fs-label)] text-ink-3">{note}</p>}
     </div>
   );
 }
@@ -358,7 +358,7 @@ export function MapShell({
   if (graphState === 'error') {
     canvasBody = (
       <div className="flex h-full items-center justify-center px-5">
-        <p className="text-[13px] text-danger">Could not load the map graph.</p>
+        <p className="text-[length:var(--fs-label)] text-danger">couldn’t load the map.</p>
       </div>
     );
   } else if (!codeMapPayload) {
