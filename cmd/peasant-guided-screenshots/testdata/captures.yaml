@@ -22,9 +22,9 @@ sheets:
     viewport: {width: 1800, height: 11170}
   - name: push
     kind: push
-    title: "mounted push wizard: start, selection, published-transcript preview, consent, and receipt in both themes"
+    title: "mounted push wizard: start, selection, published-transcript preview, consent, receipt, and keyboard help in both themes"
     theme: dark
-    viewport: {width: 1800, height: 7200}
+    viewport: {width: 1800, height: 7840}
   - name: ingest-progress
     kind: ingest-progress
     title: "shared local import progress: kickstart and inline harvest"
@@ -416,6 +416,8 @@ pushStates:
     wantContains: ["metadata", "known patterns", "before it publishes them to peasant online"]
   - key: receipt
     wantContains: ["to peasant online.", "nothing is removed from this machine.", "sessions in this push"]
+  - key: help
+    wantContains: ["keyboard shortcuts", "navigation", "actions", "press ? or esc to close"]
 
 push:
   sessions:
@@ -473,6 +475,10 @@ pushCaptures:
   - {name: push-receipt-dark-120x40, state: receipt, theme: dark, width: 120, height: 40}
   - {name: push-receipt-light-80x24, state: receipt, theme: light, width: 80, height: 24}
   - {name: push-receipt-light-120x40, state: receipt, theme: light, width: 120, height: 40}
+  - {name: push-help-dark-80x24, state: help, theme: dark, width: 80, height: 24}
+  - {name: push-help-dark-120x40, state: help, theme: dark, width: 120, height: 40}
+  - {name: push-help-light-80x24, state: help, theme: light, width: 80, height: 24}
+  - {name: push-help-light-120x40, state: help, theme: light, width: 120, height: 40}
 
 ingestProgressCaptures:
   - {name: ingest-progress-running-dark-80x24, state: running, theme: dark, width: 80, height: 24}
