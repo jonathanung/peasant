@@ -44,7 +44,7 @@
     "visual:publish-states": "node scripts/visual/publish-states-shoot.mjs"
   },
   "dependencies": {
-    "@peasant-labs/fairtrade": "0.0.32",
+    "@peasant-labs/fairtrade": "0.0.33",
     "@peasant-labs/schema": "0.31.0",
     "@xyflow/react": "^12.10.1",
     "clsx": "^2.1.1",
