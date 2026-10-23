@@ -16,6 +16,7 @@ import (
 	"github.com/peasant-labs/peasant/internal/config"
 	"github.com/peasant-labs/peasant/internal/ingest"
 	"github.com/peasant-labs/peasant/internal/store"
+	"github.com/peasant-labs/peasant/internal/store/storetest"
 	"github.com/peasant-labs/peasant/internal/testutil"
 	"github.com/peasant-labs/schema"
 )
@@ -125,7 +126,8 @@ func harvestLikeTheCLI(t *testing.T, dbPath string, cfg *config.Config) {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	db, err := store.Open(dbPath, storeOptions...)
+	storetest.CopyGoldenTo(t, dbPath)
+	db, err := store.Open(dbPath, append(storeOptions, store.WithSkipMigrations())...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,8 +172,8 @@ func TestSessionReindexRoute(t *testing.T) {
 				}
 			}
 			claude, _ := cfg.Sources.Provider(ingest.HarnessClaudeCode)
-			claude.Paths = []string{filepath.Join(root, "claude")}
-			project := filepath.Join(root, "claude", "-workspace")
+			claude.Paths = []string{filepath.Join(root, "recordings")}
+			project := filepath.Join(root, "recordings", "-workspace")
 			if err := os.MkdirAll(project, 0o700); err != nil {
 				t.Fatal(err)
 			}
