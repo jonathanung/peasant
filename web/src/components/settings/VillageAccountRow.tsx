@@ -2,10 +2,9 @@
 
 import { useState } from 'react';
 import { CircleX, Loader } from 'lucide-react';
-import type { LocalSetting, SyncAuthResponse } from '@peasant-labs/schema';
-import { Button, Chip } from '@/lib/ft-ui';
+import type { SyncAuthResponse } from '@peasant-labs/schema';
+import { Button } from '@/lib/ft-ui';
 import { logOutOfVillage } from '@/lib/api/settings';
-import { tagOf } from '@/lib/settings/catalog';
 import { DocsLink } from '@/components/DocsLink';
 
 function hostOf(url: string | undefined): string | undefined {
@@ -22,18 +21,15 @@ function hostOf(url: string | undefined): string | undefined {
  * calls POST /api/v1/sync/logout, which removes the stored credential; the key
  * stays valid on Village until `peasant village logout` revokes it there.
  */
-export function VillageAccountRow({ auth, readError, onRetry, connected, onLoggedOut }: {
+export function VillageAccountRow({ auth, readError, onRetry, onLoggedOut }: {
   /** null while the sign-in is being read. */
   auth: SyncAuthResponse | null;
   readError?: string | null;
   onRetry?: () => void;
-  /** The village.connected key, for its tag. */
-  connected: LocalSetting | undefined;
   onLoggedOut: () => void | Promise<void>;
 }) {
   const [status, setStatus] = useState<'idle' | 'pending' | 'failed'>('idle');
   const [error, setError] = useState<string | null>(null);
-  const tag = connected ? tagOf(connected) : undefined;
   const signedIn = auth?.authenticated === true;
   const host = hostOf(auth?.villageUrl);
 
@@ -64,10 +60,7 @@ export function VillageAccountRow({ auth, readError, onRetry, connected, onLogge
   return (
     <div className={`srow srow-${status}`} data-status={status} data-setting-keys="village.connected">
       <span className="srow-text-col">
-        <span className="srow-label-line">
-          <span className="srow-label">{label}</span>
-          {tag && <Chip size="sm" className="srow-tag">{tag}</Chip>}
-        </span>
+        <span className="srow-label">{label}</span>
         <span className="srow-help">{help}</span>
         {readError && <span className="srow-error" role="alert">{readError}</span>}
         {status === 'failed' && <span className="srow-error" role="alert">{error}</span>}

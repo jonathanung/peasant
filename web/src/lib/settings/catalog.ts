@@ -240,13 +240,6 @@ export function overridden(setting: LocalSetting): boolean {
   return JSON.stringify(setting.value) !== JSON.stringify(setting.effective);
 }
 
-/** The tag on a key that `peasant config` cannot change. */
-export const NOT_IN_PEASANT_CONFIG = 'not in peasant config';
-
-/** The tag a key's row carries, read from the server's `inPeasantConfig`. */
-export function tagOf(setting: LocalSetting): string | undefined {
-  return setting.inPeasantConfig ? undefined : NOT_IN_PEASANT_CONFIG;
-}
 
 /** A source harness's keys: `sources.<harness>.enabled` and `.paths`. */
 export function sourceHarnesses(settings: readonly LocalSetting[]): string[] {

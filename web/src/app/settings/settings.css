@@ -265,22 +265,7 @@
 .stg-page { gap: var(--sp-5); padding: var(--sp-6) var(--sp-6) var(--sp-8); }
 .stg-body { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
 .stg-head { gap: var(--sp-3); }
-.stg-titlerow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-4); }
 .stg-title { font-size: var(--fs-hero); line-height: var(--lh-tight); }
-.stg-here {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
-  border: var(--stroke-hairline) solid var(--amber);
-  color: var(--amber);
-  font-family: var(--font-mono);
-  font-size: var(--fs-label);
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-}
-.stg-here .lucide { width: var(--ic-sm); height: var(--ic-sm); flex: none; }
 .stg-panel { max-width: 55rem; }
 .stg-groups { max-width: 55rem; }
 

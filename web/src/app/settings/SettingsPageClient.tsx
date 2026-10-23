@@ -3,12 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useEnter } from '@/lib/motion/enter';
 import Link from 'next/link';
-import { ExternalLink, EyeOff, Folder, Laptop, Lock, Plug, Send, SlidersHorizontal, UserRound, Users, type LucideIcon } from 'lucide-react';
+import { ExternalLink, EyeOff, Folder, Lock, Plug, Send, SlidersHorizontal, UserRound, Users, type LucideIcon } from 'lucide-react';
 import { LocalSettingKind, isHarness, type AutoPublishRule, type LocalSetting, type LocalSettingsResponse, type SyncAuthResponse } from '@peasant-labs/schema';
-import { Button, Chip, FeedbackPanel, ProviderName, SettingGroup, SettingRow, SettingsLayout } from '@/lib/ft-ui';
+import { Button, FeedbackPanel, ProviderName, SettingGroup, SettingRow, SettingsLayout } from '@/lib/ft-ui';
 import { fetchSettings, fetchVillageAuth, fetchVillageCollectives, updateSetting } from '@/lib/api/settings';
 import {
-  NOT_IN_PEASANT_CONFIG,
   RETIRED_KEYS,
   SETTINGS_GROUPS,
   SETTINGS_SECTIONS,
@@ -17,7 +16,6 @@ import {
   optionLabel,
   shownValue,
   sourceHarnesses,
-  tagOf,
   settingsSection,
   settingsSectionHref,
   type SettingsGroupId,
@@ -212,31 +210,34 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
     return setting ? <SettingKeyRow key={key} setting={setting} onSaved={onSaved} {...props} /> : null;
   };
   const bodies: Record<SettingsGroupId, () => GroupBody> = {
-    village: () => ({
-      rows: [
-        <VillageAccountRow key="account" auth={auth} readError={authError} onRetry={() => { void readAuth(); }} connected={take('village.connected')} onLoggedOut={onLoggedOut} />,
-        auth?.authenticated ? (
-          <div key="collectives" className="srow">
-            <span className="srow-text-col">
-              <span className="srow-label">your collectives</span>
-              <span className="srow-help">who you publish to. you join and manage them online.</span>
-            </span>
-            <a className="btn btn-secondary btn-sm" href={onlineCollectivesHref()} target="_blank" rel="noreferrer">
-              <ExternalLink aria-hidden="true" />open online
-            </a>
-          </div>
-        ) : null,
-        row('push.sharePreference'),
-        row('push.autoPublishIntent'),
-      ],
-    }),
+    village: () => {
+      // The sign-in row stands for village.connected, so the key is placed here.
+      take('village.connected');
+      return {
+        rows: [
+          <VillageAccountRow key="account" auth={auth} readError={authError} onRetry={() => { void readAuth(); }} onLoggedOut={onLoggedOut} />,
+          auth?.authenticated ? (
+            <div key="collectives" className="srow">
+              <span className="srow-text-col">
+                <span className="srow-label">your collectives</span>
+                <span className="srow-help">who you publish to. you join and manage them online.</span>
+              </span>
+              <a className="btn btn-secondary btn-sm" href={onlineCollectivesHref()} target="_blank" rel="noreferrer">
+                <ExternalLink aria-hidden="true" />open online
+              </a>
+            </div>
+          ) : null,
+          row('push.sharePreference'),
+          row('push.autoPublishIntent'),
+        ],
+      };
+    },
     'auto-publish': () => ({
       count: rules.length,
       noun: ['rule', 'rules'],
       description: (
         <span className="stg-description">
           these folders and repositories publish redacted on their own. you agree once, here.
-          <Chip size="sm" className="srow-tag">{NOT_IN_PEASANT_CONFIG}</Chip>
         </span>
       ),
       rows: [<AutoPublishRules key="rules" rules={rules} onRulesChange={onRulesChange} collectives={collectives} collectivesError={collectivesError} signedIn={auth?.authenticated === true} />],
@@ -264,7 +265,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
               label="record sessions from"
               value={optionLabel('selection.mode', String(shownValue(mode)))}
               help={selectionSummary(mode, harnesses).trim()}
-              tag={tagOf(mode)}
               action={<DocsLink topic="selection">change the selection</DocsLink>}
             />
           ) : null,
@@ -275,7 +275,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
               label="include new branches automatically"
               value={describeValue(branches)}
               help="only in projects you selected in full. part of the selection."
-              tag={tagOf(branches)}
             />
           ) : null,
           // daemon.projectMode holds opt-in or opt-out; the switch reads on as opt-out.
@@ -287,7 +286,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
               help={`saved as daemon.projectMode: ${String(shownValue(projectMode))}.`}
               control="switch"
               value={shownValue(projectMode) === 'opt-out'}
-              tag={tagOf(projectMode)}
               onCommit={async (next) => { onSaved(await updateSetting(projectMode.key, next ? 'opt-out' : 'opt-in')); }}
             />
           ) : projectMode ? <SettingKeyRow key="project-mode" setting={projectMode} onSaved={onSaved} /> : null,
@@ -303,8 +301,7 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
         rows: harnesses.map((harness) => (
           <div key={harness} className="stg-source">
             {row(`sources.${harness}.enabled`, { label: isHarness(harness) ? <ProviderName harness={harness} /> : harness, help: '' })}
-            {/* the pair is one source: its tag sits on the switch */}
-            {row(`sources.${harness}.paths`, { label: `${harness} folders`, help: 'separate folders with commas. empty uses the default.', hideTag: true })}
+            {row(`sources.${harness}.paths`, { label: `${harness} folders`, help: 'separate folders with commas. empty uses the default.' })}
           </div>
         )),
       };
@@ -330,7 +327,7 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
           row('push.sources'),
           row('push.concurrency', concurrency ? { help: `empty uses half your cpu cores: ${describeValue(concurrency)} on this computer.` } : {}),
           row('output.stalenessThresholdSec'),
-          basePath ? <ReadOnlyRow key="base-path" keys={[basePath.key]} label="import folder" value={describeValue(basePath)} help={basePath.description} tag={tagOf(basePath)} /> : null,
+          basePath ? <ReadOnlyRow key="base-path" keys={[basePath.key]} label="import folder" value={describeValue(basePath)} help={basePath.description} /> : null,
           mock.length > 0 ? (
             <ReadOnlyRow
               key="mock"
@@ -338,7 +335,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
               label="sample data, for development"
               value={describeValue(mock[0])}
               help={mock[0].description}
-              tag={tagOf(mock[0])}
             />
           ) : null,
           ...hidden.map((setting) => (
@@ -469,10 +465,7 @@ function SettingsFrame({ section, children }: { section: SettingsSection; childr
 function PageHead({ section }: { section: SettingsSection }) {
   return (
     <header className="iu-page-head stg-head">
-      <div className="stg-titlerow">
-        <h1 className="iu-page-title stg-title">{section.label}</h1>
-        <span className="stg-here"><Laptop aria-hidden="true" />this computer only</span>
-      </div>
+      <h1 className="iu-page-title stg-title">{section.label}</h1>
     </header>
   );
 }

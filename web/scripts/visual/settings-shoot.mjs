@@ -10,7 +10,8 @@
      pending         a switch whose write is held in flight (the projects section)
      failed          a text field the server refuses (re-import after = -5): value restored, reason
                      shown (the advanced section)
-     tagged          the account section: a row tagged "not in peasant config"
+     account         the account section's group; no row or heading carries a chip
+     section-<id>    every section whole
      install         the auto-publish rules offering "install in 3 repositories", before any call
      install-refusal the same action after a foreign hook appeared in one repository: two installed,
                      one blocked with its remedy
@@ -272,14 +273,21 @@ try {
         installRadius: style('.stg-install')?.borderRadius,
         groupRadius: style('.srow-group')?.borderRadius,
         installCountNumerals: style('.stg-install-title .tnum')?.fontVariantNumeric,
-        tagText: document.querySelector('.srow-tag')?.textContent,
+        chips: document.querySelectorAll('.srow-tag, .chip').length,
       }
     }) })
     await shootRegion(page, '[data-group="auto-publish"]', join(dir, 'install.png'))
     await section(page, 'account', 'village')
-    await shootRegion(page, '[data-group="village"]', join(dir, 'tagged.png'))
+    await shootRegion(page, '[data-group="village"]', join(dir, 'account.png'))
     await section(page, 'advanced', 'advanced')
     probes.at(-1).countNumerals = await page.$eval('.srow-summary-count', (count) => getComputedStyle(count).fontVariantNumeric)
+    // every section whole, for review of its rows and headings
+    for (const [id, group] of [['account', 'village'], ['automatic-publishing', 'auto-publish'], ['redaction', 'redaction'], ['projects', 'projects'], ['sources', 'sources'], ['advanced', 'advanced']]) {
+      await section(page, id, group)
+      const path = join(dir, `section-${id}.png`)
+      await page.screenshot({ path, fullPage: true })
+      shots.push(relative(OUT, path))
+    }
     await section(page, 'projects', 'projects')
 
     // pending: hold one switch's write in flight, then let it land and put it back
@@ -349,7 +357,7 @@ try {
     if (parseFloat(probe.helpSize) < 16 || parseFloat(probe.noteSize) < 16) problems.push(`body below 16px (${probe.helpSize}, ${probe.noteSize})`)
     if (probe.installRadius !== '0px' || probe.groupRadius !== '0px') problems.push(`radius ${probe.installRadius} / ${probe.groupRadius}`)
     if (!probe.countNumerals.includes('tabular-nums') || !probe.installCountNumerals.includes('tabular-nums')) problems.push('counts without tabular numerals')
-    if (probe.tagText !== 'not in peasant config') problems.push(`tag reads ${probe.tagText}`)
+    if (probe.chips !== 0) problems.push(`${probe.chips} provenance chips on the page`)
     if (problems.length > 0) await abort(`computed styles in ${probe.theme}: ${problems.join('; ')}`, 'fix the page styles.')
   }
   writeFileSync(join(OUT, 'evidence.json'), JSON.stringify({ binarySha256: binarySha, chunk: relative(REPO, markerChunk), marker: MARKER, shots, probes }, null, 2))

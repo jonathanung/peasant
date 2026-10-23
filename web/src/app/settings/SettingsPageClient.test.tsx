@@ -217,19 +217,16 @@ describe('settings page groups', () => {
     expect(rowOf('kickstart.intent').closest<HTMLElement>('[data-group]')?.dataset.group).toBe('advanced');
   });
 
-  it('tags a row "not in peasant config" exactly when the server says peasant config cannot change it', async () => {
+  it('carries no provenance or scope chip on any section, row or heading', async () => {
     const settings = loadSettingsResponse();
-    // The page reads the flag; it does not keep its own list.
-    const theme = settings.settings.find((setting) => setting.key === 'display.theme')!;
-    theme.inPeasantConfig = true;
+    // Half the keys are out of reach of peasant config; that is no reason for a badge.
+    expect(settings.settings.some((setting) => !setting.inPeasantConfig)).toBe(true);
     mountServer({ settings });
     for (const section of SETTINGS_SECTIONS) {
       await mountPage(section.id);
-      for (const setting of settings.settings.filter((candidate) => candidate.editable && sectionOfKey(candidate.key) === section.id)) {
-        // A source's folders row shares the tag its switch carries.
-        const holder = rowOf(setting.key).closest<HTMLElement>('.stg-source') ?? rowOf(setting.key);
-        const tagged = within(holder).queryAllByText('not in peasant config').length > 0;
-        expect(tagged, `${setting.key} tagged`).toBe(!setting.inPeasantConfig);
+      expect(document.querySelectorAll('.srow-tag, .chip').length, `${section.id} chips`).toBe(0);
+      for (const text of ['not in peasant config', 'online only', 'this computer only']) {
+        expect(document.body.textContent, `${section.id} reads ${text}`).not.toContain(text);
       }
       cleanup();
     }
