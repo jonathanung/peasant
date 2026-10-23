@@ -238,9 +238,10 @@ async function exercise(row, { page, request }, info) {
     }));
     expect(styles.font).toMatch(/Atkinson/i); expect(styles.fontLoaded).toBe(true); expect(styles.size).toBeGreaterThanOrEqual(16); expect(styles.radius).toBe('0px'); expect(styles.overflow).toBe(false); expect(styles.tabular).toContain('tabular-nums');
     expect(styles.panelPosition).toBe('relative');
-    // The sidebar is a column on a wide screen and a top bar with a drawer on a phone.
+    // The sidebar is a column on a wide screen and a top bar with a drawer on a phone. The closed
+    // drawer keeps its layout off screen and hides with visibility, so only visible controls count.
     await expect(page.locator(surface === 'desktop' ? '.asb-panel' : '.asb-bar')).toBeVisible();
-    const chrome = await page.locator('.asb').first().locator('a,button').evaluateAll(elements => elements.filter(element => element.getClientRects().length > 0).map(element => {
+    const chrome = await page.locator('.asb').first().locator('a,button').evaluateAll(elements => elements.filter(element => element.getClientRects().length > 0 && getComputedStyle(element).visibility !== 'hidden').map(element => {
       const box = element.getBoundingClientRect();
       return { name: element.getAttribute('aria-label') ?? element.textContent, left: box.left, right: box.right, width: box.width, height: box.height };
     }));
