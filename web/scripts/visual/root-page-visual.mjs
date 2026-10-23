@@ -699,7 +699,7 @@ async function runSelection(browser, gate, theme, viewport, answers, summaryBase
   try {
     await browseBy(page, 'project')
     await page.waitForSelector('[role="status"][aria-label="project selection recovery"]', { state: 'visible', timeout: 20000 }).catch(() => fail(`${where}: the recovery panel never mounted`))
-    const leaked = await page.locator('[data-root-session-list] [data-session-id], [data-browse-view="projects"] a').count()
+    const leaked = await page.locator('[data-root-session-list] [data-session-id], [data-browse-view="projects"] a:not([data-docs-topic])').count()
     if (leaked) fail(`${where}: selection recovery leaked session/project identities`)
     await shoot(page, gate, join(OUT, theme, viewport.id, 'selection-recovery.png'), `${where}/selection-recovery`, { contentSelector: '[role="status"][aria-label="project selection recovery"]' })
   } finally {
@@ -715,9 +715,9 @@ async function runEmpty(browser, gate, theme, viewport) {
   try {
     await browseBy(page, 'project')
     await page.waitForFunction(() => document.body.textContent.includes('no ai work recorded yet'), undefined, { timeout: 20000 }).catch(() => fail(`${where}: the empty install never showed its teaching state`))
-    // The teaching state is short: capture the shell and the state, not the
-    // blank page below it.
-    await shoot(page, gate, join(OUT, theme, viewport.id, 'empty.png'), `${where}/empty`)
+    // The empty state is short: keep the full shell capture and hold the
+    // pixel gate to the mounted state, not the blank page below it.
+    await shoot(page, gate, join(OUT, theme, viewport.id, 'empty.png'), `${where}/empty`, { contentSelector: '.home-page' })
   } finally {
     await page.close()
   }

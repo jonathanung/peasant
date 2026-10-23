@@ -24,7 +24,8 @@ const ORIGIN = `http://localhost:${PORT}`
 const CHROME = process.env.CHROME_PATH
 const MARKER = 'your saved selection hides all projects.'
 const PANEL = '[role="status"][aria-label="project selection recovery"]'
-const ROUTES = [{ id: 'home', path: '/' }, { id: 'map', path: '/map/' }]
+// Home lists sessions first; its project view, where recovery shows, sits behind the browse-by menu.
+const ROUTES = [{ id: 'home', path: '/', view: 'project' }, { id: 'map', path: '/map/' }]
 const pause = (ms) => new Promise((done) => setTimeout(done, ms))
 
 function requireProbe(condition, what, where, evidence, fix) {
@@ -141,6 +142,13 @@ try {
       for (const route of ROUTES) {
         summaryRequests = 0
         const response = await page.goto(`${ORIGIN}${route.path}`, { waitUntil: 'domcontentloaded' })
+        if (route.view) {
+          const trigger = await page.waitForSelector('button[aria-label^="browse by"], button.choice-menu-trigger', { visible: true, timeout: 15000 }).catch(() => null)
+          await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent.trim().startsWith('browse by:'))?.click())
+          await page.waitForSelector('[role="menuitemradio"]', { visible: true, timeout: 5000 }).catch(() => null)
+          await page.evaluate((view) => [...document.querySelectorAll('[role="menuitemradio"]')].find((item) => item.textContent.trim() === view)?.click(), route.view)
+          requireProbe(!!trigger, `${theme}/${route.id} has no browse-by menu`, `${ORIGIN}${route.path}`, 'the project view could not be opened', 'restore Home\'s browse-by menu, rebuild, and rerun')
+        }
         const mounted = await page.waitForSelector(PANEL, { visible: true, timeout: 15000 }).catch(() => null)
         requireProbe(response?.status() === 200 && !!mounted && summaryRequests > 0 && diagnostics.length === 0, `${theme}/${route.id} did not mount cleanly`, `${ORIGIN}${route.path}`, `http=${response?.status()}, panel=${!!mounted}, requests=${summaryRequests}, diagnostics=${JSON.stringify(diagnostics)}`, 'fix the real route or summary request, rebuild, and rerun')
         await page.evaluate(async () => { try { await Promise.all([document.fonts.load('400 16px "Atkinson Hyperlegible"'), document.fonts.load('400 16px "Atkinson Hyperlegible Mono"')]) } catch {} ; await document.fonts.ready })
