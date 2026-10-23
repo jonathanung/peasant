@@ -50,6 +50,7 @@ import { TurnTouchedFiles } from './panels/TurnTouchedFiles';
 import { adaptQualitySessions } from '@/lib/quality/types';
 import { cleanSessionTitle } from '@/lib/sessions/title';
 import { useTranscriptPublish } from './publish/useTranscriptPublish';
+import { SessionNotIndexed } from './SessionNotIndexed';
 
 /**
  * The heading shown for a session that has no generated title yet. The hero
@@ -117,7 +118,7 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
   // Host element for the mounted viewer; the per-session reading state replays
   // the inner scroller offset against it on the way back.
   const transcriptHostRef = useRef<HTMLDivElement | null>(null);
-  const { data: detail, error } = useChannel<SessionDetailWire>(
+  const { data: detail, error, refresh: refreshDetail } = useChannel<SessionDetailWire>(
     subscribe.sessionDetail(sessionId),
   );
   // The canonical wire permits `null` for an empty turn collection. Normalize
@@ -176,7 +177,13 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
   // The quality channel feeds the personal-median comparison line on the
   // scorecard. The package never fetches it — peasant computes the medians and
   // passes them in.
-  const { data: quality } = useChannel<QualityPayload>(subscribe.quality());
+  const { data: quality, refresh: refreshQuality } = useChannel<QualityPayload>(subscribe.quality());
+  // A re-index rewrites the session's detail and its stored title; both
+  // channels are sent once on subscribe, so the page reads both again.
+  const readSessionAgain = useCallback(() => {
+    refreshDetail();
+    refreshQuality();
+  }, [refreshDetail, refreshQuality]);
   const medians = useMemo(
     () =>
       computePersonalMedians(
@@ -316,6 +323,9 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
     moreItems,
     openOnArrival: routeQuery.publish,
     onArrivalHandled: dropPublishRequest,
+    // A re-index from the popup changes the session, so the page reads it
+    // again instead of keeping the old transcript.
+    onReindexed: readSessionAgain,
   });
 
   // Host-derived inputs the package takes as props (it never derives them).
@@ -433,6 +443,12 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
       );
     }
     return <SessionDetailSkeleton />;
+  }
+
+  // Recorded turns with nothing indexed: say so and offer the re-index,
+  // rather than a turn count above an empty transcript.
+  if (turns.length === 0 && detail.turnCount > 0) {
+    return <SessionNotIndexed sessionId={sessionId} turnCount={detail.turnCount} crumbs={breadcrumb} onReindexed={readSessionAgain} />;
   }
 
   // The callbacks the host wires into the composite. `onNavigateRelationship`

@@ -66,9 +66,9 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/contexts/WebSocketContext', () => ({
   useChannel: (sub: { id?: string; topic?: string }) => {
-    if (sub?.id) return { data: sub.id === SESSION_ID ? sessionDetail : undefined, connected: true, error: null };
+    if (sub?.id) return { data: sub.id === SESSION_ID ? sessionDetail : undefined, connected: true, error: null, refresh: () => undefined };
     // The quality channel names the session's generated title.
-    return { data: { sessions: [QUALITY_SESSION] }, connected: true, error: null };
+    return { data: { sessions: [QUALITY_SESSION] }, connected: true, error: null, refresh: () => undefined };
   },
 }));
 vi.mock('@/lib/api/map', () => ({

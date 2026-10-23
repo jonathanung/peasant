@@ -94,6 +94,8 @@ export interface TranscriptPublishOptions {
   openOnArrival: boolean;
   /** Called when the popup closes, so the route can drop its open request. */
   onArrivalHandled: () => void;
+  /** Called when a re-index from the popup finished, so the page reads the session again. */
+  onReindexed?: () => void;
 }
 
 export interface TranscriptPublish {
@@ -111,7 +113,7 @@ export interface TranscriptPublish {
  */
 export function useTranscriptPublish(options: TranscriptPublishOptions): TranscriptPublish {
   const router = useRouter();
-  const { sessionId, title, turns, loaded, moreItems, openOnArrival, onArrivalHandled } = options;
+  const { sessionId, title, turns, loaded, moreItems, openOnArrival, onArrivalHandled, onReindexed } = options;
   const { redactionCache, updateRedactionCache, publishing, settled, publish } = usePublishState();
 
   // ── the publication state ────────────────────────────────────────────────
@@ -388,6 +390,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       .then(({ notes }) => {
         if (controller.signal.aborted) return;
         setReindex({ status: 'done', notes });
+        onReindexed?.();
         runScan(true);
       })
       .catch((error: unknown) => {
@@ -395,7 +398,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
         setReindex({ status: 'failed', code: error instanceof SessionReindexError ? error.code : 'other', message: messageOf(error) });
       })
       .finally(() => { if (reindexRun.current === controller) reindexRun.current = null; });
-  }, [failure?.kind, runScan, sessionId]);
+  }, [failure?.kind, onReindexed, runScan, sessionId]);
 
   const scanClean = scan.phase === 'ready' && reviewError == null && scanResult !== undefined;
   // A failed scan shows one short line, and its whole reason behind details,

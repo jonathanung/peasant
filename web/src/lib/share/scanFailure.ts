@@ -85,9 +85,14 @@ export function reindexRetryable(code: ReindexFailureCode): boolean {
   return code !== 'session_not_recorded';
 }
 
+/** Why a re-index did not finish, in one plain line. */
+export function reindexReason(code: ReindexFailureCode): string {
+  return REINDEX_LINES[code];
+}
+
 /** The line for a re-index that did not finish; its whole reason goes to details. */
 export function reindexFailureLine(code: ReindexFailureCode): string {
-  return `the re-index did not finish, so publish is off. ${REINDEX_LINES[code]}`;
+  return `the re-index did not finish, so publish is off. ${reindexReason(code)}`;
 }
 
 /** The line for a re-index that finished while the scan still refuses the session. */
