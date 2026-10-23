@@ -48,6 +48,7 @@ import {
 import { TurnLabelPopover } from './canvas/TurnLabelPopover';
 import { TurnTouchedFiles } from './panels/TurnTouchedFiles';
 import { adaptQualitySessions } from '@/lib/quality/types';
+import { cleanSessionTitle } from '@/lib/sessions/title';
 import { useTranscriptPublish } from './publish/useTranscriptPublish';
 
 /**
@@ -206,8 +207,9 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
   // title, and the server only stores one for some sessions, so this stays
   // optional and the breadcrumb falls back to the short id.
   const sessionTitle = useMemo(() => {
-    const found = quality?.sessions?.find((s) => s.id === sessionId)?.title?.trim();
-    return found ? found : undefined;
+    const found = quality?.sessions?.find((s) => s.id === sessionId)?.title;
+    const clean = found ? cleanSessionTitle(found) : '';
+    return clean ? clean : undefined;
   }, [quality?.sessions, sessionId]);
 
   // The viewer's tab, lifted so the host can react to it. The composite
@@ -423,7 +425,7 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
     // skeleton with the error swallowed is how a dead backend hides.
     if (error) {
       return (
-        <div className="max-w-[1600px] mx-auto px-6 pt-6">
+        <div className="page-frame">
           <FeedbackPanel variant="error" title="transcript unavailable">
             {String(error)}
           </FeedbackPanel>
@@ -685,11 +687,11 @@ function ScopeChipRow({ label, onClear }: { label: string; onClear: () => void }
 
 function SessionDetailSkeleton() {
   return (
-    <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12">
+    <div className="page-frame">
       {/* Header block: breadcrumb + title + subtitle stand-ins. */}
       <Skeleton avatar={false} lines={3} label="Loading session header" />
       {/* Transcript body stand-in: an avatar row plus a run of content lines. */}
-      <Skeleton lines={10} label="Loading transcript" className="mt-6" />
+      <Skeleton lines={10} label="Loading transcript" />
     </div>
   );
 }

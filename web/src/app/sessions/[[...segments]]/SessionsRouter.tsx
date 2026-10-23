@@ -98,7 +98,7 @@ export function SessionsRouter() {
 
   if (!mounted || (!projectHash && !raw)) {
     return (
-      <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12">
+      <div className="page-frame">
         <SkeletonList rows={5} label="Loading sessions" />
       </div>
     );
@@ -106,7 +106,7 @@ export function SessionsRouter() {
 
   if (!projectHash) {
     return (
-      <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12">
+      <div className="page-frame">
         <p role="alert" className="text-base leading-relaxed text-danger">
           This project link has a malformed identity, so no sessions were requested.
           Taking you Home…
@@ -116,7 +116,7 @@ export function SessionsRouter() {
   }
 
   return (
-    <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
+    <div className="page-frame animate-fade-up">
       <Breadcrumbs items={[{ label: 'sessions', href: '/' }, { label }]} />
 
       <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">

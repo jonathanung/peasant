@@ -67,6 +67,7 @@ export function ReviewPageClient({
 
   const cleanName = effectiveProject ? displayProject(effectiveProject) : null;
   const crumbs = [
+    { label: 'home', href: '/' },
     { label: 'changes', href: cleanName || branch ? '/review' : undefined },
     ...(cleanName && effectiveProject
       ? [
@@ -106,7 +107,7 @@ export function ReviewPageClient({
   const showDocsLink = Boolean(sessionsReady && effectiveProject && projectHash);
 
   return (
-    <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
+    <div className="page-frame animate-fade-up">
       <Breadcrumbs items={crumbs} />
 
       <div className="flex items-start justify-between gap-4">

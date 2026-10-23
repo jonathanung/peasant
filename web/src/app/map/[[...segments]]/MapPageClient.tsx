@@ -27,6 +27,7 @@ import {
   type DecodedProjectTasksPayload,
 } from '@/lib/api/map';
 import { useProjectIdentity } from '@/lib/navigation/useProjectIdentity';
+import { ProjectIdentityProblem } from '@/components/ProjectIdentityProblem';
 import { mapHref, returnLocation, reviewHref, type ProjectHash } from '@/lib/navigation/projectRoutes';
 import type { ReviewListPayload } from '@peasant-labs/schema';
 import { subscribe, type SessionsPayload } from '@/types/messages';
@@ -521,13 +522,13 @@ export function MapPageClient({ projectHash, projectName: requestedProjectName }
   const { state, retry } = useProjectIdentity(projectHash ?? requestedProjectName ?? null);
   if (state.phase === 'resolving') return <CanvasShimmer note="resolving project identity…" />;
   if (state.phase === 'missing' || state.phase === 'error') {
-    return <div role="alert" className="p-6"><p>{state.message}</p><button type="button" onClick={retry}>retry project resolution</button></div>;
+    return <ProjectIdentityProblem state={state} onRetry={retry} />;
   }
   const projectName = state.label;
   const cleanName = displayProject(projectName);
   return (
-    <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
-      <Breadcrumbs items={[{ label: 'map', href: '/map' }, { label: cleanName }]} />
+    <div className="page-frame animate-fade-up">
+      <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'map', href: '/map' }, { label: cleanName }]} />
 
       <div className="flex items-center gap-2">
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">

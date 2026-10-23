@@ -19,7 +19,7 @@ describe('Home opened at an address it does not own', () => {
     window.history.replaceState({}, '', '/does-not-exist');
     render(<HomePage />);
     expect(await screen.findByRole('heading', { level: 1, name: 'page not found' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'back to home' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'go to home' })).toHaveAttribute('href', '/');
     expect(screen.queryByRole('region', { name: 'sessions' })).not.toBeInTheDocument();
     expect(fetch.mock.calls.filter(([url]) => String(url).includes('/api/v1/sync/sessions'))).toEqual([]);
   });
