@@ -23,7 +23,7 @@ vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams(),
   useRouter: () => ({ push }),
 }));
-vi.mock('@/hooks/useTheme', () => ({ useTheme: () => ({ theme: 'light', toggle: vi.fn() }) }));
+vi.mock('@/hooks/useTheme', () => ({ useTheme: () => ({ theme: 'light', toggle: vi.fn(), setTheme: vi.fn() }) }));
 
 // ---------------------------------------------------------------------------
 // MockWebSocket — LayoutShell mounts the real WebSocketProvider, which opens a

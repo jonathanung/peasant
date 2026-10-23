@@ -16,7 +16,7 @@ import { loadShellChromeManifest } from '../../scripts/visual/shell-chrome-manif
 import YAML from 'yaml';
 
 vi.mock('next/navigation', () => ({ usePathname: () => '/', useSearchParams: () => new URLSearchParams(), useRouter: () => ({ push: vi.fn() }) }));
-vi.mock('@/hooks/useTheme', () => ({ useTheme: () => ({ theme: 'dark', toggle: vi.fn() }) }));
+vi.mock('@/hooks/useTheme', () => ({ useTheme: () => ({ theme: 'dark', toggle: vi.fn(), setTheme: vi.fn() }) }));
 // The tour stays in the tree but is not mounted: a mount of its provider would render this marker.
 vi.mock('@/components/tour/TourProvider', () => ({
   TourProvider: ({ children }: { children: ReactNode }) => <div data-testid="tour-provider">{children}</div>,
