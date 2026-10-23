@@ -14,7 +14,7 @@
      2. the command palette, opened the way the sidebar's search item opens it, offers none of the
         forbidden commands (per-project changes/map jumps) and every required one, and no "go to"
         command for a route-only section;
-     3. every route-only section still resolves by URL: /analytics, and /review and /map under a mock
+     3. every route-only section still resolves by URL: /village, /analytics, and /review and /map under a mock
         project, each mounting its body non-blank beside the SAME sidebar;
      4. the responsive widths in src/test/testdata/shell_responsive.yaml: the same chrome and
         geometry checks at every width, down to the 320px reflow width, the drawer opened below
@@ -159,10 +159,13 @@ const consoleLocationUrl = (m) => {
   return loc?.url || ''
 }
 // The mock data provider cannot serve the grouped sessions route the home page asks for (it answers
-// 500 on develop too); that one request is a mock-store limitation, not a shell failure.
+// 500 on develop too); that one request is a mock-store limitation, not a shell failure. The online
+// page's saved observations answer 401 while this computer is not signed in, and the page shows its
+// signed-out state; the gate's server is never signed in.
 const isKnownBenignConsoleMessage = (text, locationUrl) =>
   /favicon/i.test(`${text} ${locationUrl}`) ||
-  (/\/api\/v1\/sessions\?view=grouped/.test(locationUrl) && /status of 500/.test(text))
+  (/\/api\/v1\/sessions\?view=grouped/.test(locationUrl) && /status of 500/.test(text)) ||
+  (/\/api\/v1\/village\/collective-observations$/.test(locationUrl) && /status of 401/.test(text))
 const formatConsoleDiagnostic = (m) => {
   const loc = typeof m.location === 'function' ? m.location() : null
   const where = loc?.url ? ` at ${loc.url}:${loc.lineNumber ?? 0}:${loc.columnNumber ?? 0}` : ''

@@ -59,12 +59,19 @@ async function exercise(row, { page, request }, info) {
   const { theme, surface } = info.project.metadata;
   await open(page, theme);
   if (row.mode === 'navigation' || row.mode === 'direct') {
+    // The online page is reached by route only: the sidebar neither links to it nor
+    // offers online in its app switcher; its collectives link leads online instead.
     if (row.mode === 'navigation') {
       await page.goto('/');
-      await (await sidebarLink(page, 'online')).click();
-      await expect(page).toHaveURL(/\/village\/?$/);
+      await expect(await sidebarLink(page, 'home')).toBeVisible();
+      await expect(page.locator('.asb-panel a[href^="/village"]')).toHaveCount(0);
+      await expect(page.locator('.asb-apps .asb-item[title="online"]')).toHaveCount(0);
+      await expect(page.locator('.asb-panel').getByRole('link', { name: /^collectives/ })).toBeVisible();
+      await page.goto('/village');
+      await expect(page.getByRole('heading', { name: 'online observations', exact: true })).toBeVisible();
     }
-    await expect(page.locator('.asb-panel a[href^="/village"]')).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('.asb-panel a[href^="/village"]')).toHaveCount(0);
+    await expect(page.locator('.asb-panel [aria-current="page"]')).toHaveCount(0);
     await expect(page.locator('.vobs')).toContainText(exported.fixtures.OldName);
     expect(await control(request, 'requests')).toEqual([]);
     return;

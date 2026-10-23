@@ -25,7 +25,7 @@ import { OPEN_COMMAND_PALETTE_EVENT } from '@/components/command/CommandPalette'
 import { isSectionActive, visibleNavSections } from '@/lib/nav/sections';
 import { SETTINGS_SECTIONS, settingsSection, settingsSectionHref, type SettingsSectionId } from '@/lib/settings/catalog';
 import { fetchVillageAuth } from '@/lib/api/settings';
-import { DOCS_URL, defaultOnlineUrl, onlineCollectivesHref } from '@/lib/village/links';
+import { DOCS_URL, onlineCollectivesHref } from '@/lib/village/links';
 
 /** The glyph each settings section leads with in the sidebar. */
 const SETTINGS_ICONS: Readonly<Record<SettingsSectionId, LucideIcon>> = {
@@ -37,9 +37,14 @@ const SETTINGS_ICONS: Readonly<Record<SettingsSectionId, LucideIcon>> = {
   advanced: SlidersHorizontal,
 };
 
-/** Where the switcher's other apps live; they open outside this app. This one, local, is current. */
+/**
+ * Where the switcher's other app lives: the docs, opened outside this app. This
+ * one, local, is current. Online gets no address, so the switcher leaves it out
+ * (an app with no href shows only while it is the current one); the
+ * collectives link is the local app's way to online.
+ */
 function switcherApps() {
-  const urls: Partial<Record<string, string>> = { online: defaultOnlineUrl(), docs: DOCS_URL };
+  const urls: Partial<Record<string, string>> = { docs: DOCS_URL };
   return APP_SIDEBAR_APPS.map((entry) => {
     const href = urls[entry.id];
     return href ? { ...entry, href, target: '_blank', rel: 'noopener noreferrer' } : entry;
@@ -76,12 +81,13 @@ function NextLink({ href, ...rest }: { href: string } & React.AnchorHTMLAttribut
 
 /**
  * The local app's sidebar: fairtrade's AppSidebar, with the nav derived from
- * the section registry (lib/nav/sections.ts). Route-only sections (analytics,
- * changes, the code map) and `/share` are not linked from it. On a settings
+ * the section registry (lib/nav/sections.ts). Route-only sections (online,
+ * analytics, changes, the code map) and `/share` are not linked from it. On a settings
  * page it lists the settings sections instead, under a way back home. Search
  * (the command palette) and the theme toggle sit in their own group, so they
- * stay reachable in the collapsed rail and in the phone drawer. The app
- * switcher marks this app and opens the hosted app and the docs.
+ * stay reachable in the collapsed rail and in the phone drawer. The
+ * collectives link opens online; the app switcher marks this app and opens the
+ * docs.
  */
 function SidebarView({ section }: { section: string | null }) {
   const pathname = usePathname() ?? '/';

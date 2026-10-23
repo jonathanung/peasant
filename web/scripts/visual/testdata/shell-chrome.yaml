@@ -46,11 +46,6 @@ show:
     text: settings
     icon: true
     page: src/app/settings/page.tsx
-  village:
-    selector: '.asb-panel a.asb-item[href="/village"], .asb-panel a.asb-item[href="/village/"]'
-    text: online
-    icon: true
-    page: src/app/village/page.tsx
 hide:
   connection-pill:
     selector: '.cx-pill'
@@ -66,7 +61,13 @@ hide:
   header-row:
     # The one-row header the sidebar replaced.
     selector: 'header.app-header'
+  online-switcher:
+    # The app switcher's online entry. The local app reaches online through the
+    # collectives link only; the switcher offers the docs beside this app.
+    selector: '.asb-apps .asb-item[title="online"]'
 routes:
+  /village:
+    mount: .village-page
   /analytics:
     mount: .gan-root
   /review:
@@ -81,7 +82,6 @@ palette:
     - 'proj-map:'
   require:
     - 'nav:/'
-    - 'nav:/village'
     - 'action:theme'
 # What the notice's always-mounted live region says (LocalOfflineNotice.tsx's
 # OFFLINE_ANNOUNCEMENTS must equal these; the offline gate listens for them and

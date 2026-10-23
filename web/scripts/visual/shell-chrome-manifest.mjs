@@ -18,11 +18,11 @@ export const SHELL_CHROME_FIXTURE = join(HERE, 'testdata', 'shell-chrome.yaml')
 
 /** The names the manifest must carry. A row deleted from the fixture fails the loader. */
 export const REQUIRED_NAMES = Object.freeze({
-  show: Object.freeze(['brand', 'home', 'search', 'theme', 'settings', 'village']),
-  hide: Object.freeze(['connection-pill', 'share-button', 'section-nav', 'header-row']),
-  routes: Object.freeze(['/analytics', '/review', '/map']),
+  show: Object.freeze(['brand', 'home', 'search', 'theme', 'settings']),
+  hide: Object.freeze(['connection-pill', 'share-button', 'section-nav', 'header-row', 'online-switcher']),
+  routes: Object.freeze(['/village', '/analytics', '/review', '/map']),
   paletteForbid: Object.freeze(['proj-changes:', 'proj-map:']),
-  paletteRequire: Object.freeze(['nav:/', 'nav:/village', 'action:theme']),
+  paletteRequire: Object.freeze(['nav:/', 'action:theme']),
 })
 
 /**

@@ -123,9 +123,12 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
       expect(document.querySelector('.asb-panel [aria-current="page"]')?.getAttribute('href')).toBe('/');
       cleanup();
     }
-    currentPathname = '/analytics/';
-    await mount();
-    expect(document.querySelector('.asb-panel [aria-current="page"]')).toBeNull();
+    for (const pathname of ['/analytics/', '/village/']) {
+      currentPathname = pathname;
+      await mount();
+      expect(document.querySelector('.asb-panel [aria-current="page"]')).toBeNull();
+      cleanup();
+    }
   });
 
   it('switches the theme from its item, named for the mode it switches to', async () => {
@@ -153,14 +156,16 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     expect(link).toHaveAccessibleName(/^collectives\s*, opens outside this app$/);
   });
 
-  it('marks this app current in the switcher and opens online and the docs outside it', async () => {
+  it('marks this app current in the switcher and opens only the docs outside it', async () => {
     await mount();
     const apps = screen.getByRole('navigation', { name: 'apps' });
     expect(within(apps).getByText('local').closest('[aria-current]')).toHaveAttribute('aria-current', 'true');
-    const online = within(apps).getByRole('link', { name: /^online/ });
-    expect(online.getAttribute('href')).toMatch(/^https:\/\//);
-    expect(online).toHaveAttribute('target', '_blank');
-    expect(within(apps).getByRole('link', { name: /^docs/ })).toHaveAttribute('href', 'https://peasantlabs.org/docs');
+    const docs = within(apps).getByRole('link', { name: /^docs/ });
+    expect(docs).toHaveAttribute('href', 'https://peasantlabs.org/docs');
+    expect(docs).toHaveAttribute('target', '_blank');
+    // The collectives link is the local app's way to online; the switcher does not offer it again.
+    expect(within(apps).queryByText('online')).toBeNull();
+    expect(within(apps).getAllByRole('listitem').map((item) => item.querySelector('.asb-label')?.textContent)).toEqual(['local', 'docs']);
   });
 
   it('shows the account row only for a signed-in computer', async () => {

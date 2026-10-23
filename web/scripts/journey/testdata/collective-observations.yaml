@@ -1,6 +1,6 @@
 requiredNames:
-  - village-nav-opens-mounted-body
-  - village-active-after-direct-link
+  - village-route-only-from-home
+  - village-direct-link-mounts-body
   - web-catalog-updated-history-old-502
   - web-fetch-partial-domain-dates
   - web-history-three-category-pages
@@ -28,8 +28,8 @@ categories:
   - {kind: operation-diagnostics, label: operation diagnostics, array: operationDiagnostics}
 settingsLabels: [village, automatic publishing]
 cases:
-  - {name: village-nav-opens-mounted-body, mode: navigation}
-  - {name: village-active-after-direct-link, mode: direct}
+  - {name: village-route-only-from-home, mode: navigation}
+  - {name: village-direct-link-mounts-body, mode: direct}
   - {name: web-catalog-updated-history-old-502, mode: partial, scenario: partial-502, status: 502}
   - {name: web-fetch-partial-domain-dates, mode: deadline, scenario: partial-504, status: 504}
   - {name: web-history-three-category-pages, mode: paging}

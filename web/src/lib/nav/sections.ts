@@ -10,8 +10,9 @@ import { UI_CAPABILITY, type UICapabilityToken } from '@/lib/capabilities/tokens
  *
  * WHICH sections exist, their order, their labels, and whether each one is
  * listed in the navigation come from @peasant-labs/fairtrade/graph's
- * LOCAL_APP_SECTIONS: `home`, `village` and `settings` are nav sections; `analytics`,
- * `changes` and `code map` are reached by route only. This module adds only
+ * LOCAL_APP_SECTIONS: `home` and `settings` are nav sections; `village` (labelled
+ * `online`), `analytics`, `changes` and `code map` are reached by route only.
+ * This module adds only
  * the local route each id owns. `/share` is not a section: it stays outside
  * this registry.
  */

@@ -16,8 +16,8 @@ export function inventory(root) {
   walk(root); return result;
 }
 export function assertExportedSurface(ui, graph) {
-  if (typeof ui.VillageObservations !== 'function' || !graph.LOCAL_APP_SECTIONS?.some(row => row.id === 'village' && row.inNav === true)) {
-    throw new Error('The installed PUBLISHED Fairtrade package lacks VillageObservations or canonical village navigation. Wait for the reviewed npm release, coherently pin it with /village, then rerun. Source aliases, dev links and candidate tarballs are not proof.');
+  if (typeof ui.VillageObservations !== 'function' || !graph.LOCAL_APP_SECTIONS?.some(row => row.id === 'village' && row.inNav === false)) {
+    throw new Error('The installed PUBLISHED Fairtrade package lacks VillageObservations or the canonical route-only village section. Wait for the reviewed npm release, coherently pin it with /village, then rerun. Source aliases, dev links and candidate tarballs are not proof.');
   }
 }
 export function assertPublishedFiles(installed, unpacked) {
