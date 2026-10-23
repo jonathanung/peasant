@@ -899,6 +899,16 @@ textarea::placeholder {
   .docs-link-inline:hover { color: var(--amber); text-decoration-style: solid; }
 }
 .docs-link-icon .lucide { width: var(--ic-md); height: var(--ic-md); }
+/* a finger gets a 44px target on an inline docs link without the link pushing its
+   line apart: the hit area grows above and below, as fairtrade's switch does */
+@media (pointer: coarse) {
+  .docs-link-inline { position: relative; }
+  .docs-link-inline::after {
+    content: '';
+    position: absolute;
+    inset: calc((var(--target-comfortable) - 1lh) / -2) 0;
+  }
+}
 
 /* ============================================
    PAGE FRAME

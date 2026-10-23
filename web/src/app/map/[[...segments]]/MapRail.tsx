@@ -381,7 +381,7 @@ function CloseButton({ onClose, label }: { onClose: () => void; label: string })
     <button
       type="button"
       aria-label={label}
-      className="flex h-6 w-6 items-center justify-center border border-rule text-ink-3 hover:bg-surface-hover focus-mono cursor-pointer"
+      className="flex h-6 w-6 pointer-coarse:h-11 pointer-coarse:w-11 items-center justify-center border border-rule text-ink-3 hover:bg-surface-hover focus-mono cursor-pointer"
       onClick={onClose}
     >
       <X size={12} aria-hidden />
