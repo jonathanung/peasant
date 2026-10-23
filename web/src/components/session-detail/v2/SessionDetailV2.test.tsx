@@ -264,17 +264,17 @@ function crumbs(): [string, string | null][] {
 }
 
 describe('SessionDetailV2 — breadcrumb trail', () => {
-  it('walks projects → this project\'s sessions → this session', () => {
+  it('walks sessions → this project\'s sessions → this session', () => {
     currentSearchParams = new URLSearchParams();
     renderChangeScope();
 
     const trail = crumbs();
     expect(trail.map(([label]) => label)).toEqual([
-      'projects',
+      'sessions',
       'alpha-project',
       'sess-123',
     ]);
-    // The root returns to the project list; the project crumb returns to THAT
+    // The root returns to Home's sessions; the project crumb returns to THAT
     // project's session list — never to the capability-gated map.
     expect(trail[0][1]).toBe('/');
     expect(trail[1][1]).toBe(`/sessions/${PROJECT_HASH}`);

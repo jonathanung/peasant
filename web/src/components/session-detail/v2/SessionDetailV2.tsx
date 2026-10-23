@@ -400,8 +400,8 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
   // Project + breadcrumb for the origin-aware trail (Map/Review origin crumb).
   const project = detail?.project ?? projectName;
   const crumb = originCrumb(scope, projectHash);
-  // The trail is projects / {project} / {session} — the path you walked to get
-  // here, each crumb being the page it names. The project crumb leads to that
+  // The trail is sessions / {project} / {session} — the path you walked to get
+  // here, each crumb being the page it names. `sessions` is Home. The project crumb leads to that
   // project's SESSION LIST, not to the map: the map is capability-gated, so a
   // map crumb is a dead end on a default server and there is no reason to route
   // a reader there from a transcript.
@@ -420,7 +420,7 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
   // actually were survives alongside the way back to the top.
   const sessionCrumb = (detail?.id ?? sessionId).slice(0, 8);
   const breadcrumb: CrumbItem[] = [
-    { label: 'projects', href: '/' },
+    { label: 'sessions', href: '/' },
     ...(crumb ? [crumb] : []),
     { label: displayProject(project), href: sessionsHref(projectHash) },
     { label: sessionCrumb },

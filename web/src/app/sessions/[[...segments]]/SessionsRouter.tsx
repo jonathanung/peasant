@@ -118,7 +118,7 @@ export function SessionsRouter() {
 
   return (
     <div className="max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
-      <Breadcrumbs items={[{ label: 'projects', href: '/' }, { label }]} />
+      <Breadcrumbs items={[{ label: 'sessions', href: '/' }, { label }]} />
 
       <div>
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
