@@ -25,7 +25,8 @@ const STAGES: Record<CheckingStep, { stage: (turns: number) => string; slow: str
     slow: 'peasant is reading this session’s recording again, on this computer. publish waits for it.',
   },
   scanning: {
-    stage: (turns) => `scanning ${turns} ${turns === 1 ? 'turn' : 'turns'}…`,
+    // A page that has not received the session's turns has no count to name.
+    stage: (turns) => (turns > 0 ? `scanning ${turns} ${turns === 1 ? 'turn' : 'turns'}…` : 'scanning this session…'),
     slow: 'every turn is checked for secrets and personal details on this computer before anything is sent. publish waits for it.',
   },
   reading: {

@@ -8,6 +8,7 @@ requiredNames:
   - reindexing-slow
   - scanning-a-long-session
   - scanning-one-turn
+  - scanning-without-turns
   - scanning-slow
   - reading-slow
 cases:
@@ -37,6 +38,11 @@ cases:
     turns: 1
     elapsedMs: 0
     stage: scanning 1 turn…
+  - name: scanning-without-turns
+    step: scanning
+    turns: 0
+    elapsedMs: 0
+    stage: scanning this session…
   - name: scanning-slow
     step: scanning
     turns: 468
