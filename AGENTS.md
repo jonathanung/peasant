@@ -292,8 +292,8 @@ the server serves the newly built assets before you trust a screenshot or a comp
   route-only section; its routes still resolve by URL. Do not add a `/push` alternate route.
 - The local chrome is fairtrade's `AppSidebar` (`web/src/components/LocalSidebar.tsx`): the
   `peasant` home link, the registry's nav sections, a `collectives` link that opens online, search
-  (⌘K) and the theme toggle in their own group, the app switcher, and the account row while this
-  computer is signed in. On a settings page it lists the settings sections under a way back home.
+  (⌘K) and the theme toggle in their own group, the app switcher (local, current, beside links that
+  open online and the docs), and the account row while this computer is signed in. On a settings page it lists the settings sections under a way back home.
   Below 768px it is a top bar whose menu opens the same nav as a drawer. It carries no connection
   indicator. When the local app is unreachable (`GET /api/v1/health` fails or the WebSocket stays
   down), fairtrade's `LocalOfflineBanner` shows at the top of the page column, in the page flow

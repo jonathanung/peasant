@@ -153,6 +153,16 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     expect(link).toHaveAccessibleName(/^collectives\s*, opens outside this app$/);
   });
 
+  it('marks this app current in the switcher and opens online and the docs outside it', async () => {
+    await mount();
+    const apps = screen.getByRole('navigation', { name: 'apps' });
+    expect(within(apps).getByText('local').closest('[aria-current]')).toHaveAttribute('aria-current', 'true');
+    const online = within(apps).getByRole('link', { name: /^online/ });
+    expect(online.getAttribute('href')).toMatch(/^https:\/\//);
+    expect(online).toHaveAttribute('target', '_blank');
+    expect(within(apps).getByRole('link', { name: /^docs/ })).toHaveAttribute('href', 'https://peasantlabs.org/docs');
+  });
+
   it('shows the account row only for a signed-in computer', async () => {
     await mount();
     expect(document.querySelector('.asb-account')).toBeNull();

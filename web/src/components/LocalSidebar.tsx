@@ -25,7 +25,7 @@ import { OPEN_COMMAND_PALETTE_EVENT } from '@/components/command/CommandPalette'
 import { isSectionActive, visibleNavSections } from '@/lib/nav/sections';
 import { SETTINGS_SECTIONS, settingsSection, settingsSectionHref, type SettingsSectionId } from '@/lib/settings/catalog';
 import { fetchVillageAuth } from '@/lib/api/settings';
-import { onlineCollectivesHref } from '@/lib/village/links';
+import { DOCS_URL, defaultOnlineUrl, onlineCollectivesHref } from '@/lib/village/links';
 
 /** The glyph each settings section leads with in the sidebar. */
 const SETTINGS_ICONS: Readonly<Record<SettingsSectionId, LucideIcon>> = {
@@ -36,6 +36,15 @@ const SETTINGS_ICONS: Readonly<Record<SettingsSectionId, LucideIcon>> = {
   sources: Plug,
   advanced: SlidersHorizontal,
 };
+
+/** Where the switcher's other apps live; they open outside this app. This one, local, is current. */
+function switcherApps() {
+  const urls: Partial<Record<string, string>> = { online: defaultOnlineUrl(), docs: DOCS_URL };
+  return APP_SIDEBAR_APPS.map((entry) => {
+    const href = urls[entry.id];
+    return href ? { ...entry, href, target: '_blank', rel: 'noopener noreferrer' } : entry;
+  });
+}
 
 /** The pages under Home: a project's sessions and a transcript. */
 const UNDER_HOME = ['/sessions', '/projects'];
@@ -72,8 +81,7 @@ function NextLink({ href, ...rest }: { href: string } & React.AnchorHTMLAttribut
  * page it lists the settings sections instead, under a way back home. Search
  * (the command palette) and the theme toggle sit in their own group, so they
  * stay reachable in the collapsed rail and in the phone drawer. The app
- * switcher only marks this app: the registry's `online` item is this app's
- * observations page, and `collectives` is the way to the hosted app.
+ * switcher marks this app and opens the hosted app and the docs.
  */
 function SidebarView({ section }: { section: string | null }) {
   const pathname = usePathname() ?? '/';
@@ -139,7 +147,7 @@ function SidebarView({ section }: { section: string | null }) {
   return (
     <AppSidebar
       app="local"
-      apps={APP_SIDEBAR_APPS}
+      apps={switcherApps()}
       groups={groups}
       currentId={currentId}
       homeHref="/"

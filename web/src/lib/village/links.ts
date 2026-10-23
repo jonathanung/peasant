@@ -10,3 +10,6 @@ const ONLINE_COLLECTIVES_PATH = '/groups';
 export function onlineCollectivesHref(onlineUrl?: string): string {
   return `${onlineUrl || defaultOnlineUrl()}${ONLINE_COLLECTIVES_PATH}`;
 }
+
+/** The peasant docs. */
+export const DOCS_URL = 'https://peasantlabs.org/docs';
