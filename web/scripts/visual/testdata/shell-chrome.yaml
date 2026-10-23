@@ -33,14 +33,16 @@ show:
     text: home
     icon: true
   search:
-    selector: '.asb-panel button.asb-item[title="search and jump (⌘K)"]'
-    text: search
+    # fairtrade's own search item, after the nav groups; its key hint is a kbd.
+    selector: '.asb-panel .asb-search button.asb-item[title="search (⌘K)"]'
+    text: search⌘K
     icon: true
   theme:
-    selector: '.asb-panel button.asb-item[title^="switch to "]'
+    # fairtrade's footer toggle, named for the theme it switches to.
+    selector: '.asb-panel .asb-foot button.asb-theme'
     labels:
-      light: dark mode
-      dark: light mode
+      light: switch to dark mode
+      dark: switch to light mode
   settings:
     selector: '.asb-panel a.asb-item[href="/settings"], .asb-panel a.asb-item[href="/settings/"]'
     text: settings

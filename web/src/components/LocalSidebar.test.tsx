@@ -21,8 +21,8 @@ vi.mock('next/navigation', () => ({
 }));
 
 let theme: 'light' | 'dark' = 'light';
-const toggle = vi.fn();
-vi.mock('@/hooks/useTheme', () => ({ useTheme: () => ({ theme, toggle }) }));
+const setTheme = vi.fn();
+vi.mock('@/hooks/useTheme', () => ({ useTheme: () => ({ theme, setTheme }) }));
 
 // The sidebar reads the advertised capability set. The code-map token is
 // advertised here on purpose: an experimental server must not bring a
@@ -50,7 +50,7 @@ afterEach(() => {
   currentSearch = '';
   theme = 'light';
   signIn = { authenticated: false };
-  toggle.mockClear();
+  setTheme.mockClear();
 });
 
 async function mount(ui = <LocalSidebar />) {
@@ -131,12 +131,12 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     }
   });
 
-  it('switches the theme from its item, named for the mode it switches to', async () => {
+  it('switches the theme from the footer toggle, named for the mode it switches to', async () => {
     await mount();
-    const button = screen.getByRole('button', { name: 'dark mode' });
-    expect(button).toHaveAttribute('title', 'switch to dark mode');
+    const button = screen.getByRole('button', { name: 'switch to dark mode' });
+    expect(button.closest('.asb-foot')).not.toBeNull();
     fireEvent.click(button);
-    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(setTheme).toHaveBeenCalledWith('dark');
   });
 
   it('opens the command palette from the search item', async () => {
@@ -156,7 +156,7 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     expect(link).toHaveAccessibleName(/^collectives\s*, opens outside this app$/);
   });
 
-  it('offers only the docs in the switcher, opened in a new tab', async () => {
+  it('offers the docs in the switcher, opened in a new tab, and community as soon', async () => {
     await mount();
     const apps = screen.getByRole('navigation', { name: 'apps' });
     // The switcher leaves this app out: it lists only where else to go.
@@ -166,7 +166,11 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     expect(docs).toHaveAttribute('target', '_blank');
     // The collectives link is the local app's way to online; the switcher does not offer it again.
     expect(within(apps).queryByText('online')).toBeNull();
-    expect(within(apps).getAllByRole('listitem').map((item) => item.querySelector('.asb-label')?.textContent)).toEqual(['docs']);
+    expect(within(apps).getAllByRole('listitem').map((item) => item.querySelector('.asb-label')?.textContent)).toEqual(['docs', 'community']);
+    // Community is shown, not linked, until a community space exists.
+    const community = within(apps).getByText('community').closest('.asb-item');
+    expect(community?.tagName).not.toBe('A');
+    expect(community).toHaveTextContent('soon');
   });
 
   it('shows the account row only for a signed-in computer', async () => {
@@ -195,7 +199,7 @@ describe('LocalSidebar — on a settings page', () => {
     expect(screen.queryByRole('link', { name: /^back to/ })).toBeNull();
     // Search and the theme stay reachable here too.
     expect(screen.getByRole('button', { name: 'search' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'dark mode' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'switch to dark mode' })).toBeInTheDocument();
   });
 });
 

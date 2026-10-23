@@ -28,10 +28,10 @@ async function open(page, theme) {
   await page.goto('/village');
   const html = page.locator('html');
   if (await html.getAttribute('data-theme') !== theme) {
-    // The sidebar's theme item is named for the mode it switches to; on a phone it sits in the drawer.
+    // The sidebar's footer toggle is named for the mode it switches to; on a phone it sits in the drawer.
     const menu = page.locator('.asb-bar .asb-menu');
     if (await menu.isVisible()) await menu.click();
-    await page.locator('.asb-panel').getByRole('button', { name: `${theme} mode`, exact: true }).click();
+    await page.locator('.asb-panel').getByRole('button', { name: `switch to ${theme} mode`, exact: true }).click();
   }
   await expect(html).toHaveAttribute('data-theme', theme);
   await expect(page.getByRole('heading', { name: 'online observations', exact: true })).toBeVisible();

@@ -918,13 +918,25 @@ export const PublishDialog = FtPublishDialog as unknown as ComponentType<Publish
 // The shared app sidebar, and the layout that places it beside the page.
 // ---------------------------------------------------------------------------
 
-/** One entry of the sidebar's online / local / docs switcher. */
+/** One entry of the sidebar's app switcher: online, local, docs, community. */
 export interface AppSidebarApp {
   id: string;
   label: string;
   href?: string;
   target?: string;
   rel?: string;
+  /** A short note after the label, e.g. 'soon'; with no href the entry shows as text. */
+  tag?: string;
+}
+
+/** The app's search, which the sidebar places after its nav groups. */
+export interface AppSidebarSearch {
+  onOpen: () => void;
+  label?: string;
+  /** The key hint beside the label, e.g. '⌘K'. */
+  shortcut?: string;
+  /** The same keys for aria-keyshortcuts, e.g. 'Meta+K'. */
+  keyShortcuts?: string;
 }
 
 /** One nav row: a link with `href`, a button with only `onSelect`. */
@@ -960,6 +972,10 @@ export interface AppSidebarProps {
   currentId?: string;
   homeHref?: string;
   brand?: string;
+  search?: AppSidebarSearch;
+  /** The current theme; with onThemeChange the footer leads with the theme toggle. */
+  theme?: 'light' | 'dark';
+  onThemeChange?: (next: 'light' | 'dark') => void;
   account?: { handle: string; href?: string };
   accountSlot?: ReactNode;
   /** A router link; receives href, className, aria-current, title, target, rel, onClick and children. */
