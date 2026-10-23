@@ -354,28 +354,16 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   const reviewError = scan.scanError ?? adaptation.error;
   const failure = reviewError != null ? classifyScanFailure(reviewError) : null;
 
-  // A stale local index heals itself: the scan failed because the session's
-  // stored evidence is one the strict publication reader refuses, so the popup
-  // re-indexes this computer's sessions once, then scans again. It reads and
-  // writes the local index only; nothing leaves the machine, and no redaction
-  // rule is relaxed. A re-scan after it still fails runs the heal again.
-  const [reindex, setReindex] = useState<'idle' | 'running' | 'done' | 'failed'>('idle');
+  // A stale local index is healed on request: the scan failed because the
+  // session's stored evidence is one the strict publication reader refuses, or
+  // its capture is not verified yet, so the popup's re-scan re-indexes this
+  // computer's sessions through the server's own ingest run, then scans again.
+  // It reads and writes the local index only; nothing leaves the machine, and
+  // no redaction rule is relaxed. A large library takes a while, so it runs
+  // only when asked, in the background, while the checking state shows.
+  const [reindex, setReindex] = useState<'idle' | 'running' | 'failed'>('idle');
   const reindexRun = useRef<AbortController | null>(null);
   const runScan = scan.runScan;
-  useEffect(() => {
-    if (!open || failure?.kind !== 'needs-reindex' || reindex !== 'idle' || reindexRun.current) return;
-    const controller = new AbortController();
-    reindexRun.current = controller;
-    setReindex('running');
-    reindexAndWait({ signal: controller.signal })
-      .then(() => {
-        if (controller.signal.aborted) return;
-        setReindex('done');
-        runScan(true);
-      })
-      .catch(() => { if (!controller.signal.aborted) setReindex('failed'); })
-      .finally(() => { if (reindexRun.current === controller) reindexRun.current = null; });
-  }, [failure?.kind, open, reindex, runScan]);
   useEffect(() => {
     if (open) return;
     reindexRun.current?.abort();
@@ -384,17 +372,31 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   }, [open]);
   const healing = reindex === 'running';
   const rescan = useCallback(() => {
-    if (failure?.kind === 'needs-reindex') setReindex('idle');
-    else runScan(true);
+    if (failure?.kind !== 'needs-reindex') {
+      runScan(true);
+      return;
+    }
+    if (reindexRun.current) return;
+    const controller = new AbortController();
+    reindexRun.current = controller;
+    setReindex('running');
+    reindexAndWait({ signal: controller.signal })
+      .then(() => {
+        if (controller.signal.aborted) return;
+        setReindex('idle');
+        runScan(true);
+      })
+      .catch(() => { if (!controller.signal.aborted) setReindex('failed'); })
+      .finally(() => { if (reindexRun.current === controller) reindexRun.current = null; });
   }, [failure?.kind, runScan]);
 
   const scanClean = scan.phase === 'ready' && reviewError == null && scanResult !== undefined;
-  // A stale index shows one human line (it heals on its own); any other failure
-  // keeps its actionable message, never the transport status or JSON envelope.
+  // A stale index shows one human line (re-scan re-indexes it); any other
+  // failure keeps its actionable message, never the transport status or JSON.
   const scanProp = healing
     ? undefined
     : failure != null
-    ? { failure: `the scan failed, so publish is off. ${failure.line}` }
+    ? { failure: reindex === 'failed' ? 'the re-index could not finish. re-scan to try again.' : failure.line }
     : scanResult
       ? { matches: adaptation.matches, total: scanResult.length, matchCount: scan.sessionMatchCounts.get(sessionId) }
       : undefined;

@@ -205,7 +205,7 @@ describe('mounted category review boundary', () => {
 const scanFailures = parseDocument(readFileSync(resolve(process.cwd(), 'src/lib/share/testdata/scan-failures.yaml'), 'utf8')).toJS() as { cases: { name: string; detail: string }[] };
 
 describe('stale local index', () => {
-  it('re-indexes this computer once, scans again and publishes, never showing the server text', async () => {
+  it('says the session needs a re-index, and its re-scan re-indexes once, scans again and publishes', async () => {
     const stale = scanFailures.cases.find((row) => row.name === 'stale-local-index')!;
     const envelope = JSON.parse(stale.detail.replace(/^redaction scan failed \(\d+\):\s*/, '')) as { error: string };
     const ready = fixture.cases.find((row) => row.name === 'ready-to-publish')!;
@@ -227,7 +227,10 @@ describe('stale local index', () => {
     render(<Page />);
     const user = userEvent.setup();
     await runStep('open', user);
-    // The popup heals on its own: one local ingest run, then a fresh scan.
+    await waitFor(() => expect(dialog()).toHaveTextContent('this session needs a quick re-index before it can be published.'), WAIT);
+    // Nothing re-indexes until asked: the re-scan runs one local ingest, then a fresh scan.
+    expect(ingestStarts).toEqual([]);
+    await runStep('rescan', user);
     await waitFor(() => expect(ingestStarts).toEqual(['POST']), WAIT);
     await waitFor(() => expect(primaryButton()).toBeEnabled(), { timeout: 6000 });
     expect(dialog().textContent).not.toContain('retain unknown source evidence');
