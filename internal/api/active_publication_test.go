@@ -109,7 +109,13 @@ func TestActiveSnapshotSharePublicationConverges(t *testing.T) {
 		t.Fatal(err)
 	}
 	storetest.CopyGoldenTo(t, hs.dbPath())
-	db, err := store.Open(hs.dbPath(), store.WithSkipMigrations())
+	// Read as the web server reads: through the managed-generation store the
+	// web ingest writes.
+	storeOptions, err := store.ManagedGenerationOptions(filepath.Join(home, "output"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(hs.dbPath(), append(storeOptions, store.WithSkipMigrations())...)
 	if err != nil {
 		t.Fatal(err)
 	}

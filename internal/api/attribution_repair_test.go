@@ -79,7 +79,13 @@ func TestOrdinaryAttributionRepairPreservesStoredSession(t *testing.T) {
 		t.Fatal(err)
 	}
 	storetest.CopyGoldenTo(t, hs.dbPath())
-	db, err := store.Open(hs.dbPath(), store.WithSkipMigrations())
+	// Read as the web server reads: through the managed-generation store the
+	// web ingest writes.
+	storeOptions, err := store.ManagedGenerationOptions(filepath.Join(home, "output"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(hs.dbPath(), append(storeOptions, store.WithSkipMigrations())...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +199,7 @@ func TestOrdinaryAttributionRepairPreservesStoredSession(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		if !strings.Contains(r.URL.Path, "/transcripts/publish") {
-			_ = json.NewEncoder(w).Encode(schema.SchemaVersionResponse{ContentCapabilities: []schema.ContentCapability{schema.ContentCapabilityObservedModelV1}})
+			_ = json.NewEncoder(w).Encode(schema.SchemaVersionResponse{ContentCapabilities: []schema.ContentCapability{schema.ContentCapabilityObservedModelV1, schema.ContentCapabilitySessionGraphProvenanceV1}})
 			return
 		}
 		n := calls.Add(1)
@@ -290,8 +296,11 @@ func TestOrdinaryAttributionRepairPreservesStoredSession(t *testing.T) {
 	if got, err := db.GetMetrics(t.Context(), sid); err != nil || got == nil {
 		t.Fatalf("metrics lost: %v", err)
 	} else {
-		// Recompute audit time is not a session statistic.
+		// Recompute audit time is not a session statistic. Nor is the input
+		// key: the repair activates a new managed generation, which is a new
+		// metric input. The statistics and their output hash must not move.
 		got.ComputedAt, metrics.ComputedAt = nil, nil
+		got.InputHash, metrics.InputHash = nil, nil
 		if !reflect.DeepEqual(got, metrics) {
 			t.Fatalf("metrics changed: got=%+v want=%+v", got, metrics)
 		}

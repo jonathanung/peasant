@@ -1321,6 +1321,7 @@ func (h *syncHandler) newIngestPipeline(progState *ingest.ProgressState, scope *
 		Sources:            sources,
 		OutputDir:          resolvedOutput,
 		StalenessThreshold: staleness,
+		Write:              cfg.Write,
 		Progress:           progState,
 	}
 	if scope != nil {
@@ -1349,7 +1350,13 @@ func (h *syncHandler) newIngestPipeline(progState *ingest.ProgressState, scope *
 	if err := os.MkdirAll(dataDir, defaults.PrivateDirPerm); err != nil {
 		return nil, nil, fmt.Errorf("create data directory: %w", err)
 	}
-	db, err := store.Open(string(h.dbPath()))
+	// The same store a CLI harvest writes through, so this run indexes at the
+	// managed revision and can re-index what a harvest stored.
+	storeOptions, err := store.ManagedGenerationOptions(string(resolvedOutput))
+	if err != nil {
+		return nil, nil, err
+	}
+	db, err := store.Open(string(h.dbPath()), append(storeOptions, store.WithWriteConfig(cfg.Write))...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open analytics store: %w", err)
 	}
@@ -1357,6 +1364,7 @@ func (h *syncHandler) newIngestPipeline(progState *ingest.ProgressState, scope *
 	pipeline, err := ingest.NewPipeline(fs, git, ingest.DefaultAdapterRegistry, pipelineCfg,
 		ingest.WithStore(db),
 		ingest.WithMetricsStore(db),
+		ingest.WithSalt(db.InstallationSalt()),
 		ingest.WithIndexers(ingest.NewIndexerRegistry(fs, ingest.IndexerRegistryOptions{})),
 		ingest.WithAnalyzer(metrics.NewEngineWithModels(db, db)),
 		ingest.WithClassifier(metrics.NewClassifierAnnotator(db, db)),

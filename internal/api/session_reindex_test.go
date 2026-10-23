@@ -114,6 +114,37 @@ func userTurns(t *testing.T, db *store.Store, id string) int {
 	return count
 }
 
+// harvestLikeTheCLI indexes every configured source the way `peasant harvest`
+// does: through the managed-generation store, with the installation salt.
+func harvestLikeTheCLI(t *testing.T, dbPath string, cfg *config.Config) {
+	t.Helper()
+	storeOptions, err := store.ManagedGenerationOptions(cfg.Output.BasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	db, err := store.Open(dbPath, storeOptions...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	fs := &ingest.OSFileSystem{}
+	pipeline, err := ingest.NewPipeline(fs, &ingest.ExecGitResolver{}, ingest.DefaultAdapterRegistry, ingest.PipelineConfig{
+		Sources:            buildWebSourceConfigs(cfg),
+		OutputDir:          ingest.ResolvedPath(cfg.Output.BasePath),
+		StalenessThreshold: time.Minute,
+	}, ingest.WithStore(db), ingest.WithMetricsStore(db), ingest.WithSalt(db.InstallationSalt()),
+		ingest.WithIndexers(ingest.NewIndexerRegistry(fs, ingest.IndexerRegistryOptions{})))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pipeline.Run(context.Background()); err != nil {
+		t.Fatalf("harvest: %v", err)
+	}
+}
+
 // TestSessionReindexRoute drives the mounted one-session re-index over a real
 // Claude Code source and SQLite: the run re-reads the session only, from a
 // stable view of a file still being written, answers within its bound, and
@@ -154,18 +185,19 @@ func TestSessionReindexRoute(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			handler := hs.handler(nil, cfg)
-			handler.runIngestPipeline(ingest.NewProgressState())
-			if handler.ingestError != nil {
-				t.Fatalf("whole-machine web ingest: %s", handler.ingestError)
+			// The index is written as a CLI harvest writes it, and read as the
+			// web server reads it: through the managed-generation store.
+			harvestLikeTheCLI(t, hs.dbPath(), cfg)
+			storeOptions, err := store.ManagedGenerationOptions(cfg.Output.BasePath)
+			if err != nil {
+				t.Fatal(err)
 			}
-			handler.ingestStatus = ""
-			db, err := store.Open(hs.dbPath(), store.WithSkipMigrations())
+			db, err := store.Open(hs.dbPath(), append(storeOptions, store.WithSkipMigrations())...)
 			if err != nil {
 				t.Fatal(err)
 			}
 			t.Cleanup(func() { _ = db.Close() })
-			handler.store = db
+			handler := hs.handler(db, cfg)
 
 			// The recordings move on after the index was written: the
 			// session gains turns (and maybe a broken or half-written

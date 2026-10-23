@@ -1,8 +1,10 @@
 # POST /api/v1/sync/ingest/session: the publish popup re-indexes the one
 # session whose stored index the scan refused, then scans again. Each case lays
-# out a Claude Code source holding the session and a neighbour, runs the
-# whole-machine web ingest once, changes the recordings, then calls the route
-# (and the scan route when it answered done).
+# out a Claude Code source holding the session and a neighbour, indexes it the
+# way `peasant harvest` does (through the managed-generation store, which the
+# route must write through too, or it refuses every session a harvest stored
+# as a newer producer), changes the recordings, then calls the route (and the
+# scan route when it answered done).
 #
 # The session is long and still being written: every turn carries a hook
 # attachment and a hook progress record, one hook output ends in a lone UTF-16
