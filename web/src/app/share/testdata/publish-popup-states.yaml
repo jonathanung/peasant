@@ -169,7 +169,7 @@ cases:
       bar: { state: not-published, text: not published, action: publish }
       popup:
         heading: publish “{title}”
-        texts: [connect this computer to village once to publish., continue with GitHub, nothing leaves your machine until you publish.]
+        texts: [connect this computer to peasant online once to publish., continue with GitHub, nothing leaves your machine until you publish.]
         primary: null
       request: null
 
@@ -229,8 +229,8 @@ cases:
       bar: { state: not-published, text: not published, action: publish }
       popup:
         heading: publish “{title}”
-        texts: [you are not in a collective yet., create or join one on village]
-        link: { text: create or join one on village, href: 'https://village.peasantlabs.org/groups' }
+        texts: [you are not in a collective yet., create or join one on peasant online]
+        link: { text: create or join one on peasant online, href: 'https://village.peasantlabs.org/groups' }
         primary: { label: publish, enabled: false }
       request: null
 
@@ -545,7 +545,7 @@ cases:
       bar: { state: not-published, text: not published, action: publish }
       popup:
         heading: publish “{title}”
-        texts: [connect this computer to village once to publish.]
+        texts: [connect this computer to peasant online once to publish.]
         primary: null
       request: { add: [Acme Platform, Acme Company], remove: [] }
 
