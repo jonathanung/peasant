@@ -1015,10 +1015,10 @@ func (l helpLayer) View() string {
 			widest = len(r.text)
 		}
 	}
-	panel := kit.NewPanel(l.th).WithBackground(l.th.Palette.Surface)
+	panel := kit.NewPanel(l.th).WithBackground(l.th.Palette.SurfaceElev)
 	panel.SetSize(widest+helpPanelMargin, 0)
 	for _, r := range rows {
-		style := styles.Surface
+		style := styles.Overlay
 		if r.header {
 			style = styles.Header
 		}
