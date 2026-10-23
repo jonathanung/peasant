@@ -260,13 +260,9 @@
   .stg-page { padding-inline: var(--sp-3); }
 }
 
-/* ── sections: one view per section, linked from the section tabs ────────── */
+/* ── sections: one view per section, linked from fairtrade's in-page section
+   bar (SettingsLayout), beside the section on a wide body, above it on a narrow one ── */
 .stg-page { gap: var(--sp-5); padding: var(--sp-6) var(--sp-6) var(--sp-8); }
-.stg-sections { overflow-x: auto; flex-wrap: nowrap; gap: var(--sp-5); scrollbar-width: thin; }
-.stg-sections .tab { white-space: nowrap; text-decoration: none; }
-@media (pointer: coarse) { .stg-sections .tab { min-height: var(--target-comfortable); } }
-/* from fairtrade's sidebar breakpoint up, the sidebar lists the sections */
-@media (width >= 768px) { .stg-sections { display: none; } }
 .stg-body { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
 .stg-head { gap: var(--sp-3); }
 .stg-titlerow { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-4); }

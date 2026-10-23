@@ -1,47 +1,24 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
-import {
-  ArrowLeft,
-  EyeOff,
-  Folder,
-  Moon,
-  Plug,
-  Search,
-  Send,
-  SlidersHorizontal,
-  Sun,
-  UserRound,
-  Users,
-  type LucideIcon,
-} from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Moon, Search, Sun, Users } from 'lucide-react';
 import type { SyncAuthResponse } from '@peasant-labs/schema';
 import { AppSidebar, APP_SIDEBAR_APPS, type AppSidebarGroup } from '@/lib/ft-ui';
 import { useTheme } from '@/hooks/useTheme';
 import { useServerCapabilities } from '@/contexts/ServerCapabilitiesContext';
 import { OPEN_COMMAND_PALETTE_EVENT } from '@/components/command/CommandPalette';
 import { isSectionActive, visibleNavSections } from '@/lib/nav/sections';
-import { SETTINGS_SECTIONS, settingsSection, settingsSectionHref, type SettingsSectionId } from '@/lib/settings/catalog';
+import { settingsSectionHref } from '@/lib/settings/catalog';
 import { fetchVillageAuth } from '@/lib/api/settings';
 import { DOCS_URL, onlineCollectivesHref } from '@/lib/village/links';
 
-/** The glyph each settings section leads with in the sidebar. */
-const SETTINGS_ICONS: Readonly<Record<SettingsSectionId, LucideIcon>> = {
-  account: UserRound,
-  'automatic-publishing': Send,
-  redaction: EyeOff,
-  projects: Folder,
-  sources: Plug,
-  advanced: SlidersHorizontal,
-};
-
 /**
- * Where the switcher's other app lives: the docs, opened outside this app. This
- * one, local, is current. Online gets no address, so the switcher leaves it out
- * (an app with no href shows only while it is the current one); the
- * collectives link is the local app's way to online.
+ * Where the switcher's other app lives: the docs, opened in a new tab. The
+ * switcher leaves this app out, and online gets no address, so it is left out
+ * too (an app with no href is omitted); the collectives link is the local
+ * app's way to online.
  */
 function switcherApps() {
   const urls: Partial<Record<string, string>> = { docs: DOCS_URL };
@@ -82,21 +59,20 @@ function NextLink({ href, ...rest }: { href: string } & React.AnchorHTMLAttribut
 /**
  * The local app's sidebar: fairtrade's AppSidebar, with the nav derived from
  * the section registry (lib/nav/sections.ts). Route-only sections (online,
- * analytics, changes, the code map) and `/share` are not linked from it. On a settings
- * page it lists the settings sections instead, under a way back home. Search
- * (the command palette) and the theme toggle sit in their own group, so they
- * stay reachable in the collapsed rail and in the phone drawer. The
- * collectives link opens online; the app switcher marks this app and opens the
- * docs.
+ * analytics, changes, the code map) and `/share` are not linked from it. A
+ * settings page keeps this same nav, settings current: its sections are the
+ * in-page section bar of the settings page itself. Search (the command
+ * palette) and the theme toggle sit in their own group, so they stay reachable
+ * in the collapsed rail and in the phone drawer. The collectives link opens
+ * online; the app switcher opens the docs.
  */
-function SidebarView({ section }: { section: string | null }) {
+export function LocalSidebar() {
   const pathname = usePathname() ?? '/';
   const { theme, toggle } = useTheme();
   const { capabilities } = useServerCapabilities();
   const auth = useSignIn();
   const nav = visibleNavSections(capabilities);
   const home = nav.find((entry) => entry.href === '/');
-  const inSettings = isSectionActive({ id: 'settings', href: '/settings', label: 'settings' }, pathname);
   const nextTheme = theme === 'light' ? 'dark' : 'light';
 
   const tools: AppSidebarGroup = {
@@ -120,35 +96,19 @@ function SidebarView({ section }: { section: string | null }) {
     ],
   };
 
-  let groups: AppSidebarGroup[];
-  let currentId: string | undefined;
-  if (inSettings) {
-    const current = settingsSection(section);
-    groups = [
-      { id: 'back', ariaLabel: 'back', items: [{ id: 'back', label: home?.label ?? 'home', href: '/', icon: ArrowLeft, title: `back to ${home?.label ?? 'home'}` }] },
-      {
-        id: 'settings',
-        label: 'settings',
-        items: SETTINGS_SECTIONS.map((entry) => ({ id: `settings:${entry.id}`, label: entry.label, href: settingsSectionHref(entry.id), icon: SETTINGS_ICONS[entry.id] })),
-      },
-      tools,
-    ];
-    currentId = `settings:${current.id}`;
-  } else {
-    groups = [
-      {
-        id: 'sections',
-        ariaLabel: 'sections',
-        items: [
-          ...nav.map((entry) => ({ id: entry.id, label: entry.label, href: entry.href, icon: entry.icon, title: entry.title })),
-          { id: 'collectives', label: 'collectives', href: onlineCollectivesHref(), icon: Users, external: true, target: '_blank', rel: 'noreferrer', title: 'collectives, opens online' },
-        ],
-      },
-      tools,
-    ];
-    const underHome = UNDER_HOME.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-    currentId = nav.find((entry) => isSectionActive(entry, pathname))?.id ?? (underHome ? home?.id : undefined);
-  }
+  const groups: AppSidebarGroup[] = [
+    {
+      id: 'sections',
+      ariaLabel: 'sections',
+      items: [
+        ...nav.map((entry) => ({ id: entry.id, label: entry.label, href: entry.href, icon: entry.icon, title: entry.title })),
+        { id: 'collectives', label: 'collectives', href: onlineCollectivesHref(), icon: Users, external: true, target: '_blank', rel: 'noreferrer', title: 'collectives, opens online' },
+      ],
+    },
+    tools,
+  ];
+  const underHome = UNDER_HOME.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  const currentId = nav.find((entry) => isSectionActive(entry, pathname))?.id ?? (underHome ? home?.id : undefined);
 
   return (
     <AppSidebar
@@ -162,19 +122,5 @@ function SidebarView({ section }: { section: string | null }) {
       storageKey="peasant.local-sidebar"
       defaultWidth={272}
     />
-  );
-}
-
-function SidebarFromUrl() {
-  const searchParams = useSearchParams();
-  return <SidebarView section={searchParams?.get('section') ?? null} />;
-}
-
-/** The sidebar, on the settings section the address names once it is read. */
-export function LocalSidebar() {
-  return (
-    <Suspense fallback={<SidebarView section={null} />}>
-      <SidebarFromUrl />
-    </Suspense>
   );
 }

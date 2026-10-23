@@ -63,7 +63,7 @@ hide:
     selector: 'header.app-header'
   online-switcher:
     # The app switcher's online entry. The local app reaches online through the
-    # collectives link only; the switcher offers the docs beside this app.
+    # collectives link only; the switcher offers the docs alone.
     selector: '.asb-apps .asb-item[title="online"]'
 routes:
   /village:

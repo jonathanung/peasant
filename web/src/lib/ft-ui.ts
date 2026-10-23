@@ -83,6 +83,7 @@ import {
   // the settings page parts
   SettingRow,
   SettingGroup,
+  SettingsLayout as FtSettingsLayout,
   SETTING_ROW_STATES,
   CopyIconButton,
   CommandBlock,
@@ -778,6 +779,31 @@ export interface PaginationProps {
   label?: string;
 }
 export const Pagination = FtPagination as unknown as ComponentType<PaginationProps>;
+
+/** One entry of a settings page's in-page section bar: a route, an anchor, or a button. */
+export interface SettingsNavSection {
+  id: string;
+  label: string;
+  href?: string;
+  icon?: ComponentType<{ className?: string }>;
+}
+
+/**
+ * A settings page body: the section bar beside the sections on a wide column,
+ * above them on a narrow one. The page keeps the app sidebar's nav.
+ */
+export interface SettingsLayoutProps {
+  sections: SettingsNavSection[];
+  currentId?: string;
+  onSelect?: (id: string) => void;
+  spy?: boolean;
+  label?: string;
+  LinkComponent?: ComponentType<AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }>;
+  className?: string;
+  bodyClassName?: string;
+  children?: ReactNode;
+}
+export const SettingsLayout = FtSettingsLayout as unknown as ComponentType<SettingsLayoutProps>;
 
 /** One option of a segmented control; the label may carry a tabular count. */
 export interface SegmentedOption {

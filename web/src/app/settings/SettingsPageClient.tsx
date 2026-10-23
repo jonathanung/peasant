@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useEnter } from '@/lib/motion/enter';
 import Link from 'next/link';
-import { ExternalLink, Laptop, Lock, Users } from 'lucide-react';
+import { ExternalLink, EyeOff, Folder, Laptop, Lock, Plug, Send, SlidersHorizontal, UserRound, Users, type LucideIcon } from 'lucide-react';
 import { LocalSettingKind, isHarness, type AutoPublishRule, type LocalSetting, type LocalSettingsResponse, type SyncAuthResponse } from '@peasant-labs/schema';
-import { Button, Chip, CommandBlock, FeedbackPanel, ProviderName, SettingGroup, SettingRow } from '@/lib/ft-ui';
+import { Button, Chip, CommandBlock, FeedbackPanel, ProviderName, SettingGroup, SettingRow, SettingsLayout } from '@/lib/ft-ui';
 import { fetchSettings, fetchVillageAuth, fetchVillageCollectives, updateSetting } from '@/lib/api/settings';
 import {
   NOT_IN_PEASANT_CONFIG,
@@ -22,6 +22,7 @@ import {
   settingsSectionHref,
   type SettingsGroupId,
   type SettingsSection,
+  type SettingsSectionId,
 } from '@/lib/settings/catalog';
 import { ReadOnlyRow, SettingKeyRow } from '@/components/settings/SettingKeyRow';
 import { VillageAccountRow } from '@/components/settings/VillageAccountRow';
@@ -30,6 +31,24 @@ import { AutoPublishRules, type CollectiveNames } from '@/components/settings/Au
 import { RedactionCategories } from '@/components/settings/RedactionCategories';
 import { onlineCollectivesHref } from '@/lib/village/links';
 import './settings.css';
+
+/** The glyph each settings section leads with in the section bar. */
+const SECTION_ICONS: Readonly<Record<SettingsSectionId, LucideIcon>> = {
+  account: UserRound,
+  'automatic-publishing': Send,
+  redaction: EyeOff,
+  projects: Folder,
+  sources: Plug,
+  advanced: SlidersHorizontal,
+};
+
+/** The section bar's entries: one route per section, in the catalog's order. */
+const NAV_SECTIONS = SETTINGS_SECTIONS.map((entry) => ({
+  id: entry.id,
+  label: entry.label,
+  href: settingsSectionHref(entry.id),
+  icon: SECTION_ICONS[entry.id],
+}));
 
 type Load = { state: 'loading' } | { state: 'failed'; error: string } | { state: 'ready'; data: LocalSettingsResponse };
 
@@ -160,8 +179,7 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
 
   if (load.state !== 'ready') {
     return (
-      <div className="iu-page stg-page" data-settings-section={section.id}>
-        <SectionNav current={section} />
+      <SettingsFrame section={section}>
         <div ref={sectionBody} className="stg-body">
           <PageHead section={section} />
           {load.state === 'loading' ? (
@@ -173,7 +191,7 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
             </FeedbackPanel>
           )}
         </div>
-      </div>
+      </SettingsFrame>
     );
   }
 
@@ -277,14 +295,12 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
     },
     sources: () => {
       const harnesses = sourceHarnesses(settings ?? []);
-      const enabled = harnesses.filter((harness) => shownValue(byKey.get(`sources.${harness}.enabled`)!) === true).length;
       return {
         count: harnesses.length,
         noun: ['source', 'sources'],
-        description: `where peasant reads sessions from. ${enabled} of ${harnesses.length} on.`,
         rows: harnesses.map((harness) => (
           <div key={harness} className="stg-source">
-            {row(`sources.${harness}.enabled`, { label: isHarness(harness) ? <ProviderName harness={harness} /> : harness, help: `reads ${harness} sessions.` })}
+            {row(`sources.${harness}.enabled`, { label: isHarness(harness) ? <ProviderName harness={harness} /> : harness, help: '' })}
             {/* the pair is one source: its tag sits on the switch */}
             {row(`sources.${harness}.paths`, { label: `${harness} folders`, help: 'separate folders with commas. empty uses the default.', hideTag: true })}
           </div>
@@ -293,7 +309,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
     },
     'fields-sent': () => ({
       noun: ['field', 'fields'],
-      description: 'what peasant sends with each transcript, beside the transcript itself.',
       rows: ['push.fields.gitRemote', 'push.fields.projectName', 'push.fields.projectPath', 'push.fields.gitBranch', 'push.fields.hostSlug'].map((key) => row(key)),
       notes: <p className="stg-note">a salted project hash is always sent.</p>,
     }),
@@ -305,7 +320,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
       const concurrency = byKey.get('push.concurrency');
       const hidden = [visibility, license].filter((setting): setting is LocalSetting => setting !== undefined);
       return {
-        description: 'theme, email, online address, uploads, import folder, sample data.',
         rows: [
           row('display.theme'),
           row('user.email'),
@@ -342,7 +356,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
       const version = take('version');
       const retired = RETIRED_KEYS.map(take).filter((setting): setting is LocalSetting => setting !== undefined);
       return {
-        description: 'where these settings are saved. an edit to a file shows here the next time the page loads.',
         rows: [
           <ReadOnlyRow
             key="config"
@@ -378,8 +391,7 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
 
   const single = section.groups.length === 1;
   return (
-    <div className="iu-page stg-page" data-settings-section={section.id}>
-      <SectionNav current={section} />
+    <SettingsFrame section={section}>
       <div ref={sectionBody} className="stg-body">
         <PageHead section={section} />
         {section.id === 'redaction' && <RedactionCategories />}
@@ -430,28 +442,26 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
           <span>collective settings live on each collective&apos;s page, <a href={onlineCollectivesHref()} target="_blank" rel="noreferrer">online</a>.</span>
         </p>
       </div>
-    </div>
+    </SettingsFrame>
   );
 }
 
+function NextLink({ href, ...rest }: { href: string } & React.AnchorHTMLAttributes<HTMLAnchorElement>) {
+  return <Link href={href} {...rest} />;
+}
+
 /**
- * The links between the settings sections, for a phone: from 768px up the
- * sidebar lists them (settings.css hides this strip there).
+ * The settings page: fairtrade's in-page section bar beside the section on a
+ * wide body, above it on a narrow one. The app sidebar keeps its own nav, with
+ * settings current; the bar is the one way between the sections.
  */
-function SectionNav({ current }: { current: SettingsSection }) {
+function SettingsFrame({ section, children }: { section: SettingsSection; children: ReactNode }) {
   return (
-    <nav className="tabs stg-sections" aria-label="settings sections">
-      {SETTINGS_SECTIONS.map((section) => (
-        <Link
-          key={section.id}
-          href={settingsSectionHref(section.id)}
-          className={section.id === current.id ? 'tab active' : 'tab'}
-          aria-current={section.id === current.id ? 'page' : undefined}
-        >
-          {section.label}
-        </Link>
-      ))}
-    </nav>
+    <div className="iu-page stg-page" data-settings-section={section.id}>
+      <SettingsLayout sections={NAV_SECTIONS} currentId={section.id} LinkComponent={NextLink} label="settings sections">
+        {children}
+      </SettingsLayout>
+    </div>
   );
 }
 
@@ -462,7 +472,6 @@ function PageHead({ section }: { section: SettingsSection }) {
         <h1 className="iu-page-title stg-title">{section.label}</h1>
         <span className="stg-here"><Laptop aria-hidden="true" />this computer only</span>
       </div>
-      <p className="iu-page-sub">{section.lede}</p>
     </header>
   );
 }

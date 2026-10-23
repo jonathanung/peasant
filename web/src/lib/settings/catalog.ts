@@ -29,13 +29,13 @@ export type SettingsGroupId = (typeof SETTINGS_GROUPS)[number]['id'];
  * holds, and the groups it shows. Every group sits in exactly one section.
  */
 export const SETTINGS_SECTIONS = [
-  { id: 'account', label: 'account', lede: 'the account this computer publishes with.', groups: ['village'] },
-  { id: 'automatic-publishing', label: 'automatic publishing', lede: 'repositories that publish on their own, redacted.', groups: ['auto-publish'] },
-  { id: 'redaction', label: 'redaction', lede: 'runs here, before anything is published.', groups: ['redaction'] },
-  { id: 'projects', label: 'projects', lede: 'the folders peasant records sessions from.', groups: ['projects'] },
-  { id: 'sources', label: 'sources', lede: 'the agent harnesses peasant reads sessions from.', groups: ['sources'] },
-  { id: 'advanced', label: 'advanced', lede: 'what peasant sends, where it saves, and the rest.', groups: ['fields-sent', 'advanced', 'files'] },
-] as const satisfies readonly { id: string; label: string; lede: string; groups: readonly SettingsGroupId[] }[];
+  { id: 'account', label: 'account', groups: ['village'] },
+  { id: 'automatic-publishing', label: 'automatic publishing', groups: ['auto-publish'] },
+  { id: 'redaction', label: 'redaction', groups: ['redaction'] },
+  { id: 'projects', label: 'projects', groups: ['projects'] },
+  { id: 'sources', label: 'sources', groups: ['sources'] },
+  { id: 'advanced', label: 'advanced', groups: ['fields-sent', 'advanced', 'files'] },
+] as const satisfies readonly { id: string; label: string; groups: readonly SettingsGroupId[] }[];
 
 export type SettingsSectionId = (typeof SETTINGS_SECTIONS)[number]['id'];
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];

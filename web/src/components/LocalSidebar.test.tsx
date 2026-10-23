@@ -156,16 +156,17 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
     expect(link).toHaveAccessibleName(/^collectives\s*, opens outside this app$/);
   });
 
-  it('marks this app current in the switcher and opens only the docs outside it', async () => {
+  it('offers only the docs in the switcher, opened in a new tab', async () => {
     await mount();
     const apps = screen.getByRole('navigation', { name: 'apps' });
-    expect(within(apps).getByText('local').closest('[aria-current]')).toHaveAttribute('aria-current', 'true');
+    // The switcher leaves this app out: it lists only where else to go.
+    expect(within(apps).queryByText('local')).toBeNull();
     const docs = within(apps).getByRole('link', { name: /^docs/ });
     expect(docs).toHaveAttribute('href', 'https://peasantlabs.org/docs');
     expect(docs).toHaveAttribute('target', '_blank');
     // The collectives link is the local app's way to online; the switcher does not offer it again.
     expect(within(apps).queryByText('online')).toBeNull();
-    expect(within(apps).getAllByRole('listitem').map((item) => item.querySelector('.asb-label')?.textContent)).toEqual(['local', 'docs']);
+    expect(within(apps).getAllByRole('listitem').map((item) => item.querySelector('.asb-label')?.textContent)).toEqual(['docs']);
   });
 
   it('shows the account row only for a signed-in computer', async () => {
@@ -180,25 +181,21 @@ describe('LocalSidebar — the local shell chrome manifest', () => {
 });
 
 describe('LocalSidebar — on a settings page', () => {
-  it('lists the settings sections under a way back home, the one the address names current', async () => {
+  it('keeps the app nav with settings current; the settings sections live in the page', async () => {
     currentPathname = '/settings/';
     currentSearch = 'section=redaction';
     await mount();
     expect(screen.getByRole('link', { name: 'home' })).toHaveAttribute('href', '/');
-    const nav = screen.getByRole('navigation', { name: 'settings' });
-    const links = within(nav).getAllByRole('link');
-    expect(links.map((link) => link.textContent)).toEqual(SETTINGS_SECTIONS.map((section) => section.label));
-    expect(links.map((link) => link.getAttribute('href'))).toEqual(SETTINGS_SECTIONS.map((section) => `/settings?section=${section.id}`));
-    expect(within(nav).getByRole('link', { name: 'redaction' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'settings' })).toHaveAttribute('aria-current', 'page');
+    // No settings section is linked from the sidebar, and no way back home replaces the nav.
+    expect(screen.queryByRole('navigation', { name: 'settings' })).toBeNull();
+    for (const section of SETTINGS_SECTIONS) {
+      expect(document.querySelector(`.asb-panel a[href="/settings?section=${section.id}"]:not(.asb-account)`)).toBeNull();
+    }
+    expect(screen.queryByRole('link', { name: /^back to/ })).toBeNull();
     // Search and the theme stay reachable here too.
     expect(screen.getByRole('button', { name: 'search' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'dark mode' })).toBeInTheDocument();
-  });
-
-  it('marks the default section current when the address names none', async () => {
-    currentPathname = '/settings/';
-    await mount();
-    expect(within(screen.getByRole('navigation', { name: 'settings' })).getByRole('link', { name: 'account' })).toHaveAttribute('aria-current', 'page');
   });
 });
 
