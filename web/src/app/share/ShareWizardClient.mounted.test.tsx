@@ -145,7 +145,7 @@ describe('mounted Share production boundary', () => {
     expect(await screen.findByText((_, element) => element?.tagName === 'P' && element.textContent?.includes('4 sessions will be uploaded to peasant online.') === true)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'publish' }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/v1/sync/push'), expect.objectContaining({ body: JSON.stringify({ sessionIds: ['sess-new', 'sess-updated', 'sess-repo-main', 'sess-repo-feature'], redactionLevel: 'standard' }) })));
-    expect(await screen.findByRole('link', { name: /open online/i })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: /^dashboard/ })).toHaveAttribute(
       'href',
       'https://village.peasantlabs.org',
     );

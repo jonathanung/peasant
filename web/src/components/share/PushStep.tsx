@@ -346,7 +346,7 @@ export function PushStep({
               rel="noopener noreferrer"
               iconRight={ExternalLinkIcon}
             >
-              open online
+              dashboard
             </Button>
           </div>
         </div>

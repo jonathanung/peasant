@@ -113,7 +113,7 @@ describe('PushStep transparency panel', () => {
     render(<PushHarness />);
     await userEvent.click(await screen.findByRole('button', { name: 'publish' }));
 
-    expect(await screen.findByRole('link', { name: /open online/i })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: /^dashboard/ })).toHaveAttribute(
       'href',
       'https://configured.example.test',
     );
