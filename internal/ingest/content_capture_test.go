@@ -545,6 +545,11 @@ func TestClaudeControlRecordEntryShape(t *testing.T) {
 				t.Fatalf("capture preview = %v, want longer than the %d-byte preview bound", entry.ContentPreview, defaults.ContentPreviewLimit)
 			}
 			assertControlExtra(t, fixture, entry)
+			// Every reader of Extra (the share scan, export, publication) runs the
+			// strict evidence decode; a stored control payload must pass it.
+			if _, err := ingest.RetainedUnknownOf(*entry); err != nil {
+				t.Fatalf("the stored control payload is refused by the strict Extra reader: %v", err)
+			}
 		})
 	}
 }

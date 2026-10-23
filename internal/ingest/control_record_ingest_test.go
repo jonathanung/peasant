@@ -15,6 +15,7 @@ import (
 	"github.com/peasant-labs/peasant/internal/store"
 	"github.com/peasant-labs/peasant/internal/store/storetest"
 	"github.com/peasant-labs/peasant/internal/testutil"
+	"github.com/peasant-labs/redact"
 	"github.com/peasant-labs/schema"
 )
 
@@ -201,6 +202,17 @@ func TestControlRecordIngestExportAndPublication(t *testing.T) {
 			}
 			if preflightErr := push.ValidatePublicationInput(bundle); (preflightErr == nil) != fixture.PreflightAccepts {
 				t.Fatalf("publication preflight accepted=%v, want %v (%v)", preflightErr == nil, fixture.PreflightAccepts, preflightErr)
+			}
+			// The share scan redacts the same complete entries; a publishable
+			// capture must pass its strict Extra decode too.
+			if fixture.PublicationReady && readErr == nil {
+				redactor, err := redact.NewRedactor(redact.Standard, nil, redact.XDGPaths{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, scanErr := push.RedactEntries(redactor, snapshot.Entries); scanErr != nil {
+					t.Fatalf("the share scan refused a publishable capture: %v", scanErr)
+				}
 			}
 		})
 	}

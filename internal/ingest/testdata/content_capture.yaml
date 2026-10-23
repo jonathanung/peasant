@@ -43,6 +43,8 @@ required_names:
   - strike-orphan-tool-output
   - claude-missing-text
   - claude-summary-full-text
+  - claude-control-attachment-lone-surrogate
+  - claude-control-attachment-duplicate-key
   - claude-result-full-text
   - claude-error-full-text
   - claude-control-permission-mode
@@ -374,6 +376,30 @@ cases:
       attachmentType: hook_success
     want_extra_absent: [attachment, hookData, uuid]
     want_raw_bytes_min: 8192
+  - name: claude-control-attachment-lone-surrogate
+    harness: claude-code
+    control: true
+    source: '{"type":"attachment","attachment":{"type":"hook_success","stdout":"build ok \ud83d"},"uuid":"at-surrogate"}'
+    want_part_type: attachment
+    want_role: system
+    want_preview_absent: true
+    want_extra_keys: [attachmentType, kind, rawBytes]
+    want_extra_members:
+      kind: attachment
+      attachmentType: hook_success
+    want_extra_absent: [attachment, stdout, uuid]
+  - name: claude-control-attachment-duplicate-key
+    harness: claude-code
+    control: true
+    source: '{"type":"attachment","attachment":{"type":"hook_success","stdout":"first","stdout":"second"},"uuid":"at-duplicate"}'
+    want_part_type: attachment
+    want_role: system
+    want_preview_absent: true
+    want_extra_keys: [attachmentType, kind, rawBytes]
+    want_extra_members:
+      kind: attachment
+      attachmentType: hook_success
+    want_extra_absent: [attachment, stdout, uuid]
   - name: claude-control-bridge-session
     harness: claude-code
     control: true
