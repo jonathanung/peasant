@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { zLocalContributionEvidenceKind, type LocalContributionEvidenceKind } from '@peasant-labs/schema';
 import { VillageObservations } from '@peasant-labs/fairtrade/ui';
 import { Button, Input } from '@/lib/ft-ui';
+import { fetchVillageAuth } from '@/lib/api/settings';
 import { ObservationController } from '@/lib/village/observations';
 import { presentObservations } from '@/lib/village/presentation';
 import './village.css';
@@ -15,10 +16,18 @@ export default function VillagePageClient() {
   const [category, setCategory] = useState<LocalContributionEvidenceKind>('remote-attempts');
   const [filter, setFilter] = useState('');
   const [limit, setLimit] = useState('50');
+  // The signed-in account's name, so the page names it instead of its id.
+  const [handle, setHandle] = useState<string | null>(null);
   useEffect(() => {
+    const readHandle = () => {
+      fetchVillageAuth()
+        .then(auth => setHandle(auth.authenticated && auth.username ? auth.username : null))
+        .catch(() => setHandle(null));
+    };
+    readHandle();
     void controller.load();
     // A return from login/logout elsewhere re-reads only the selected LOCAL projection.
-    const readSelected = () => { void controller.reselect(); };
+    const readSelected = () => { readHandle(); void controller.reselect(); };
     window.addEventListener('focus', readSelected);
     return () => { window.removeEventListener('focus', readSelected); controller.clear(); };
   }, [controller]);
@@ -47,7 +56,7 @@ export default function VillagePageClient() {
           event.preventDefault();
           void controller.filter(category, filter.trim() || undefined, Number(limit));
         }}>
-          <label htmlFor="history-collective">collective UUID (optional; includes history-only collectives)</label>
+          <label htmlFor="history-collective">collective id (optional; includes history-only collectives)</label>
           <Input id="history-collective" value={filter} onChange={event => setFilter(event.target.value)} />
           <label htmlFor="history-limit">items per page</label>
           <Input id="history-limit" type="number" min={1} max={200} required value={limit} onChange={event => setLimit(event.target.value)} />
@@ -57,7 +66,7 @@ export default function VillagePageClient() {
     </div>
     <VillageObservations
       key={state.catalog ? JSON.stringify([state.catalog.scope.villageUrl, state.catalog.scope.userId]) : 'unselected'}
-      {...presentObservations(state)}
+      {...presentObservations(state, handle)}
       view={view} categoryId={category}
       onFetch={() => { void controller.fetch(); }}
       onTrack={(id: string, tracking: boolean) => { void controller.track(id, tracking); }}

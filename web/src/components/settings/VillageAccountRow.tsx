@@ -47,14 +47,14 @@ export function VillageAccountRow({ auth, readError, onRetry, onLoggedOut }: {
   };
 
   const label = auth === null
-    ? 'peasant online sign-in'
+    ? 'sign-in'
     : signedIn
       ? <>connected as <strong className="stg-strong">@{auth.username}</strong></>
       : 'not connected';
   const help = auth === null
     ? readError ? 'the sign-in could not be read.' : 'reading the sign-in on this computer.'
     : signedIn
-      ? <>signed in with github{host ? ` on ${host}` : ''}. log out removes the key from this computer, not online. <DocsLink topic="signIn" variant="inline">revoke it online</DocsLink></>
+      ? <>signed in with github{host ? ` on ${host}` : ''}. log out removes the key from this computer only. <DocsLink topic="signIn" variant="inline">revoke it everywhere</DocsLink></>
       : <>sign in from the publish popup. <DocsLink topic="signIn" variant="inline">other ways to sign in</DocsLink></>;
 
   return (

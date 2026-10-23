@@ -220,10 +220,10 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
             <div key="collectives" className="srow">
               <span className="srow-text-col">
                 <span className="srow-label">your collectives</span>
-                <span className="srow-help">who you publish to. you join and manage them online.</span>
+                <span className="srow-help">who you publish to. you join and manage them in your dashboard.</span>
               </span>
               <a className="btn btn-secondary btn-sm" href={onlineCollectivesHref()} target="_blank" rel="noreferrer">
-                <ExternalLink aria-hidden="true" />open online
+                <ExternalLink aria-hidden="true" />dashboard
               </a>
             </div>
           ) : null,
@@ -268,13 +268,18 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
               action={<DocsLink topic="selection">change the selection</DocsLink>}
             />
           ) : null,
+          // Part of the selection, so it changes with it, not here: the switch
+          // shows the value and stays still.
           branches ? (
-            <ReadOnlyRow
+            <SettingRow
               key="branches"
-              keys={['selection.autoIngestNewBranches']}
+              data-setting-keys="selection.autoIngestNewBranches"
               label="include new branches automatically"
-              value={describeValue(branches)}
               help="only in projects you selected in full. part of the selection."
+              control="switch"
+              value={shownValue(branches) === true}
+              disabled
+              onCommit={() => {}}
             />
           ) : null,
           // daemon.projectMode holds opt-in or opt-out; the switch reads on as opt-out.
@@ -283,7 +288,6 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
               key="project-mode"
               data-setting-keys="daemon.projectMode"
               label="track new projects automatically"
-              help={`saved as daemon.projectMode: ${String(shownValue(projectMode))}.`}
               control="switch"
               value={shownValue(projectMode) === 'opt-out'}
               onCommit={async (next) => { onSaved(await updateSetting(projectMode.key, next ? 'opt-out' : 'opt-in')); }}
@@ -434,7 +438,7 @@ export default function SettingsPageClient({ section: sectionId }: { section?: s
         </div>
         <p className="stg-pointer">
           <Users className="stg-pointer-icon" aria-hidden="true" />
-          <span>collective settings live on each collective&apos;s page, <a href={onlineCollectivesHref()} target="_blank" rel="noreferrer">online</a>.</span>
+          <span>collective settings live on each collective&apos;s page in your <a href={onlineCollectivesHref()} target="_blank" rel="noreferrer">dashboard</a>.</span>
         </p>
       </div>
     </SettingsFrame>

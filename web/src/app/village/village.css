@@ -4,9 +4,10 @@
   gap: var(--sp-3);
   height: calc(100dvh - var(--app-header-height));
   min-height: 0;
-  max-width: var(--maxw);
-  padding: var(--sp-6) var(--gutter);
-  margin-inline: auto;
+  padding: var(--sp-7) var(--sp-6) var(--sp-6);
+}
+@media (max-width: 47.99rem) {
+  .village-page { padding: var(--sp-5) var(--sp-4); }
 }
 .village-page-context h1 {
   font-family: var(--font-mono);

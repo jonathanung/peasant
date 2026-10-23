@@ -312,7 +312,8 @@ describe('settings page village and projects', () => {
     expect(within(row).queryByRole('switch')).toBeNull();
     expect(within(row).queryByRole('combobox')).toBeNull();
     expect(within(row).queryByRole('button', { name: /^edit/ })).toBeNull();
-    expect(within(rowOf('selection.autoIngestNewBranches')).queryByRole('switch')).toBeNull();
+    // Part of the selection: its switch shows the value and cannot be moved here.
+    expect(within(rowOf('selection.autoIngestNewBranches')).getByRole('switch')).toBeDisabled();
   });
 });
 
