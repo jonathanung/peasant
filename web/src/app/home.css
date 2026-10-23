@@ -137,9 +137,10 @@
 .home-table .tbl th:nth-child(4) { width: 6rem; }
 .home-table .tbl th:nth-child(5) { width: 6.5rem; }
 .home-table .tbl th:nth-child(6) { width: 16rem; }
-/* a block, not an inline box on the cell's text line, so its words sit on
-   the same line as the figures beside it */
-.home-table .tbl td:nth-child(6) .pub-state { display: flex; white-space: normal; }
+/* a block in the row's own type (16px on a 24px line), not fairtrade's 14px
+   label inside the cell's text line, so its words sit on the same baseline as
+   the figures beside it */
+.home-table .tbl td:nth-child(6) .pub-state { display: flex; white-space: normal; font-size: inherit; line-height: inherit; }
 .home-session-cell { display: flex; flex-direction: column; min-width: 0; }
 .home-session { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .home-session-title {
