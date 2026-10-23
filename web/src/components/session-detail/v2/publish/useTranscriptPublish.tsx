@@ -18,6 +18,8 @@ import {
 import { useRedactionPipeline, type RedactionScanTarget } from '@/lib/share/redactionScan';
 import { DEFAULT_REDACTION_LEVEL } from '@/lib/share/redactions';
 import { guardReviewMatches } from '@/lib/share/reviewMatches';
+import { classifyScanFailure } from '@/lib/share/scanFailure';
+import { reindexAndWait } from '@/lib/api/ingest';
 import { fetchSettings } from '@/lib/api/settings';
 import { AutomaticPublishingError, enableAutomaticPublishing } from './automaticPublishing';
 import { onlineCollectivesHref } from '@/lib/village/links';
@@ -350,9 +352,49 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   const scanResult = scan.sessionRedactions.get(sessionId);
   const adaptation = guardReviewMatches(() => scanResult ? reviewMatches(sessionId, scanResult) : []);
   const reviewError = scan.scanError ?? adaptation.error;
+  const failure = reviewError != null ? classifyScanFailure(reviewError) : null;
+
+  // A stale local index heals itself: the scan failed because the session's
+  // stored evidence is one the strict publication reader refuses, so the popup
+  // re-indexes this computer's sessions once, then scans again. It reads and
+  // writes the local index only; nothing leaves the machine, and no redaction
+  // rule is relaxed. A re-scan after it still fails runs the heal again.
+  const [reindex, setReindex] = useState<'idle' | 'running' | 'done' | 'failed'>('idle');
+  const reindexRun = useRef<AbortController | null>(null);
+  const runScan = scan.runScan;
+  useEffect(() => {
+    if (!open || failure?.kind !== 'needs-reindex' || reindex !== 'idle' || reindexRun.current) return;
+    const controller = new AbortController();
+    reindexRun.current = controller;
+    setReindex('running');
+    reindexAndWait({ signal: controller.signal })
+      .then(() => {
+        if (controller.signal.aborted) return;
+        setReindex('done');
+        runScan(true);
+      })
+      .catch(() => { if (!controller.signal.aborted) setReindex('failed'); })
+      .finally(() => { if (reindexRun.current === controller) reindexRun.current = null; });
+  }, [failure?.kind, open, reindex, runScan]);
+  useEffect(() => {
+    if (open) return;
+    reindexRun.current?.abort();
+    reindexRun.current = null;
+    setReindex('idle');
+  }, [open]);
+  const healing = reindex === 'running';
+  const rescan = useCallback(() => {
+    if (failure?.kind === 'needs-reindex') setReindex('idle');
+    else runScan(true);
+  }, [failure?.kind, runScan]);
+
   const scanClean = scan.phase === 'ready' && reviewError == null && scanResult !== undefined;
-  const scanProp = reviewError != null
-    ? { failure: `the scan failed, so publish is off. ${reviewError}` }
+  // A stale index shows one human line (it heals on its own); any other failure
+  // keeps its actionable message, never the transport status or JSON envelope.
+  const scanProp = healing
+    ? undefined
+    : failure != null
+    ? { failure: `the scan failed, so publish is off. ${failure.line}` }
     : scanResult
       ? { matches: adaptation.matches, total: scanResult.length, matchCount: scan.sessionMatchCounts.get(sessionId) }
       : undefined;
@@ -488,7 +530,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
     if (blocked) return 'stopped';
     if (signIn === 'waiting') return 'waiting-github';
     if (signIn === 'signed-out') return 'connect';
-    if (signIn === 'unknown' || read.status === 'loading' || scan.phase === 'scanning') return 'checking';
+    if (signIn === 'unknown' || read.status === 'loading' || scan.phase === 'scanning' || healing) return 'checking';
     if (reviewError != null) return 'scan-failed';
     if (outcome?.kind === 'stopped') return 'stopped';
     if (collectivesRead.status === 'ready' && collectivesRead.collectives.length === 0 && access.length === 0) return 'no-collective';
@@ -535,7 +577,6 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       ? {
         checked: automaticChecked,
         onChange: setAutomaticChecked,
-        hint: 'selected collectives · overlapping rules still apply · change them in settings',
       }
       : automaticPreference.status === 'error'
         ? {
@@ -558,7 +599,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       mode={mode}
       state={dialogState}
       scan={scanProp}
-      onRescan={() => scan.runScan(true)}
+      onRescan={rescan}
       changes={mode === 'update' ? { summary: changesSummary(newTurns) } : undefined}
       access={access}
       onRemove={(id) => setDraft((current) => removeFromDraft(current ?? NO_ACCESS_CHANGE, id, readers))}

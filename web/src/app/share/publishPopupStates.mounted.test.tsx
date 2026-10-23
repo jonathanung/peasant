@@ -202,6 +202,41 @@ describe('mounted category review boundary', () => {
   }
 });
 
+const scanFailures = parseDocument(readFileSync(resolve(process.cwd(), 'src/lib/share/testdata/scan-failures.yaml'), 'utf8')).toJS() as { cases: { name: string; detail: string }[] };
+
+describe('stale local index', () => {
+  it('re-indexes this computer once, scans again and publishes, never showing the server text', async () => {
+    const stale = scanFailures.cases.find((row) => row.name === 'stale-local-index')!;
+    const envelope = JSON.parse(stale.detail.replace(/^redaction scan failed \(\d+\):\s*/, '')) as { error: string };
+    const ready = fixture.cases.find((row) => row.name === 'ready-to-publish')!;
+    const world = createPublishWorld(fixture, ready, { sessionId: SESSION_ID, turns: detail.turns ?? [] });
+    const respond = world.respond;
+    let reindexed = false;
+    const ingestStarts: string[] = [];
+    world.respond = (request) => {
+      if (request.url.includes('/sync/ingest/status')) return { status: 200, json: { status: reindexed ? 'done' : 'running' } };
+      if (request.url.includes('/sync/ingest')) {
+        ingestStarts.push(request.method);
+        reindexed = true;
+        return { status: 200, json: { status: 'running' } };
+      }
+      if (request.url.includes('/sync/redactions') && !reindexed) return { status: 404, json: envelope };
+      return respond(request);
+    };
+    installWorld(world);
+    render(<Page />);
+    const user = userEvent.setup();
+    await runStep('open', user);
+    // The popup heals on its own: one local ingest run, then a fresh scan.
+    await waitFor(() => expect(ingestStarts).toEqual(['POST']), WAIT);
+    await waitFor(() => expect(primaryButton()).toBeEnabled(), { timeout: 6000 });
+    expect(dialog().textContent).not.toContain('retain unknown source evidence');
+    expect(dialog().textContent).not.toContain('{"error"');
+    await runStep('publish', user);
+    await waitFor(() => expect(world.pushRequests).toHaveLength(1), WAIT);
+  }, 15000);
+});
+
 describe('stopped publication retry', () => {
   it('guards a real stopped-write callback during re-scan, after refusal, and recovers', async () => {
     const entry = fixture.cases.find((row) => row.name === 'partial-publish-removes-reader')!;

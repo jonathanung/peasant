@@ -1,0 +1,32 @@
+# A failed redaction scan as the publish popup receives it, and the line the
+# person sees after "the scan failed, so publish is off.". A stale local index
+# (stored evidence the strict publication reader refuses) heals on its own, so
+# it gets a short line; any other failure keeps its own actionable message
+# without the transport status or JSON envelope. requiredNames pins the cases.
+requiredNames:
+  - stale-local-index
+  - stale-position-evidence
+  - unverified-capture
+  - server-error-envelope
+  - actionable-client-error
+cases:
+  - name: stale-local-index
+    detail: 'redaction scan failed (404): {"error":"retain unknown source evidence in ingest: extra is missing, null, malformed, duplicated, or unrecognized; no evidence was certified; restore an intact capture or re-index the source"}'
+    kind: needs-reindex
+    line: re-scan to try again.
+  - name: stale-position-evidence
+    detail: 'redaction scan failed (404): {"error":"retain unknown source evidence in ingest: position.public is wholly absent; this stored evidence predates traversal coordinates and no full-data certificate was issued; re-index the original source with a position-aware adapter"}'
+    kind: needs-reindex
+    line: re-scan to try again.
+  - name: unverified-capture
+    detail: 'redaction scan failed (404): {"error":"load publication input from peasant.db: database publication metadata needs ingest; metadata and indexed entries are not a verified capture; nothing uploaded; run peasant ingest with the stored source available and retry"}'
+    kind: needs-reindex
+    line: re-scan to try again.
+  - name: server-error-envelope
+    detail: 'redaction scan failed (404): {"error":"session sess-1 is not recorded on this computer"}'
+    kind: other
+    line: session sess-1 is not recorded on this computer
+  - name: actionable-client-error
+    detail: 'redaction category "LOCATION" is not recognized; sharing remains blocked'
+    kind: other
+    line: 'redaction category "LOCATION" is not recognized; sharing remains blocked'
