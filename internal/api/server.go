@@ -26,17 +26,17 @@ import (
 	"github.com/peasant-labs/peasant/internal/config"
 	"github.com/peasant-labs/peasant/internal/defaults"
 	"github.com/peasant-labs/peasant/internal/githooks"
+	"github.com/peasant-labs/peasant/internal/htmlpage"
 	"github.com/peasant-labs/peasant/internal/ingest"
 	"github.com/peasant-labs/peasant/internal/observationinventory"
 	"github.com/peasant-labs/peasant/internal/store"
 	schema "github.com/peasant-labs/schema"
 )
 
-// Package-local response bodies and fallback HTML.
+// Package-local response bodies.
 const (
 	responseHealthOK     = `{"status":"ok"}`
 	responseShuttingDown = `{"status":"shutting_down"}`
-	fallbackHTML         = `<html><body><h1>Peasant Web Dashboard</h1><p>Frontend not built yet. Run <code>make web</code> first.</p></body></html>`
 )
 
 // MockConfigResponse is the JSON response for GET /api/v1/config/mock.
@@ -287,7 +287,7 @@ func (s *Server) Listen(ctx context.Context) error {
 	} else {
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set(defaults.HeaderContentType, defaults.ContentHTML.String())
-			fmt.Fprint(w, fallbackHTML)
+			w.Write(webDashboardNotBundledHTML)
 		})
 	}
 
@@ -853,17 +853,13 @@ func isSPADynamicRoute(path string) bool {
 	return false
 }
 
-// webDashboardNotBundledHTML is served by the SPA fallback when the embedded
-// web/out contains no index.html — i.e. a build that embedded only the tracked
+// webDashboardNotBundledHTML is served in place of the local app when the
+// embedded web/out holds no index.html, i.e. only the tracked
 // `web/out/.gitkeep` placeholder (`go install …@tag`, `nix build`, or a bare
-// `go build` that never ran `make web`/`make web-stub`). The release binaries
-// embed the real dashboard and never reach this branch.
-//
-// Keep this text in sync with the Makefile `web-stub` target's placeholder —
-// the two live at a Go↔shell boundary and cannot share a single literal.
-const webDashboardNotBundledHTML = "<!doctype html><meta charset=\"utf-8\"><title>peasant</title>" +
-	"<p>The peasant web dashboard is not bundled in this build. " +
-	"Run a full `make build` (or use the release binaries) for the dashboard.</p>\n"
+// `go build` after `make web-stub`), and when no assets are configured at all.
+// The release binaries embed the real app and never reach it. It carries
+// htmlpage.NotBundledPhrase, which the release workflows search for.
+var webDashboardNotBundledHTML = htmlpage.MustRender(htmlpage.NotBundled)
 
 // serveFile opens the given path from the embedded FS and writes it as HTML.
 // Unlike http.FileServer, it does not issue a 301 redirect for /index.html.
@@ -877,7 +873,7 @@ func (h *spaHandler) serveFile(w http.ResponseWriter, _ *http.Request, filePath 
 		// paths here (other extensions 404 before serveFile).
 		w.Header().Set(defaults.HeaderContentType, defaults.ContentHTML.String())
 		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, webDashboardNotBundledHTML)
+		w.Write(webDashboardNotBundledHTML)
 		return
 	}
 	defer f.Close()

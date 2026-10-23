@@ -618,9 +618,7 @@ jobs:
       # Satisfy the `//go:embed all:web/out` directive for `go build ./...`. The
       # committed web/out/.gitkeep placeholder already satisfies the embed on a
       # fresh checkout; `make web-stub` (idempotent + non-destructive)
-      # is the single shared source for the stub and additionally writes a real
-      # index.html stub when one is absent. Belt-and-suspenders in case `make
-      # clean` ever runs first.
+      # recreates it. Belt-and-suspenders in case `make clean` ever runs first.
       - name: Stub web/out embed
         run: make web-stub
 
