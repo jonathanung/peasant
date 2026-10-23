@@ -7,7 +7,7 @@ import { SkeletonList } from '@/lib/skeleton';
 import { RootSessionList } from '@/components/home/RootSessionList';
 import { NotFoundState } from '@/components/NotFoundState';
 import { AutoPublishTip } from '@/components/home/AutoPublishTip';
-import { ChoiceMenu, type ChoiceGroup } from '@/components/ChoiceMenu';
+import { ChoiceMenu, type ChoiceGroup, type ChoiceItem } from '@/components/ChoiceMenu';
 import { GroupedSessionsSection } from '@/components/sessions/GroupedSessionsSection';
 import { useHomeSessions } from '@/hooks/useHomeSessions';
 import { usePublishState } from '@/contexts/PublishContext';
@@ -15,6 +15,7 @@ import { fetchPublications } from '@/lib/api/publications';
 import type { LocalSessionRow } from '@/lib/api/grouped';
 import { PUBLISH_FILTERS, PUBLISH_FILTER_LABELS, isPublishFilter, type PublishFilter } from '@/lib/home/publishState';
 import { discoveryErrorMessage } from '@/lib/selectionGuidance';
+import { displayProject } from '@/lib/quality/utils';
 import type { LocalSyncProjectOption } from '@/lib/api/home';
 import './home.css';
 
@@ -56,6 +57,18 @@ function SearchDetail({ row }: { row: LocalSessionRow }) {
  * hides the mistake. Read after mount, so the exported HTML and hydration
  * agree; nothing renders, and nothing is read, until the address is known.
  */
+// A project choice reads as the table does: its short name, with the folder
+// it stands for as a quieter line under it when the two differ.
+function projectChoice(value: string, projectName: string): ChoiceItem {
+  const name = displayProject(projectName);
+  return {
+    value,
+    name,
+    keepCase: true,
+    label: name === projectName ? name : <span className="choice-menu-project"><span>{name}</span><span className="choice-menu-path" title={projectName}>{projectName}</span></span>,
+  };
+}
+
 export default function HomePage() {
   const [address, setAddress] = useState<'unread' | 'home' | 'unknown'>('unread');
   useEffect(() => {
@@ -112,7 +125,7 @@ function HomeView() {
       value: project?.projectHash ?? ALL_PROJECTS,
       items: [
         { value: ALL_PROJECTS, label: 'all projects' },
-        ...projectOptions.map(option => ({ value: option.projectHash, label: option.projectName, keepCase: true })),
+        ...projectOptions.map(option => projectChoice(option.projectHash, option.projectName)),
       ],
       onChoose: hash => setProject(hash === ALL_PROJECTS ? null : projectOptions.find(option => option.projectHash === hash) ?? null),
       note: home.projectsLoading ? 'loading project choices…' : home.projectError != null ? discoveryErrorMessage(home.projectError) : undefined,

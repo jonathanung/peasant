@@ -23,6 +23,15 @@
 .choice-menu-check .lucide { color: var(--amber); }
 .choice-menu-item[aria-checked='true'] { color: var(--ink-strong); background: var(--surface-2); }
 .choice-menu-own-case { text-transform: none; overflow-wrap: anywhere; }
+.choice-menu-project { display: flex; flex-direction: column; min-width: 0; }
+.choice-menu-path {
+  max-width: 22rem;
+  overflow: hidden;
+  font-size: var(--fs-label);
+  color: var(--ink-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .choice-menu-note { margin: 0; }
 
 /* the auto-publish tip: one line on a wide screen, the dismiss button at its
@@ -130,7 +139,9 @@
 .home-table .tbl th:nth-child(4) { width: 6rem; }
 .home-table .tbl th:nth-child(5) { width: 6.5rem; }
 .home-table .tbl th:nth-child(6) { width: 16rem; }
-.home-table .tbl td:nth-child(6) .pub-state { white-space: normal; }
+/* a block, not an inline box on the cell's text line, so its words sit on
+   the same line as the figures beside it */
+.home-table .tbl td:nth-child(6) .pub-state { display: flex; white-space: normal; }
 .home-session-cell { display: flex; flex-direction: column; min-width: 0; }
 .home-session { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .home-session-title {
