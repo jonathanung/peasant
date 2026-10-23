@@ -1,26 +1,33 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Lock } from 'lucide-react';
+import Link from 'next/link';
+import { ExternalLink, Laptop, Lock, Users } from 'lucide-react';
 import { LocalSettingKind, isHarness, type AutoPublishRule, type LocalSetting, type LocalSettingsResponse, type SyncAuthResponse } from '@peasant-labs/schema';
-import { Button, Chip, CommandBlock, FeedbackPanel, ProviderName, SettingGroup, SettingRow, StatsStrip } from '@/lib/ft-ui';
+import { Button, Chip, CommandBlock, FeedbackPanel, ProviderName, SettingGroup, SettingRow } from '@/lib/ft-ui';
 import { fetchSettings, fetchVillageAuth, fetchVillageCollectives, updateSetting } from '@/lib/api/settings';
 import {
   NOT_IN_PEASANT_CONFIG,
   RETIRED_KEYS,
   SETTINGS_GROUPS,
+  SETTINGS_SECTIONS,
   describeValue,
   groupOf,
   optionLabel,
   shownValue,
   sourceHarnesses,
   tagOf,
+  settingsSection,
+  settingsSectionHref,
   type SettingsGroupId,
+  type SettingsSection,
 } from '@/lib/settings/catalog';
 import { ReadOnlyRow, SettingKeyRow } from '@/components/settings/SettingKeyRow';
 import { VillageAccountRow } from '@/components/settings/VillageAccountRow';
 import { CustomPatterns } from '@/components/settings/CustomPatterns';
 import { AutoPublishRules, type CollectiveNames } from '@/components/settings/AutoPublishRules';
+import { RedactionCategories } from '@/components/settings/RedactionCategories';
+import { onlineCollectivesHref } from '@/lib/village/links';
 import './settings.css';
 
 type Load = { state: 'loading' } | { state: 'failed'; error: string } | { state: 'ready'; data: LocalSettingsResponse };
@@ -66,7 +73,9 @@ interface GroupBody {
 }
 
 /**
- * /settings: every peasant setting and the auto-publish rules, in groups.
+ * /settings: every peasant setting and the auto-publish rules, in sections.
+ * `section` picks the one the page shows (`/settings?section=<id>`); the
+ * section links switch between them without reading the settings again.
  *
  * A control applies when it changes: one PATCH per change, pending then
  * settled; a refused change puts the value back and shows the server's
@@ -74,7 +83,8 @@ interface GroupBody {
  * what may change, what `peasant config` covers, and which repositories a rule
  * covers all come from the API.
  */
-export default function SettingsPageClient() {
+export default function SettingsPageClient({ section: sectionId }: { section?: string | null } = {}) {
+  const section = settingsSection(sectionId);
   const [load, setLoad] = useState<Load>({ state: 'loading' });
   const [auth, setAuth] = useState<SyncAuthResponse | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -145,8 +155,9 @@ export default function SettingsPageClient() {
 
   if (load.state !== 'ready') {
     return (
-      <div className="iu-page stg-page">
-        <PageHead />
+      <div className="iu-page stg-page" data-settings-section={section.id}>
+        <SectionNav current={section} />
+        <PageHead section={section} />
         {load.state === 'loading' ? (
           <FeedbackPanel variant="loading" title="reading your settings" />
         ) : (
@@ -160,17 +171,6 @@ export default function SettingsPageClient() {
   }
 
   const rules = load.data.autoPublish;
-  const publishing = rules.filter((rule) => rule.events.length > 0).length;
-  const level = byKey.get('redaction.level');
-  const summary = [
-    auth?.authenticated
-      ? { label: 'connected as', value: `@${auth.username ?? ''}`, order: 'label-first' as const }
-      : { label: 'village', value: authError ? 'unavailable' : auth ? 'not connected' : 'reading', order: 'label-first' as const },
-    publishing > 0
-      ? { label: 'auto-publish on for', value: `${publishing} ${publishing === 1 ? 'rule' : 'rules'}`, order: 'label-first' as const }
-      : { label: 'auto-publish', value: 'off', order: 'label-first' as const },
-    ...(level ? [{ label: 'redaction', value: describeValue(level), order: 'label-first' as const }] : []),
-  ];
 
   // Each group takes the keys it places; a key it does not place, and any key
   // this page has no place for, still renders as a plain row in its group.
@@ -188,6 +188,17 @@ export default function SettingsPageClient() {
     village: () => ({
       rows: [
         <VillageAccountRow key="account" auth={auth} readError={authError} onRetry={() => { void readAuth(); }} connected={take('village.connected')} onLoggedOut={onLoggedOut} />,
+        auth?.authenticated ? (
+          <div key="collectives" className="srow">
+            <span className="srow-text-col">
+              <span className="srow-label">your collectives</span>
+              <span className="srow-help">who you publish to. you join and manage them online.</span>
+            </span>
+            <a className="btn btn-secondary btn-sm" href={onlineCollectivesHref(auth.villageUrl)} target="_blank" rel="noreferrer">
+              <ExternalLink aria-hidden="true" />open online
+            </a>
+          </div>
+        ) : null,
         row('push.sharePreference'),
         row('push.autoPublishIntent'),
       ],
@@ -287,7 +298,7 @@ export default function SettingsPageClient() {
       const concurrency = byKey.get('push.concurrency');
       const hidden = [visibility, license].filter((setting): setting is LocalSetting => setting !== undefined);
       return {
-        description: 'theme, email, village address, uploads, import folder, sample data.',
+        description: 'theme, email, online address, uploads, import folder, sample data.',
         rows: [
           row('display.theme'),
           row('user.email'),
@@ -358,45 +369,88 @@ export default function SettingsPageClient() {
     },
   };
 
+  const single = section.groups.length === 1;
   return (
-    <div className="iu-page stg-page">
-      <PageHead />
-      <StatsStrip items={summary} label="settings summary" />
+    <div className="iu-page stg-page" data-settings-section={section.id}>
+      <SectionNav current={section} />
+      <PageHead section={section} />
+      {section.id === 'redaction' && <RedactionCategories />}
       <div className="stg-groups">
-        {SETTINGS_GROUPS.map((group) => {
+        {section.groups.map((id) => {
+          const group = SETTINGS_GROUPS.find((candidate) => candidate.id === id)!;
           const body = bodies[group.id]();
           const rows = body.rows.filter((node) => node !== null && node !== undefined);
           // A key this page does not place renders in its group, after the rows the group places.
           const unplaced = (settings ?? []).filter((setting) => !consumed.has(setting.key) && groupOf(setting.key) === group.id);
           unplaced.forEach((setting) => consumed.add(setting.key));
+          const content = (
+            <>
+              {rows}
+              {unplaced.map((setting) => <SettingKeyRow key={setting.key} setting={setting} onSaved={onSaved} />)}
+              {body.notes}
+            </>
+          );
+          // A section that shows one group is that group: the page title names it.
+          if (single) {
+            return (
+              <div key={group.id} className="srow-group stg-panel" data-group={group.id}>
+                {body.description && <p className="srow-group-description">{body.description}</p>}
+                <div className="srow-rows">{content}</div>
+              </div>
+            );
+          }
           return (
             <SettingGroup
               key={group.id}
               data-group={group.id}
               label={group.label}
-              defaultOpen={group.open}
+              defaultOpen
               count={(body.count ?? rows.length) + unplaced.length}
               noun={body.noun}
               description={body.description}
             >
-              {rows}
-              {unplaced.map((setting) => <SettingKeyRow key={setting.key} setting={setting} onSaved={onSaved} />)}
-              {body.notes}
+              {content}
             </SettingGroup>
           );
         })}
       </div>
+      <p className="stg-saves">
+        changes save right away, to config.yaml. anything tagged <Chip size="sm" className="srow-tag">{NOT_IN_PEASANT_CONFIG}</Chip> can be changed here, not in peasant config.
+      </p>
+      <p className="stg-pointer">
+        <Users className="stg-pointer-icon" aria-hidden="true" />
+        <span>collective settings live on each collective&apos;s page, <a href={onlineCollectivesHref(auth?.villageUrl)} target="_blank" rel="noreferrer">online</a>.</span>
+      </p>
     </div>
   );
 }
 
-function PageHead() {
+/** The links between the settings sections. */
+function SectionNav({ current }: { current: SettingsSection }) {
   return (
-    <header className="iu-page-head">
-      <h1 className="iu-page-title">settings</h1>
-      <p className="iu-page-sub">
-        changes save right away, to config.yaml. anything tagged <Chip size="sm" className="srow-tag">{NOT_IN_PEASANT_CONFIG}</Chip> can be changed here, not in peasant config.
-      </p>
+    <nav className="tabs stg-sections" aria-label="settings">
+      {SETTINGS_SECTIONS.map((section) => (
+        <Link
+          key={section.id}
+          href={settingsSectionHref(section.id)}
+          className={section.id === current.id ? 'tab active' : 'tab'}
+          aria-current={section.id === current.id ? 'page' : undefined}
+        >
+          {section.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+function PageHead({ section }: { section: SettingsSection }) {
+  return (
+    <header className="iu-page-head stg-head">
+      <div className="stg-titlerow">
+        <h1 className="iu-page-title stg-title">{section.label}</h1>
+        <span className="stg-here"><Laptop aria-hidden="true" />this computer only</span>
+      </div>
+      <p className="iu-page-sub">{section.lede}</p>
     </header>
   );
 }
