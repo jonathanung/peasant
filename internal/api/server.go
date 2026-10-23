@@ -240,6 +240,7 @@ func (s *Server) Listen(ctx context.Context) error {
 	mux.HandleFunc("POST "+defaults.RouteSyncLogout.String(), sh.handleSyncLogout)
 	mux.HandleFunc("POST "+defaults.RouteSyncIngest.String(), sh.handleSyncIngest)
 	mux.HandleFunc("GET "+defaults.RouteSyncIngestStatus.String(), sh.handleSyncIngestStatus)
+	mux.HandleFunc("POST "+defaults.RouteSyncIngestSession.String(), sh.handleSyncIngestSession)
 
 	// Publishing reads: the publication state of sessions and the Village
 	// collectives the user can publish to.
