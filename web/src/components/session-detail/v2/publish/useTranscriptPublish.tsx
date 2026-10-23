@@ -18,7 +18,7 @@ import {
 import { useRedactionPipeline, type RedactionScanTarget } from '@/lib/share/redactionScan';
 import { DEFAULT_REDACTION_LEVEL } from '@/lib/share/redactions';
 import { guardReviewMatches } from '@/lib/share/reviewMatches';
-import { classifyScanFailure, REINDEX_DID_NOT_REPAIR, reindexFailureLine, type ReindexFailureCode } from '@/lib/share/scanFailure';
+import { classifyScanFailure, REINDEX_DID_NOT_REPAIR, reindexFailureLine, reindexRetryable, type ReindexFailureCode } from '@/lib/share/scanFailure';
 import { checkingStage, type CheckingStep } from '@/lib/share/checkingStage';
 import { reindexSession, SessionReindexError } from '@/lib/api/ingest';
 import { fetchSettings } from '@/lib/api/settings';
@@ -398,20 +398,27 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
 
   const scanClean = scan.phase === 'ready' && reviewError == null && scanResult !== undefined;
   // A failed scan shows one short line, and its whole reason behind details,
-  // never the transport status or JSON envelope. A stale index the re-index
-  // could not reach says what stopped it; one it re-indexed and the scan still
-  // refuses says the repair did not take, with the run's own notes.
-  const failureShown = failure == null
+  // never the transport status or JSON envelope. A stale index offers the one
+  // action that fixes it: re-index this session, here. A re-index that did not
+  // finish says what stopped it and offers to run again when that can help;
+  // one that ran while the scan still refuses says so, with the run's notes.
+  const failureShown: { line: string; detail: string; action?: { label: string; onSelect: () => void } } | null = failure == null
     ? null
     : failure.kind === 'needs-reindex' && reindex.status === 'failed'
-      ? { line: reindexFailureLine(reindex.code), detail: `${reindex.message}\n\n${failure.message}` }
+      ? {
+        line: reindexFailureLine(reindex.code),
+        detail: `${reindex.message}\n\n${failure.message}`,
+        action: reindexRetryable(reindex.code) ? { label: 're-index again', onSelect: rescan } : undefined,
+      }
       : failure.kind === 'needs-reindex' && reindex.status === 'done'
         ? { line: REINDEX_DID_NOT_REPAIR, detail: [failure.message, ...reindex.notes].join('\n\n') }
-        : { line: failure.line, detail: failure.message };
+        : failure.kind === 'needs-reindex'
+          ? { line: failure.line, detail: failure.message, action: { label: 're-index this session', onSelect: rescan } }
+          : { line: failure.line, detail: failure.message };
   const scanProp = healing
     ? undefined
     : failureShown != null
-    ? { failure: failureShown.line, failureDetail: failureShown.detail }
+    ? { failure: failureShown.line, failureDetail: failureShown.detail, failureAction: failureShown.action }
     : scanResult
       ? { matches: adaptation.matches, total: scanResult.length, matchCount: scan.sessionMatchCounts.get(sessionId) }
       : undefined;

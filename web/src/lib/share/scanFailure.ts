@@ -59,7 +59,7 @@ function lineReason(message: string): string {
 export function classifyScanFailure(detail: string): ScanFailure {
   const message = unwrap(detail);
   if (STALE_INDEX.some((marker) => detail.includes(marker))) {
-    return { kind: 'needs-reindex', line: 'this session needs a quick re-index before it can be published. re-scan runs it on this computer.', message, detail };
+    return { kind: 'needs-reindex', line: 'this session needs a quick re-index on this computer before it can be published.', message, detail };
   }
   return { kind: 'other', line: `the scan failed, so publish is off. ${lineReason(message)}`, message, detail };
 }
@@ -73,12 +73,17 @@ export type ReindexFailureCode =
   | 'other';
 
 const REINDEX_LINES: Record<ReindexFailureCode, string> = {
-  ingest_running: 'another index update is running on this computer. re-scan when it finishes.',
-  session_ingest_timeout: 'updating this session’s index took too long and was stopped. re-scan to try again.',
+  ingest_running: 'another index update is running on this computer; try again when it finishes.',
+  session_ingest_timeout: 'updating this session’s index took too long and was stopped.',
   session_not_recorded: 'this session is not recorded on this computer yet.',
-  unreachable: 'the peasant app on this computer stopped answering. re-scan to try again.',
+  unreachable: 'the peasant app on this computer stopped answering.',
   other: 'details say why.',
 };
+
+/** Whether running the re-index again can fix it: a session not recorded here cannot be re-indexed. */
+export function reindexRetryable(code: ReindexFailureCode): boolean {
+  return code !== 'session_not_recorded';
+}
 
 /** The line for a re-index that did not finish; its whole reason goes to details. */
 export function reindexFailureLine(code: ReindexFailureCode): string {

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { parse } from 'yaml';
-import { classifyScanFailure, reindexFailureLine, type ReindexFailureCode, type ScanFailureKind } from './scanFailure';
+import { classifyScanFailure, reindexFailureLine, reindexRetryable, type ReindexFailureCode, type ScanFailureKind } from './scanFailure';
 
 interface Case { name: string; detail: string; kind: ScanFailureKind; line: string; message: string }
 const fixture = parse(readFileSync(resolve(process.cwd(), 'src/lib/share/testdata/scan-failures.yaml'), 'utf8')) as { requiredNames: string[]; cases: Case[] };
@@ -25,7 +25,7 @@ describe('classifyScanFailure', () => {
   }
 });
 
-interface ReindexCase { name: string; code: ReindexFailureCode; line: string }
+interface ReindexCase { name: string; code: ReindexFailureCode; line: string; retryable: boolean }
 const reindexFixture = parse(readFileSync(resolve(process.cwd(), 'src/lib/share/testdata/reindex-failures.yaml'), 'utf8')) as { requiredNames: string[]; cases: ReindexCase[] };
 
 describe('reindexFailureLine', () => {
@@ -35,6 +35,7 @@ describe('reindexFailureLine', () => {
   for (const row of reindexFixture.cases) {
     it(row.name, () => {
       expect(reindexFailureLine(row.code)).toBe(row.line);
+      expect(reindexRetryable(row.code)).toBe(row.retryable);
       expect(row.line).not.toMatch(/[{}]|https?:\/\/|village|peasant online/i);
     });
   }

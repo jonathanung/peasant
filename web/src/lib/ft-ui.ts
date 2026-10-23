@@ -903,16 +903,9 @@ export type PublishBarProps = ComponentProps<typeof FtPublishBar> & HTMLAttribut
  * available, and an inline reason plus retry while its preference cannot be
  * read. The shipped declaration types it as `string`; the component renders
  * whatever node it is handed.
- *
- * `checking` (the step the redaction check runs now and, once slow, what is
- * slow) and `scan.failureDetail` (the whole reason behind a details toggle)
- * are rendered by fairtrade from 0.0.37; an earlier package ignores them and
- * shows its own checking line and the one-line failure.
  */
-export type PublishDialogProps = Omit<ComponentProps<typeof FtPublishDialog>, 'autoPublish' | 'scan'> & {
+export type PublishDialogProps = Omit<ComponentProps<typeof FtPublishDialog>, 'autoPublish'> & {
   autoPublish?: { checked: boolean; onChange: (checked: boolean) => void; hint?: ReactNode };
-  scan?: NonNullable<ComponentProps<typeof FtPublishDialog>['scan']> & { failureDetail?: string };
-  checking?: { stage: string; note?: string };
 };
 export type PublishDialogState = PublishDialogProps['state'];
 export type PublishAccessItem = NonNullable<PublishDialogProps['access']>[number];

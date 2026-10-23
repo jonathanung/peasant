@@ -230,7 +230,7 @@ describe('stale local index', () => {
     return { world, reindexRequests };
   }
 
-  it('on re-scan re-indexes this one session, names the step and what is slow, scans again and publishes', async () => {
+  it('re-indexes this one session when asked, names the step and what is slow, scans again and publishes', async () => {
     const { world, reindexRequests } = staleWorld([{ status: 200, json: { status: 'done', duration: '220ms', notes: [] } }], () => true);
     let release!: () => void;
     const held = new Promise<void>((settle) => { release = settle; });
@@ -238,20 +238,22 @@ describe('stale local index', () => {
     render(<Page />);
     const user = userEvent.setup();
     await runStep('open', user);
-    await waitFor(() => expect(dialog()).toHaveTextContent('this session needs a quick re-index before it can be published. re-scan runs it on this computer.'), WAIT);
-    // A failed scan stays cached: nothing re-indexes until the re-scan asks.
+    await waitFor(() => expect(dialog()).toHaveTextContent('this session needs a quick re-index on this computer before it can be published.'), WAIT);
+    // A failed scan stays cached: nothing re-indexes until the one action asks.
     expect(reindexRequests).toEqual([]);
-    await runStep('rescan', user);
+    await user.click(within(dialog()).getByRole('button', { name: 're-index this session' }));
     await waitFor(() => expect(reindexRequests).toEqual([`POST ${SESSION_ID}`]), WAIT);
     // While it runs, the popup names the step and publish reads scanning….
     await waitFor(() => expect(latestDialogProps.checking).toEqual({ stage: 'updating this session’s index…' }), WAIT);
     expect(latestDialogProps.state).toBe('checking');
+    expect(dialog()).toHaveTextContent('updating this session’s index…');
     expect(primaryButton()).toHaveTextContent('scanning…');
     expect(primaryButton()).toBeDisabled();
     // Ten seconds on one step: it says what is slow and that publish waits.
     const realNow = Date.now.bind(Date);
     const clock = vi.spyOn(Date, 'now').mockImplementation(() => realNow() + 12_000);
     await waitFor(() => expect(latestDialogProps.checking?.note).toMatch(/^taking longer than usual \(1[23]s\): peasant is reading this session’s recording again, on this computer\. publish waits for it\.$/), WAIT);
+    expect(dialog()).toHaveTextContent('publish waits for it.');
     clock.mockRestore();
     release();
     await waitFor(() => expect(primaryButton()).toBeEnabled(), { timeout: 6000 });
@@ -264,7 +266,7 @@ describe('stale local index', () => {
     expect(reindexRequests).toHaveLength(1);
   }, 15000);
 
-  it('says in one line what stopped the re-index, keeps the reason in details, and re-scan runs it again', async () => {
+  it('says in one line what stopped the re-index, keeps the reason in details, and offers to run it again', async () => {
     const busy = 'another index update is running on this computer; retry when it finishes';
     const { world, reindexRequests } = staleWorld([
       { status: 409, json: { error: busy, code: 'ingest_running' } },
@@ -274,15 +276,16 @@ describe('stale local index', () => {
     render(<Page />);
     const user = userEvent.setup();
     await runStep('open', user);
-    await runStep('rescan', user);
-    await waitFor(() => expect(latestDialogProps.scan?.failure).toBe('the re-index did not finish, so publish is off. another index update is running on this computer. re-scan when it finishes.'), WAIT);
+    await user.click(await within(dialog()).findByRole('button', { name: 're-index this session' }, WAIT));
+    await waitFor(() => expect(latestDialogProps.scan?.failure).toBe('the re-index did not finish, so publish is off. another index update is running on this computer; try again when it finishes.'), WAIT);
     expect(latestDialogProps.state).toBe('scan-failed');
     expect(latestDialogProps.scan?.failureDetail).toBe(`${busy}\n\n${envelope.error}`);
     expect(latestDialogProps.checking).toBeUndefined();
-    expect(dialog().textContent).toContain('another index update is running on this computer. re-scan when it finishes.');
+    expect(dialog().textContent).toContain('another index update is running on this computer; try again when it finishes.');
+    expect(latestDialogProps.scan?.failureAction?.label).toBe('re-index again');
     expect(dialog().textContent).not.toContain('{"error"');
     expect(primaryButton()).toBeDisabled();
-    await runStep('rescan', user);
+    await user.click(within(dialog()).getByRole('button', { name: 're-index again' }));
     await waitFor(() => expect(reindexRequests).toHaveLength(2), WAIT);
     await waitFor(() => expect(primaryButton()).toBeEnabled(), { timeout: 6000 });
   }, 15000);
@@ -294,8 +297,9 @@ describe('stale local index', () => {
     render(<Page />);
     const user = userEvent.setup();
     await runStep('open', user);
-    await runStep('rescan', user);
+    await user.click(await within(dialog()).findByRole('button', { name: 're-index this session' }, WAIT));
     await waitFor(() => expect(latestDialogProps.scan?.failure).toBe('the re-index ran, but the scan still refuses this session, so publish is off. details say why.'), { timeout: 6000 });
+    expect(latestDialogProps.scan?.failureAction).toBeUndefined();
     expect(latestDialogProps.state).toBe('scan-failed');
     expect(latestDialogProps.scan?.failureDetail).toBe(`${envelope.error}\n\n${note}`);
     expect(primaryButton()).toBeDisabled();
@@ -621,7 +625,7 @@ describe('the app-level scan cache under the transcript page', () => {
 
     const view = render(<Page />);
     await runStep('open', user);
-    expect(await within(dialog()).findByText('checking for sensitive content', {}, WAIT)).toBeInTheDocument();
+    expect(await within(dialog()).findByText('scanning 12 turns…', {}, WAIT)).toBeInTheDocument();
     await user.click(within(dialog()).getByRole('button', { name: 'cancel' }));
 
     // Leave the transcript (the provider stays, as the app shell does) and come back.
@@ -629,7 +633,7 @@ describe('the app-level scan cache under the transcript page', () => {
     expect(screen.queryByRole('group', { name: 'publish' })).not.toBeInTheDocument();
     view.rerender(<Page />);
     await runStep('open', user);
-    expect(await within(dialog()).findByText('checking for sensitive content', {}, WAIT)).toBeInTheDocument();
+    expect(await within(dialog()).findByText('scanning 12 turns…', {}, WAIT)).toBeInTheDocument();
     expect(world.scanRequests).toBe(1);
 
     await act(async () => { releaseScan(); });

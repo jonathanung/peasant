@@ -199,7 +199,7 @@ cases:
       bar: { state: not-published, text: not published, action: publish }
       popup:
         heading: publish “{title}”
-        texts: [what leaves your machine, checking for sensitive content, who can read it]
+        texts: [what leaves your machine, ' turns…', who can read it]
         primary: { label: scanning…, enabled: false }
       request: null
 
