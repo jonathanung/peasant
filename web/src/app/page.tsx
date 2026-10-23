@@ -5,6 +5,7 @@ import { Layers, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Button, FeedbackPanel, PublishStateLabel } from '@/lib/ft-ui';
 import { SkeletonList } from '@/lib/skeleton';
 import { RootSessionList } from '@/components/home/RootSessionList';
+import { NotFoundState } from '@/components/NotFoundState';
 import { AutoPublishTip } from '@/components/home/AutoPublishTip';
 import { ChoiceMenu, type ChoiceGroup } from '@/components/ChoiceMenu';
 import { GroupedSessionsSection } from '@/components/sessions/GroupedSessionsSection';
@@ -48,7 +49,24 @@ function SearchDetail({ row }: { row: LocalSessionRow }) {
   </div>;
 }
 
+/**
+ * The local server answers an address it has no page for with this page (its
+ * nearest index.html), so Home checks the address it was opened at: anything
+ * but the root shows the not-found state rather than a session list that
+ * hides the mistake. Read after mount, so the exported HTML and hydration
+ * agree; nothing renders, and nothing is read, until the address is known.
+ */
 export default function HomePage() {
+  const [address, setAddress] = useState<'unread' | 'home' | 'unknown'>('unread');
+  useEffect(() => {
+    const path = window.location.pathname.replace(/\/index\.html$/, '/').replace(/\/+$/, '');
+    setAddress(path === '' ? 'home' : 'unknown');
+  }, []);
+  if (address === 'unread') return null;
+  return address === 'unknown' ? <NotFoundState /> : <HomeView />;
+}
+
+function HomeView() {
   const [filter, setFilter] = useState<PublishFilter>('all');
   const [project, setProject] = useState<LocalSyncProjectOption | null>(null);
   const [query, setQuery] = useState('');
