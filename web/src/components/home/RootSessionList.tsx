@@ -136,6 +136,16 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
   const audience = usePublicationAudience(publishedOnScreen, rows);
   const childCounts = useMemo(() => new Map([...home.groups.values()].flatMap(group => group.pages.flatMap(page => page.items)).map(row => [row.sync.id, row.childCount])), [home.groups]);
 
+  const whenOf = (row: ListRow) => {
+    const started = Date.parse(row.sync.startTime);
+    return Number.isNaN(started) ? null : formatRelative(started);
+  };
+  const stateOf = (row: ListRow) => {
+    const state = rowPublishState(row);
+    const published = state === 'published' || state === 'new-turns';
+    return <PublishStateLabel state={state} collectives={published ? audience.get(row.id) : undefined} className="whitespace-nowrap" />;
+  };
+
   const columns = useMemo<DataTableColumn<ListRow>[]>(
     () => [
       {
@@ -158,11 +168,24 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
               </div>
             </>
           ) : null;
+          const when = whenOf(row);
           const meta = (
             <span className="home-session-meta">
               {title.untitled ? 'untitled, ' : ''}
               <ProviderName harness={row.sync.harness} className="home-session-agent" />,{' '}
               <span className="tabular-nums">{tokenFormat.format(row.sync.totalTokens).toLowerCase()}</span> tokens
+            </span>
+          );
+          // A phone shows the session column only, so the other columns' facts
+          // follow the title there. It sits after the disclosure in the DOM, so
+          // the title and its disclosure stay adjacent, and is drawn above it.
+          const phone = (
+            <span className="home-session-phone">
+              <span className="home-session-phone-facts">
+                {displayProject(row.sync.projectName)}, <span className="tabular-nums">{row.sync.turnCount.toLocaleString('en-US')}</span> turns,{' '}
+                <span className="tabular-nums">{formatMinutes(Number(row.sync.durationMs) / 60_000)}</span>{when ? `, ${when}` : ''}
+              </span>
+              {stateOf(row)}
             </span>
           );
           const link = hash ? (
@@ -174,22 +197,24 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
           );
           if (row.kind === 'child') {
             return (
-              <div className="flex min-w-0 flex-col" style={{ paddingLeft: `calc(${row.depth} * (var(--sp-5) + var(--sp-4)))` }}>
+              <div className="home-session-cell" style={{ paddingLeft: `calc(${row.depth} * (var(--sp-5) + var(--sp-4)))` }}>
                 <span id={`session-group-rows:${row.id}`} data-session-group-child={row.id} className="home-session">
                   {link}
                   {meta}
                 </span>
                 {group}
+                {phone}
               </div>
             );
           }
           return (
-            <div className="flex min-w-0 flex-col" data-session-family={row.id}>
+            <div className="home-session-cell" data-session-family={row.id}>
               <span className="home-session" data-session-id={row.id}>
                 {link}
                 {meta}
               </span>
               {group}
+              {phone}
             </div>
           );
         },
@@ -197,7 +222,6 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
       {
         key: 'project',
         label: 'project',
-        width: '10rem',
         render: (_, row) => {
           const hash = parseProjectHash(row.sync.projectHash);
           const name = displayProject(row.sync.projectName);
@@ -213,38 +237,25 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
           );
         },
       },
-      { key: 'turns', label: 'turns', align: 'right', width: '4.5rem', render: (_, row) => row.sync.turnCount.toLocaleString('en-US') },
+      { key: 'turns', label: 'turns', align: 'right', render: (_, row) => row.sync.turnCount.toLocaleString('en-US') },
       {
         key: 'duration',
         label: 'duration',
         align: 'right',
-        width: '6rem',
         render: (_, row) => formatMinutes(Number(row.sync.durationMs) / 60_000),
       },
       {
         key: 'when',
         label: 'when',
-        width: '6.5rem',
         render: (_, row) => {
-          const started = Date.parse(row.sync.startTime);
-          return Number.isNaN(started) ? '—' : <span className="whitespace-nowrap">{formatRelative(started)}</span>;
+          const when = whenOf(row);
+          return when === null ? '—' : <span className="whitespace-nowrap">{when}</span>;
         },
       },
       {
         key: 'state',
         label: 'status',
-        width: '17rem',
-        render: (_, row) => {
-          const state = rowPublishState(row);
-          const published = state === 'published' || state === 'new-turns';
-          return (
-            <PublishStateLabel
-              state={state}
-              collectives={published ? audience.get(row.id) : undefined}
-              className="whitespace-nowrap"
-            />
-          );
-        },
+        render: (_, row) => stateOf(row),
       },
     ],
     [titles, previews, audience, childGroups, expandedGroups, home, childCounts],
@@ -262,7 +273,8 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
         <DataTable<ListRow>
           caption="sessions on this computer"
           // Below the table's natural width the wrapper scrolls sideways
-          // instead of crushing every column into a sliver.
+          // instead of crushing every column into a sliver; a phone shows the
+          // session column alone, its cell carrying the rest (home.css).
           className="home-table"
           columns={columns}
           rows={renderRows}

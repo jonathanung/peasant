@@ -3,7 +3,8 @@
    only: the controls, menus and the table are fairtrade's (.btn, .menu-*,
    .tbl). Fairtrade tokens only, radius 0. */
 
-.home-page { gap: var(--sp-5); padding-top: var(--sp-7); padding-bottom: var(--sp-8); }
+.home-page { gap: var(--sp-5); padding: var(--sp-7) var(--sp-6) var(--sp-8); }
+.home-browse { min-width: 0; overflow-x: auto; }
 
 .home-head {
   display: flex;
@@ -35,10 +36,10 @@
   color: var(--ink-2);
 }
 .home-tip-icon { width: var(--ic-md); height: var(--ic-md); color: var(--amber); flex: none; }
-.home-tip-copy { margin: 0; flex: 1 1 auto; min-width: 0; font-size: var(--fs-body); line-height: var(--lh-body); }
+.home-tip-copy { margin: 0; flex: 1 1 auto; min-width: 0; max-width: none; font-size: var(--fs-body); line-height: var(--lh-body); }
 .home-tip-copy .pv-name { vertical-align: -0.125em; }
 .home-tip-command { font-family: var(--font-mono); font-size: var(--fs-label); color: var(--ink-strong); background: var(--surface-2); padding: 0 var(--sp-1); }
-.home-tip-dismiss { flex: none; }
+.home-tip-dismiss { flex: none; margin-left: auto; }
 
 /* search and filters */
 .home-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
@@ -92,7 +93,17 @@
 
 /* the session table: a title, then the agent and its size */
 .home-list { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
-.home-table .tbl { min-width: 58rem; }
+.home-table .tbl { min-width: 58rem; table-layout: fixed; }
+/* the column widths: session takes what is left */
+.home-table .tbl th:nth-child(2) { width: 12rem; }
+.home-table .tbl th:nth-child(3) { width: 4.5rem; }
+.home-table .tbl th:nth-child(4) { width: 6rem; }
+.home-table .tbl th:nth-child(5) { width: 6.5rem; }
+.home-table .tbl th:nth-child(6) { width: 17rem; }
+.home-session-cell { display: flex; flex-direction: column; min-width: 0; }
+.home-session-cell > * { order: 2; }
+.home-session-cell > .home-session { order: 0; }
+.home-session-cell > .home-session-phone { order: 1; }
 .home-session { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .home-session-title {
   font-family: var(--font-body);
@@ -106,6 +117,7 @@
 a.home-session-title:hover { color: var(--amber); text-decoration: underline; text-underline-offset: 3px; }
 .home-session-meta { font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-mono); color: var(--ink-3); }
 .home-session-agent { display: inline-flex; vertical-align: -0.125em; }
+.home-session-phone { display: none; }
 .home-project { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .home-project-name { overflow-wrap: anywhere; }
 .home-project-changes {
@@ -133,8 +145,15 @@ a.home-session-title:hover { color: var(--amber); text-decoration: underline; te
 .home-pager-range:only-child { margin-right: auto; }
 
 @media (max-width: 47.99rem) {
-  .home-page { padding-top: var(--sp-5); }
+  .home-page { padding: var(--sp-5) var(--sp-4) var(--sp-7); }
   .home-title { font-size: var(--fs-xl); }
   .home-tip { align-items: flex-start; }
   .home-search { flex-basis: 100%; max-width: none; }
+
+  /* A phone keeps the session column: the session cell carries the rest. */
+  .home-table .tbl { min-width: 0; }
+  .home-table .tbl th:not(:first-child), .home-table .tbl td:not(:first-child) { display: none; }
+  .home-session-phone { display: flex; flex-direction: column; gap: var(--sp-1); margin-top: var(--sp-1); }
+  .home-session-phone .pub-state { white-space: normal; }
+  .home-session-phone-facts { font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-mono); color: var(--ink-2); overflow-wrap: anywhere; }
 }

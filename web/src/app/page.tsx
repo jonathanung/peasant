@@ -142,7 +142,7 @@ export default function HomePage() {
       {!selectionFailed && (search ? <GroupedSessionsSection key={`${search}-${home.revision}`} variant="search" query={search} heading="search results" rowDetail={row => <SearchDetail row={row} />} />
         : !roots?.pages.length && roots?.error != null ? null
         : <RootSessionList rows={rows} childGroups={children} titles={titles} previews={previews} home={home} filter={filter} loading={!roots?.pages.length && roots?.error == null} />)}
-    </> : <section aria-label={`browse by ${BROWSE_LABELS[browse]}`} id={`home-browse-${browse}`}>
+    </> : <section aria-label={`browse by ${BROWSE_LABELS[browse]}`} id={`home-browse-${browse}`} className="home-browse">
       {!selectionFailed && <Suspense fallback={<SkeletonList rows={4} />}><LegacyHomeBrowse view={browse} /></Suspense>}
     </section>}
   </div>;

@@ -261,7 +261,7 @@
 }
 
 /* ── sections: one view per section, linked from the section tabs ────────── */
-.stg-page { gap: var(--sp-5); padding-top: var(--sp-6); padding-bottom: var(--sp-8); }
+.stg-page { gap: var(--sp-5); padding: var(--sp-6) var(--sp-6) var(--sp-8); }
 .stg-sections { overflow-x: auto; flex-wrap: nowrap; gap: var(--sp-5); scrollbar-width: thin; }
 .stg-sections .tab { white-space: nowrap; text-decoration: none; }
 @media (pointer: coarse) { .stg-sections .tab { min-height: var(--target-comfortable); } }
@@ -288,7 +288,7 @@
 /* the redaction categories: what is hidden, and the label each prints */
 .stg-cats { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 55rem; }
 .stg-cats-title { margin: 0; font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 700; line-height: var(--lh-body); color: var(--ink-strong); text-transform: lowercase; }
-.stg-cats-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); }
+.stg-cats-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
 .stg-cat { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-4); border: var(--bd-strong); background: var(--surface); }
 .stg-cat-icon { display: inline-grid; place-items: center; width: var(--target-comfortable); height: var(--target-comfortable); background: var(--surface-2); color: var(--ink-2); }
 .stg-cat-icon .lucide { width: var(--ic-md); height: var(--ic-md); }
@@ -303,6 +303,6 @@
 .stg-pointer-icon { width: var(--ic-sm); height: var(--ic-sm); flex: none; }
 
 @media (max-width: 47.99rem) {
-  .stg-page { padding-top: var(--sp-4); }
+  .stg-page { padding: var(--sp-4) var(--sp-4) var(--sp-7); }
   .stg-title { font-size: var(--fs-xl); }
 }
