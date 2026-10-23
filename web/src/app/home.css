@@ -3,7 +3,6 @@
    its pager. Layout only: the controls, menus, table and pager are fairtrade's
    (.btn, .menu-*, .tbl, .pgn). Fairtrade tokens only, radius 0. */
 
-.home-page { gap: var(--sp-5); padding: var(--sp-7) var(--sp-6) var(--sp-8); }
 .home-browse { min-width: 0; overflow-x: auto; }
 
 .home-head {
@@ -13,7 +12,6 @@
   justify-content: space-between;
   gap: var(--sp-4) var(--sp-5);
 }
-.home-title { font-size: var(--fs-hero); line-height: var(--lh-tight); }
 
 /* the radio menus (browse by, filters): the trigger leads with its glyph */
 .choice-menu-trigger { gap: var(--sp-2); }
@@ -43,7 +41,7 @@
   gap: var(--sp-3);
   border: var(--bd-strong);
   background: var(--surface);
-  padding: var(--sp-3) calc(var(--sp-4) - (var(--control-h-sm) - var(--ic-md)) / 2) var(--sp-3) var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
   color: var(--ink-2);
 }
 .home-tip-icon {
@@ -177,8 +175,6 @@
 .home-pager .pgn { margin-left: auto; }
 
 @media (max-width: 47.99rem) {
-  .home-page { padding: var(--sp-5) var(--sp-4) var(--sp-7); }
-  .home-title { font-size: var(--fs-xl); }
   .home-search { flex-basis: 100%; max-width: none; }
 
   /* A phone keeps the session column: the session cell carries the rest. */

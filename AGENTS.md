@@ -290,12 +290,17 @@ the server serves the newly built assets before you trust a screenshot or a comp
   A nav section this app has no page for stays out of the sidebar until its page ships, so the
   sidebar never carries a dead link. Nothing in the sidebar or the command palette links to a
   route-only section; its routes still resolve by URL. Do not add a `/push` alternate route.
-- The local chrome is fairtrade's `AppSidebar` (`web/src/components/LocalSidebar.tsx`): the
-  `peasant` home link (the wheat mark alone; the name is its accessible name), the registry's nav sections, a `collectives` link that opens online (the
-  local app's one link to online), then in fairtrade's own order search (⌘K), the app switcher
-  (the docs, opened in a new tab, and community marked soon; it leaves this app out), and the footer
-  with the theme toggle and the account row while this computer is signed in. A settings page keeps that same nav, settings current; its sections are
-  fairtrade's in-page section bar (`SettingsLayout`) in the page body, never sidebar groups.
+- The local chrome is fairtrade's `AppSidebar` (`web/src/components/LocalSidebar.tsx`), at
+  fairtrade's default width, in fairtrade's own order: the `peasant` home link (the wheat mark
+  alone; the name is its accessible name), the shortcuts (search on ⌘K, the docs opened in a new
+  tab, community marked soon, then a `collectives` link that opens online, the local app's one
+  link to online), the registry's nav sections, and the footer with the account row while this
+  computer is signed in, then the settings gear (fairtrade turns the registry's `settings` entry
+  into it) and the theme toggle. The switcher never lists online or local. A settings page keeps
+  that same nav, the gear current; its sections are fairtrade's in-page section bar
+  (`SettingsLayout`) in the page body, never sidebar groups. Every page that is not full-bleed
+  (a transcript, a map canvas) sits in fairtrade's `.asb-page` frame with one `.iu-page-title`
+  heading at the hero size.
   Below 768px it is a top bar whose menu opens the same nav as a drawer. It carries no connection
   indicator. When the local app is unreachable (`GET /api/v1/health` fails or the WebSocket stays
   down), fairtrade's `LocalOfflineBanner` shows at the top of the page column, in the page flow

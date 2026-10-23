@@ -353,11 +353,6 @@ body {
   background-size: 32px 32px;
 }
 
-/* Snap content width to the 32px grid so card edges hit grid lines on both sides. */
-.grid-snap {
-  max-width: calc(round(down, 100vw, 32px));
-  margin-inline: auto;
-}
 
 /* ============================================
    ANIMATIONS
@@ -908,19 +903,16 @@ textarea::placeholder {
 /* ============================================
    PAGE FRAME
    ============================================ */
-/* Every local page sits in home's frame, so a title starts at the same inset
-   wherever the sidebar takes you. Home keeps its own class with these values. */
-.page-frame {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-5);
-  width: 100%;
-  min-width: 0;
-  padding: var(--sp-7) var(--sp-6) var(--sp-8);
-}
+/* Every local page is fairtrade's .asb-page frame, so content starts at one
+   left edge wherever the sidebar takes you, and every page title is
+   fairtrade's .iu-page-title at the hero size (the page's own size on a phone). */
+.page-title { font-size: var(--fs-hero); line-height: var(--lh-tight); }
 @media (max-width: 47.99rem) {
-  .page-frame { padding: var(--sp-5) var(--sp-4) var(--sp-7); }
+  .page-title { font-size: var(--fs-xl); }
 }
+/* analytics: the frame holds only the title; the overview's own head follows
+   on the same left edge */
+.analytics-head { padding-bottom: 0; }
 
 /* The project picker (map, changes): a wide screen reads each project as a
    row under column heads; a phone stacks the counts under the name, each with

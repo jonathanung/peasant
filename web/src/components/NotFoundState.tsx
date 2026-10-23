@@ -9,7 +9,7 @@ import { EmptyState } from '@/lib/ft-ui';
 // fairtrade barrel is one, and the icon is passed to it as a component.
 export function NotFoundState() {
   return (
-    <div className="page-frame animate-fade-up" data-testid="not-found">
+    <div className="asb-page animate-fade-up" data-testid="not-found">
       <EmptyState
         as="h1"
         icon={MapPinOff}

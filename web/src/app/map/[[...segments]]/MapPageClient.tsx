@@ -526,11 +526,11 @@ export function MapPageClient({ projectHash, projectName: requestedProjectName }
   const projectName = state.label;
   const cleanName = displayProject(projectName);
   return (
-    <div className="page-frame animate-fade-up">
+    <div className="asb-page animate-fade-up">
       <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'map', href: '/map' }, { label: cleanName }]} />
 
       <div className="flex items-center gap-2">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
+        <h1 className="iu-page-title iu-page-title-content page-title">
           {cleanName}
         </h1>
         <DocsLink topic="codeMap" variant="icon">how to read the code map</DocsLink>

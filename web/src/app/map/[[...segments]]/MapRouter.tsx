@@ -58,7 +58,7 @@ function MalformedMapRoute({ message }: { message: string }) {
 
 function MapRouteSkeleton() {
   return (
-    <div className="page-frame animate-fade-up">
+    <div className="asb-page animate-fade-up">
       <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'map' }]} />
       <div className="space-y-2">
         <Skeleton avatar={false} lines={2} label="Loading map header" />

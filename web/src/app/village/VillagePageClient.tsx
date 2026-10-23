@@ -43,9 +43,9 @@ export default function VillagePageClient() {
     setFilter(state.pagers[kind].collectiveId ?? '');
     setLimit(String(state.pagers[kind].limit));
   }
-  return <div className="village-page">
+  return <div className="asb-page village-frame"><div className="village-page">
     <div className="village-page-context">
-      <h1>online observations</h1>
+      <h1 className="iu-page-title page-title">online observations</h1>
     </div>
     <div className="village-page-tools">
       <Button onClick={() => { void controller.load(); }} disabled={state.loading}>reload saved observations</Button>
@@ -75,5 +75,5 @@ export default function VillagePageClient() {
       onPageChange={(id: string, page: number) => { void controller.history(zLocalContributionEvidenceKind.parse(id), page); }}
       onRestart={(id: string) => { void controller.restart(zLocalContributionEvidenceKind.parse(id)); }}
     />
-  </div>;
+  </div></div>;
 }

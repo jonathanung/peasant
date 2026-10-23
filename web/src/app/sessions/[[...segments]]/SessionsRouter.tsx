@@ -98,7 +98,7 @@ export function SessionsRouter() {
 
   if (!mounted || (!projectHash && !raw)) {
     return (
-      <div className="page-frame">
+      <div className="asb-page">
         <SkeletonList rows={5} label="Loading sessions" />
       </div>
     );
@@ -106,20 +106,19 @@ export function SessionsRouter() {
 
   if (!projectHash) {
     return (
-      <div className="page-frame">
+      <div className="asb-page">
         <p role="alert" className="text-base leading-relaxed text-danger">
-          This project link has a malformed identity, so no sessions were requested.
-          Taking you Home…
+          this project link is broken, so nothing was opened. taking you home…
         </p>
       </div>
     );
   }
 
   return (
-    <div className="page-frame animate-fade-up">
+    <div className="asb-page animate-fade-up">
       <Breadcrumbs items={[{ label: 'sessions', href: '/' }, { label }]} />
 
-      <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
+      <h1 className="iu-page-title iu-page-title-content page-title">
         {label}
       </h1>
 

@@ -457,7 +457,7 @@ function NextLink({ href, ...rest }: { href: string } & React.AnchorHTMLAttribut
  */
 function SettingsFrame({ section, children }: { section: SettingsSection; children: ReactNode }) {
   return (
-    <div className="iu-page stg-page" data-settings-section={section.id}>
+    <div className="asb-page stg-page" data-settings-section={section.id}>
       <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'settings', href: '/settings' }, { label: section.label }]} />
       <SettingsLayout sections={NAV_SECTIONS} currentId={section.id} LinkComponent={NextLink} label="settings sections">
         {children}
@@ -469,7 +469,7 @@ function SettingsFrame({ section, children }: { section: SettingsSection; childr
 function PageHead({ section }: { section: SettingsSection }) {
   return (
     <header className="iu-page-head stg-head">
-      <h1 className="iu-page-title stg-title">{section.label}</h1>
+      <h1 className="iu-page-title page-title">{section.label}</h1>
     </header>
   );
 }

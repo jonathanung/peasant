@@ -25,7 +25,7 @@ export function ProjectIdentityProblem({ state, onRetry }: { state: Problem; onR
     </Link>
   );
   return (
-    <div className="page-frame project-problem" role="alert" data-testid="project-identity-problem">
+    <div className="asb-page project-problem" role="alert" data-testid="project-identity-problem">
       <EmptyState
         as="h1"
         icon={FolderX}

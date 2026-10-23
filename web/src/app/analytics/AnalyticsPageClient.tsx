@@ -27,13 +27,13 @@ export function AnalyticsPageClient() {
   if (quality === undefined) {
     if (!connected || error) {
       return (
-        <div className="page-frame">
+        <div className="asb-page">
           <Disconnected />
         </div>
       );
     }
     return (
-      <div className="page-frame">
+      <div className="asb-page">
         <SkeletonList rows={5} label="Loading analytics" />
       </div>
     );
@@ -43,27 +43,23 @@ export function AnalyticsPageClient() {
   // page says what is missing instead, like every other empty local page.
   if (payload.sessions.length === 0) {
     return (
-      <div className="page-frame animate-fade-up">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
-          project overview
-        </h1>
+      <div className="asb-page animate-fade-up">
+        <h1 className="iu-page-title page-title">analytics</h1>
         <IngestTeach />
       </div>
     );
   }
 
+  // The page title is the app's, in the page frame every local page shares;
+  // the overview below it draws only its summary line, section toggles and
+  // charts, inset to the same left edge.
   return (
     <div className="animate-fade-up">
-      {(!connected || error) && (
-        <div className="mx-auto max-w-[1360px] px-6 pt-6">
-          <ConnectionStatus connected={connected} hasData />
-        </div>
-      )}
-      <ProjectOverview
-        payload={payload}
-        title="project overview"
-        contributorLimit={10}
-      />
+      <header className="asb-page analytics-head">
+        <h1 className="iu-page-title page-title">analytics</h1>
+        {(!connected || error) && <ConnectionStatus connected={connected} hasData />}
+      </header>
+      <ProjectOverview payload={payload} contributorLimit={10} />
     </div>
   );
 }

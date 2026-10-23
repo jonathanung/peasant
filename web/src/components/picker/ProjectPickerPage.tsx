@@ -62,10 +62,10 @@ export function ProjectPickerPage({
     listState === ProjectListState.SelectionRecovery ? summaries?.selection ?? null : null;
 
   return (
-    <div className="page-frame animate-fade-up">
+    <div className="asb-page animate-fade-up">
       <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: title }]} />
       <div className="flex items-center gap-2">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
+        <h1 className="iu-page-title page-title">
           {title}
         </h1>
         <DocsLink topic={docs.topic} variant="icon">{docs.label}</DocsLink>

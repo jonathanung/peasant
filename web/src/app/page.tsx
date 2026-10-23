@@ -147,9 +147,9 @@ function HomeView() {
     }]}
   />;
 
-  return <div className="iu-page home-page" data-home-bounded="true">
+  return <div className="asb-page home-page" data-home-bounded="true">
     <header className="home-head" data-tour="home">
-      <h1 className="iu-page-title home-title">sessions</h1>
+      <h1 className="iu-page-title page-title">sessions</h1>
     </header>
     <AutoPublishTip />
     {discoveryError != null && <div className="flex flex-col items-start gap-3">

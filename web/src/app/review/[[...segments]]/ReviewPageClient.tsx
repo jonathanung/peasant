@@ -107,13 +107,13 @@ export function ReviewPageClient({
   const showDocsLink = Boolean(sessionsReady && effectiveProject && projectHash);
 
   return (
-    <div className="page-frame animate-fade-up">
+    <div className="asb-page animate-fade-up">
       <Breadcrumbs items={crumbs} />
 
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
+            <h1 className={branch ? 'iu-page-title iu-page-title-content page-title' : 'iu-page-title page-title'}>
               {branch ?? 'changes'}
             </h1>
             {showDocsLink && <DocsLink topic="changes" variant="icon">how to read changes</DocsLink>}

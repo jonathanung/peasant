@@ -425,7 +425,7 @@ function SessionDetailV2Inner({ sessionId, projectHash, projectName, routeQuery 
     // skeleton with the error swallowed is how a dead backend hides.
     if (error) {
       return (
-        <div className="page-frame">
+        <div className="asb-page">
           <FeedbackPanel variant="error" title="transcript unavailable">
             {String(error)}
           </FeedbackPanel>
@@ -687,7 +687,7 @@ function ScopeChipRow({ label, onClear }: { label: string; onClear: () => void }
 
 function SessionDetailSkeleton() {
   return (
-    <div className="page-frame">
+    <div className="asb-page">
       {/* Header block: breadcrumb + title + subtitle stand-ins. */}
       <Skeleton avatar={false} lines={3} label="Loading session header" />
       {/* Transcript body stand-in: an avatar row plus a run of content lines. */}

@@ -8,7 +8,7 @@ import { Skeleton, SkeletonList } from "@/lib/skeleton";
 // current page rather than showing stale analytics-home copy.
 export default function Loading() {
   return (
-    <div className="page-frame animate-fade-up">
+    <div className="asb-page animate-fade-up">
       {/* Breadcrumb bar */}
       <Skeleton className="h-4 w-40" />
 

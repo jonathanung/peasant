@@ -53,6 +53,9 @@ describe('AnalyticsPageClient', () => {
     expect(overviewProps).toHaveBeenCalledTimes(1);
     const props = overviewProps.mock.calls[0][0] as OverviewProps;
     expect(props.sections).toBeUndefined();
+    // The page frame carries the one page title; the overview draws none.
+    expect(screen.getByRole('heading', { level: 1, name: 'analytics' })).toBeInTheDocument();
+    expect(props.title).toBeUndefined();
     expect(props.payload.sessions).toHaveLength(qualitySessions.length);
     expect(props.payload.sessions).toEqual(
       expect.arrayContaining([
@@ -75,7 +78,7 @@ describe('AnalyticsPageClient', () => {
 
     render(<AnalyticsPageClient />);
 
-    expect(screen.getByRole('heading', { level: 1, name: 'project overview' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'analytics' })).toBeInTheDocument();
     expect(screen.getByText('no ai work recorded yet')).toBeInTheDocument();
     expect(screen.queryByTestId('project-overview')).not.toBeInTheDocument();
   });

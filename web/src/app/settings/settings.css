@@ -235,10 +235,12 @@
 .stg-readonly-control { flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; }
 
 @media (max-width: 767px) {
-  /* below md a row stacks: its control takes its own line, and a long value wraps inside it
-     instead of scrolling the page sideways */
-  .stg-page .srow-control { flex: 1 1 100%; min-width: 0; justify-content: flex-start; }
-  .stg-page .srow-text { min-width: 0; }
+  /* below md a value and its command (a read-only value, a folder list with its edit) do not
+     fit beside the label: they take their own line under it (fairtrade's row grid keeps a
+     switch on the label's line), and a long value wraps inside it instead of scrolling the
+     page sideways */
+  .stg-page .stg-readonly > .srow-control,
+  .stg-page .srow:has(> .srow-control > .srow-text) > .srow-control { grid-column: 1 / -1; justify-self: start; justify-content: flex-start; }
   .stg-readonly-value { max-width: 100%; }
   .stg-command { max-width: 100%; min-width: 0; }
   .stg-readonly-control > .srow-status { display: none; }
@@ -255,17 +257,11 @@
   .stg-add { padding-inline: var(--sp-3); }
 }
 
-/* the in-use demo pads a page from its view at phone width; this app's main has no padding of its own */
-@media (width <= 480px) {
-  .stg-page { padding-inline: var(--sp-3); }
-}
 
 /* ── sections: one view per section, linked from fairtrade's in-page section
    bar (SettingsLayout), beside the section on a wide body, above it on a narrow one ── */
-.stg-page { gap: var(--sp-5); padding: var(--sp-6) var(--sp-6) var(--sp-8); }
 .stg-body { display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
 .stg-head { gap: var(--sp-3); }
-.stg-title { font-size: var(--fs-hero); line-height: var(--lh-tight); }
 .stg-panel { max-width: 55rem; }
 .stg-groups { max-width: 55rem; }
 
@@ -286,6 +282,4 @@
 .stg-pointer-icon { width: var(--ic-sm); height: var(--ic-sm); flex: none; }
 
 @media (max-width: 47.99rem) {
-  .stg-page { padding: var(--sp-4) var(--sp-4) var(--sp-7); }
-  .stg-title { font-size: var(--fs-xl); }
 }

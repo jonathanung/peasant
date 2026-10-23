@@ -52,8 +52,8 @@ export function ProjectsRouter() {
   // Redirecting (effect above) — show a brief affordance instead of a blank
   // frame, so the interim is never a flash of nothing.
   return (
-    <div className="flex h-[40vh] items-center justify-center text-[13px] text-ink-4">
-      Taking you Home…
+    <div className="flex h-[40vh] items-center justify-center font-mono text-[length:var(--fs-label)] text-ink-3">
+      taking you home…
     </div>
   );
 }
@@ -109,7 +109,7 @@ function ResolvedProjectViewer({ projectLabel, sessionId, query, canonical }: { 
 
 function ProjectsRouteSkeleton() {
   return (
-    <div className="page-frame">
+    <div className="asb-page">
       <Skeleton className="h-4 w-44" />
       <Skeleton className="h-[min(72vh,760px)] min-h-[480px]" />
     </div>
