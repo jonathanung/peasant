@@ -70,6 +70,16 @@ describe('AnalyticsPageClient', () => {
     );
   });
 
+  it('shows the nothing-recorded state instead of empty charts when no session is recorded', () => {
+    channelData = { sessions: [] };
+
+    render(<AnalyticsPageClient />);
+
+    expect(screen.getByRole('heading', { level: 1, name: 'project overview' })).toBeInTheDocument();
+    expect(screen.getByText('no ai work recorded yet')).toBeInTheDocument();
+    expect(screen.queryByTestId('project-overview')).not.toBeInTheDocument();
+  });
+
   it('shows the shared loading skeleton before the quality feed arrives', () => {
     channelData = undefined;
 
