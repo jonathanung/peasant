@@ -99,11 +99,10 @@
 .home-table .tbl th:nth-child(3) { width: 4.5rem; }
 .home-table .tbl th:nth-child(4) { width: 6rem; }
 .home-table .tbl th:nth-child(5) { width: 6.5rem; }
-.home-table .tbl th:nth-child(6) { width: 17rem; }
+.home-table .tbl th:nth-child(6) { width: 19rem; }
+/* a long status ("published, 2 collectives, up to date") wraps inside its column */
+.home-table .tbl td:nth-child(6) .pub-state { white-space: normal; }
 .home-session-cell { display: flex; flex-direction: column; min-width: 0; }
-.home-session-cell > * { order: 2; }
-.home-session-cell > .home-session { order: 0; }
-.home-session-cell > .home-session-phone { order: 1; }
 .home-session { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
 .home-session-title {
   font-family: var(--font-body);
@@ -114,7 +113,6 @@
   text-decoration: none;
   overflow-wrap: anywhere;
 }
-a.home-session-title:hover { color: var(--amber); text-decoration: underline; text-underline-offset: 3px; }
 .home-session-meta { font-family: var(--font-mono); font-size: var(--fs-label); line-height: var(--lh-mono); color: var(--ink-3); }
 .home-session-agent { display: inline-flex; vertical-align: -0.125em; }
 .home-session-phone { display: none; }
@@ -128,7 +126,10 @@ a.home-session-title:hover { color: var(--amber); text-decoration: underline; te
   text-decoration: underline dotted;
   text-underline-offset: 3px;
 }
-.home-project-changes:hover { color: var(--ink); text-decoration-style: solid; }
+@media (hover: hover) and (pointer: fine) {
+  a.home-session-title:hover { color: var(--amber); text-decoration: underline; text-underline-offset: 3px; }
+  .home-project-changes:hover { color: var(--ink); text-decoration-style: solid; }
+}
 
 .home-empty { margin: 0; padding: var(--sp-5) 0; border-block: var(--bd); color: var(--ink-2); font-size: var(--fs-body); }
 

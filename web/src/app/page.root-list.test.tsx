@@ -458,7 +458,8 @@ describe('root page publish filters', () => {
         for (const child of children) {
           const spec = specs.find((row) => row.id === child.getAttribute('data-session-group-child'))!;
           expect(child).not.toHaveAttribute('data-session-id');
-          expect(child.querySelector('.pub-state')).toBeNull();
+          // The state has its own column; only the phone summary repeats it in the title cell.
+          expect([...child.querySelectorAll('.pub-state')].filter((state) => !state.closest('.home-session-phone'))).toEqual([]);
           const link = within(child as HTMLElement).getByRole('link');
           expect(link).toHaveAttribute('href', `/projects/${PROJECTS[spec.project].hash}/${spec.id}`);
           expect(link.textContent?.trim()).not.toBe('');

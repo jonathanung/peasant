@@ -170,15 +170,15 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
           ) : null;
           const when = whenOf(row);
           const meta = (
+            // The agent's mark leads the line, so a child row's mark sits under its parent's chevron.
             <span className="home-session-meta">
-              {title.untitled ? 'untitled, ' : ''}
               <ProviderName harness={row.sync.harness} className="home-session-agent" />,{' '}
               <span className="tabular-nums">{tokenFormat.format(row.sync.totalTokens).toLowerCase()}</span> tokens
+              {title.untitled ? ', untitled' : ''}
             </span>
           );
           // A phone shows the session column only, so the other columns' facts
-          // follow the title there. It sits after the disclosure in the DOM, so
-          // the title and its disclosure stay adjacent, and is drawn above it.
+          // follow the title there, above the subagents disclosure.
           const phone = (
             <span className="home-session-phone">
               <span className="home-session-phone-facts">
@@ -201,9 +201,9 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
                 <span id={`session-group-rows:${row.id}`} data-session-group-child={row.id} className="home-session">
                   {link}
                   {meta}
+                  {phone}
                 </span>
                 {group}
-                {phone}
               </div>
             );
           }
@@ -212,9 +212,9 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
               <span className="home-session" data-session-id={row.id}>
                 {link}
                 {meta}
+                {phone}
               </span>
               {group}
-              {phone}
             </div>
           );
         },
