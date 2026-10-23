@@ -10,6 +10,7 @@ import type {
   LocalSessionRow,
 } from '@peasant-labs/schema';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
+import { IngestTeach } from '@/components/IngestTeach';
 import {
   Button,
   StepIndicator,
@@ -21,7 +22,7 @@ import { PushStep } from '@/components/share/PushStep';
 import { usePublishState } from '@/contexts/PublishContext';
 import type { ShareDiscoveryResult, ShareSession, ShareHierarchySession, ShareHelperContext, ShareHelperGroup } from '@/lib/share/types';
 import { HelperScopeExpiredError, type HelperMembersPage } from '@/components/share/HelperGroupTree';
-import { summarizePrompt } from '@peasant-labs/fairtrade/ui';
+import { sessionPreviewTitle } from '@/lib/share/sessionLabel';
 import {
   DEFAULT_REDACTION_LEVEL,
   type SelectableRedactionLevel,
@@ -279,7 +280,7 @@ async function loadHelperMembers(group: ShareHelperGroup, page: number, limit: n
     const session = mapGroupedToShareSession(row);
     return {
       id: session.id,
-      title: summarizePrompt(session.preview) || `${session.id.slice(5, 13)}…`,
+      title: sessionPreviewTitle(session.preview, session.id),
       provider: session.provider,
       inputSubmissionCount: row.session.inputSubmissionCount,
       turnCount: session.turnCount,
@@ -580,9 +581,11 @@ export function ShareWizardClient() {
   // Show loading while config is being fetched
   if (loading || (!discovery && !fetchError)) {
     return (
-      <div className="max-w-6xl mx-auto px-6 pt-6 pb-12">
+      <div className="asb-page share-page">
+        <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'publish' }]} />
+        <h1 className="iu-page-title page-title">publish</h1>
         <div className="flex items-center justify-center py-20">
-          <p className="text-sm text-ink-3">Loading sessions...</p>
+          <p className="text-sm text-ink-3" role="status">loading sessions…</p>
         </div>
       </div>
     );
@@ -591,7 +594,9 @@ export function ShareWizardClient() {
   // Show error UI when fetch failed (no mock fallback)
   if (fetchError) {
     return (
-      <div className="max-w-6xl mx-auto px-6 pt-6 pb-12">
+      <div className="asb-page share-page">
+        <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'publish' }]} />
+        <h1 className="iu-page-title page-title">publish</h1>
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <p className="text-[13px] text-danger px-3 py-2 border border-danger/30 bg-danger-soft">
             {fetchError}
@@ -604,7 +609,7 @@ export function ShareWizardClient() {
             }}
             className="text-sm underline text-ink-3 hover:text-ink transition-colors focus-mono cursor-pointer"
           >
-            Retry
+            retry
           </button>
         </div>
       </div>
@@ -626,15 +631,9 @@ export function ShareWizardClient() {
   const chooseSessions = evidenceSessions ?? disc.sessions;
 
   return (
-    <div className="share-page max-w-[1600px] mx-auto px-6 pt-6 pb-12 flex flex-col gap-6 animate-fade-up">
-      <Breadcrumbs items={[{ label: 'publish' }]} />
-
-      {/* Page title block. */}
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-ink">
-          publish
-        </h1>
-      </div>
+    <div className="asb-page share-page animate-fade-up">
+      <Breadcrumbs items={[{ label: 'home', href: '/' }, { label: 'publish' }]} />
+      <h1 className="iu-page-title page-title">publish</h1>
 
       {/* Wizard shell: steps register their actions; the shell renders those tools
           with back and progress in the persistent footer. */}
@@ -695,7 +694,9 @@ export function ShareWizardClient() {
           )}
 
           {/* Step 1 — Choose (projects). Starts empty + select-all. */}
-          {step === 'select' && (
+          {/* Nothing recorded yet: the shared empty state, which links how to record. */}
+          {step === 'select' && !evidenceSessions && disc.sessions.length === 0 && !disc.helperContexts?.length && <IngestTeach />}
+          {step === 'select' && (evidenceSessions || disc.sessions.length > 0 || !!disc.helperContexts?.length) && (
             <SessionPicker
               sessions={chooseSessions}
               selectedIds={selectedIds}

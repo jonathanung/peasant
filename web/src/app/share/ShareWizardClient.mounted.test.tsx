@@ -163,6 +163,6 @@ describe('mounted Share production boundary', () => {
     installFetch(items);
     render(<PublishProvider><ShareWizardClient /></PublishProvider>);
     expect(await screen.findByText(/discovery|metadata|duplicate|locationLabel/i)).toBeInTheDocument();
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText('retry')).toBeInTheDocument();
   });
 });

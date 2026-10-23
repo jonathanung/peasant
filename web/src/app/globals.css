@@ -789,6 +789,11 @@ textarea::placeholder {
   height: var(--app-body-height);
   min-height: 0;
 }
+/* The trail and the title keep their own height; only the wizard gives way. */
+.share-page > .crumb,
+.share-page > .page-title {
+  flex: none;
+}
 .share-wizard {
   display: flex;
   flex-direction: column;
@@ -815,6 +820,14 @@ textarea::placeholder {
   flex: 0 0 auto;
 }
 @media (max-width: 40rem) {
+  /* A phone scrolls the page, not a short box between the rail and the
+     footer. */
+  .share-page {
+    height: auto;
+  }
+  .share-wizard .swz-body {
+    overflow-y: visible;
+  }
   .share-wizard .swz-foot {
     grid-template-columns: minmax(0, 1fr) auto;
   }

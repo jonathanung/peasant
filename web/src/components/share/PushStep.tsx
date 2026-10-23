@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { WhereDoesThisGo, Button } from '@/lib/ft-ui';
 import { displayProject } from '@/lib/quality/utils';
+import { shortSessionId } from '@/lib/share/sessionLabel';
 import { runPush } from '@/lib/share/push';
 import type { ShareSession } from '@/lib/share/types';
 import {
@@ -164,7 +165,7 @@ function SessionPushRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium font-mono tabular-nums truncate text-ink">
-            {session.id.slice(5, 13)}...
+            {shortSessionId(session.id)}
           </span>
           <span className="text-xs text-ink-3" title={session.projectName}>{displayProject(session.projectName)}</span>
         </div>

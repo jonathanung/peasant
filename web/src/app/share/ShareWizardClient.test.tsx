@@ -69,7 +69,7 @@ describe('ShareWizardClient', () => {
 
     render(<PublishProvider><ShareWizardClient /></PublishProvider>);
 
-    expect(screen.getByText('Loading sessions...')).toBeInTheDocument();
+    expect(screen.getByText('loading sessions…')).toBeInTheDocument();
   });
 
   it('fetches mock sessions when mock is enabled for sessions', async () => {
@@ -168,7 +168,7 @@ describe('ShareWizardClient', () => {
     await waitFor(() => {
       expect(screen.getByText('Network error')).toBeInTheDocument();
     });
-    expect(screen.getByText('Retry')).toBeInTheDocument();
+    expect(screen.getByText('retry')).toBeInTheDocument();
     expect(fetchMockSessionsSpy).not.toHaveBeenCalled();
   });
 
@@ -215,7 +215,7 @@ describe('ShareWizardClient', () => {
     });
 
     const user = userEvent.setup();
-    await user.click(screen.getByText('Retry'));
+    await user.click(screen.getByText('retry'));
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: 'publish' })).toBeInTheDocument();
