@@ -47,6 +47,13 @@ async function captureShell(page, path) {
 }
 test.beforeEach(async ({ request }) => { await control(request, 'reset'); });
 
+/** A sidebar link, opening the phone drawer first where the sidebar is a top bar. */
+async function sidebarLink(page, name) {
+  const menu = page.locator('.asb-bar .asb-menu');
+  if (await menu.isVisible()) await menu.click();
+  return page.locator('.asb-panel').getByRole('link', { name, exact: true });
+}
+
 // One bounded scenario per test: failures retain traces; neither the local API nor the UI is intercepted.
 async function exercise(row, { page, request }, info) {
   const { theme, surface } = info.project.metadata;
@@ -54,10 +61,10 @@ async function exercise(row, { page, request }, info) {
   if (row.mode === 'navigation' || row.mode === 'direct') {
     if (row.mode === 'navigation') {
       await page.goto('/');
-      await page.locator('header').getByRole('link', { name: 'village', exact: true }).click();
+      await (await sidebarLink(page, 'online')).click();
       await expect(page).toHaveURL(/\/village\/?$/);
     }
-    await expect(page.locator('header').getByRole('link', { name: 'village', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('.asb-panel a[href^="/village"]')).toHaveAttribute('aria-current', 'page');
     await expect(page.locator('.vobs')).toContainText(exported.fixtures.OldName);
     expect(await control(request, 'requests')).toEqual([]);
     return;
@@ -161,9 +168,11 @@ async function exercise(row, { page, request }, info) {
       await page.getByRole('button', { name: 'fetch metadata', exact: true }).click();
       await expect.poll(async () => (await control(request, 'requests')).some(c => c.path.endsWith('/events'))).toBe(true);
     }
-    await page.locator('header').getByRole('link', { name: 'settings', exact: true }).click();
+    await (await sidebarLink(page, 'settings')).click();
     await expect(page.getByRole('button', { name: 'log out', exact: true })).toBeVisible();
-    await expect(page.getByText('auto-publish', { exact: true }).first()).toBeVisible();
+    // The rules are their own settings section: the sidebar links it on a wide screen, the section strip on a phone.
+    await page.getByRole('link', { name: 'automatic publishing', exact: true }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'automatic publishing', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'add a folder or repository', exact: true }).click();
     const rule = page.getByRole('form', { name: 'add a folder or repository', exact: true });
     await expect(rule.getByText('saving installs no hook.', { exact: false })).toBeVisible();
@@ -215,8 +224,9 @@ async function exercise(row, { page, request }, info) {
     }));
     expect(styles.font).toMatch(/Atkinson/i); expect(styles.fontLoaded).toBe(true); expect(styles.size).toBeGreaterThanOrEqual(16); expect(styles.radius).toBe('0px'); expect(styles.overflow).toBe(false); expect(styles.tabular).toContain('tabular-nums');
     expect(styles.panelPosition).toBe('relative');
-    await expect(page.locator('.app-header-search-label')).toHaveCSS('position', surface === 'desktop' ? 'static' : 'absolute');
-    const chrome = await page.locator('header').first().locator('a,button').evaluateAll(elements => elements.map(element => {
+    // The sidebar is a column on a wide screen and a top bar with a drawer on a phone.
+    await expect(page.locator(surface === 'desktop' ? '.asb-panel' : '.asb-bar')).toBeVisible();
+    const chrome = await page.locator('.asb').first().locator('a,button').evaluateAll(elements => elements.filter(element => element.getClientRects().length > 0).map(element => {
       const box = element.getBoundingClientRect();
       return { name: element.getAttribute('aria-label') ?? element.textContent, left: box.left, right: box.right, width: box.width, height: box.height };
     }));
