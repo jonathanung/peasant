@@ -19,15 +19,15 @@ func (c *VillageClient) ReadObservationMemberships(ctx context.Context) ([]schem
 		return nil, err
 	}
 	if rows == nil {
-		return nil, fmt.Errorf("read complete collective memberships: missing or null array; no membership reasons can be replaced; Village must emit the complete array before retrying")
+		return nil, fmt.Errorf("read complete collective memberships: missing or null array; no membership reasons can be replaced; peasant online must emit the complete array before retrying")
 	}
 	seen := make(map[schema.VillageUUID]bool, len(rows))
 	for _, row := range rows {
 		if !IsCollectiveID(row.ID) || seen[row.ID] {
-			return nil, fmt.Errorf("read complete collective memberships: invalid or repeated collective ID; no membership reasons can be replaced; correct the Village response and retry")
+			return nil, fmt.Errorf("read complete collective memberships: invalid or repeated collective ID; no membership reasons can be replaced; correct the peasant online response and retry")
 		}
 		if row.Name == "" || row.MemberSince.IsZero() || !slices.Contains(schema.AllVillageGroupRoles, row.Role) {
-			return nil, fmt.Errorf("read complete collective memberships: missing name/member time or unknown role; no membership reasons can be replaced; correct the Village response and retry")
+			return nil, fmt.Errorf("read complete collective memberships: missing name/member time or unknown role; no membership reasons can be replaced; correct the peasant online response and retry")
 		}
 		if err := validateObservationPolicy(row.AcceptanceMode, row.DataAccess); err != nil {
 			return nil, err
@@ -51,7 +51,7 @@ func (c *VillageClient) ReadObservationCollective(ctx context.Context, id schema
 	}
 	row := response.Group
 	if row.ID != id || row.Name == "" {
-		return schema.VillageCollectiveDetailRecord{}, fmt.Errorf("read visible collective metadata: missing metadata or wrong collective identity; no metadata can be installed; correct the Village response and retry")
+		return schema.VillageCollectiveDetailRecord{}, fmt.Errorf("read visible collective metadata: missing metadata or wrong collective identity; no metadata can be installed; correct the peasant online response and retry")
 	}
 	if err := validateObservationPolicy(row.AcceptanceMode, row.DataAccess); err != nil {
 		return schema.VillageCollectiveDetailRecord{}, err
@@ -61,7 +61,7 @@ func (c *VillageClient) ReadObservationCollective(ctx context.Context, id schema
 
 func validateObservationPolicy(acceptance schema.VillageCollectiveAcceptanceMode, access schema.VillageCollectiveDataAccess) error {
 	if !slices.Contains(schema.AllVillageGroupAcceptanceModes, acceptance) || !slices.Contains(schema.AllVillageGroupDataAccessPolicies, access) {
-		return fmt.Errorf("read collective metadata: unknown acceptance or data-access policy; no policy observation can be installed; update the client or correct the Village response before retrying")
+		return fmt.Errorf("read collective metadata: unknown acceptance or data-access policy; no policy observation can be installed; update the client or correct the peasant online response before retrying")
 	}
 	return nil
 }
@@ -82,7 +82,7 @@ func (c *VillageClient) ReadOwnShareEvents(ctx context.Context, id schema.Transc
 		return nil, err
 	}
 	if events == nil {
-		return nil, fmt.Errorf("read own pair history: missing or null complete array; retained history is unchanged; Village must emit an explicit complete array before retrying")
+		return nil, fmt.Errorf("read own pair history: missing or null complete array; retained history is unchanged; peasant online must emit an explicit complete array before retrying")
 	}
 	seen := make(map[int32]bool, len(events))
 	for _, event := range events {
@@ -90,7 +90,7 @@ func (c *VillageClient) ReadOwnShareEvents(ctx context.Context, id schema.Transc
 			return nil, fmt.Errorf("read own pair history: %w", err)
 		}
 		if seen[event.EventNum] {
-			return nil, fmt.Errorf("read own pair history: repeated attempt ordinal in one complete pair response; no prefix can be installed; correct the Village history response and retry")
+			return nil, fmt.Errorf("read own pair history: repeated attempt ordinal in one complete pair response; no prefix can be installed; correct the peasant online history response and retry")
 		}
 		seen[event.EventNum] = true
 	}
@@ -106,14 +106,14 @@ func (c *VillageClient) ReadObservationOrganizations(ctx context.Context) ([]sch
 		return nil, err
 	}
 	if rows == nil {
-		return nil, fmt.Errorf("read selected account organizations: missing or null complete array; organization relevance cannot be replaced; Village must emit the complete array before retrying")
+		return nil, fmt.Errorf("read selected account organizations: missing or null complete array; organization relevance cannot be replaced; peasant online must emit the complete array before retrying")
 	}
 	seen := make(map[string]bool, len(rows))
 	for _, row := range rows {
 		login := strings.ToLower(row.OrgLogin)
 		invalidIdentity := login == "" || row.OrgID < 1 || seen[login]
 		if invalidIdentity || row.FetchedAt.IsZero() {
-			return nil, fmt.Errorf("read selected account organizations: missing or repeated organization identity or observation time; organization relevance cannot be replaced; correct the Village response and retry")
+			return nil, fmt.Errorf("read selected account organizations: missing or repeated organization identity or observation time; organization relevance cannot be replaced; correct the peasant online response and retry")
 		}
 		seen[login] = true
 	}
@@ -151,7 +151,7 @@ func (c *VillageClient) ReadOwnContributionDiscovery(ctx context.Context) ([]sch
 	}
 	for _, row := range response.Collectives {
 		if row.Name == "" {
-			return nil, fmt.Errorf("read contribution discovery: empty collective label; no relevance installed; correct the Village source response")
+			return nil, fmt.Errorf("read contribution discovery: empty collective label; no relevance installed; correct the peasant online source response")
 		}
 	}
 	return response.Collectives, nil
@@ -174,7 +174,7 @@ func (c *VillageClient) SearchObservationCollectives(ctx context.Context, name s
 	seen := map[schema.VillageUUID]bool{}
 	for _, row := range response.Collectives {
 		if !IsCollectiveID(row.ID) || row.Name == "" || seen[row.ID] {
-			return nil, fmt.Errorf("resolve collective name: invalid or repeated search identity; no selection made; correct the Village response or use UUID")
+			return nil, fmt.Errorf("resolve collective name: invalid or repeated search identity; no selection made; correct the peasant online response or use UUID")
 		}
 		seen[row.ID] = true
 	}

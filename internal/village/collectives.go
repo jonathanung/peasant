@@ -63,7 +63,7 @@ type StatusError struct {
 }
 
 func (e *StatusError) Error() string {
-	return fmt.Sprintf("%s: Village answered %d for %s: %s", e.Operation, e.StatusCode, e.Path, e.Message)
+	return fmt.Sprintf("%s: peasant online answered %d for %s: %s", e.Operation, e.StatusCode, e.Path, e.Message)
 }
 
 // ListCollectives returns the collectives the signed-in user belongs to, with
@@ -119,14 +119,14 @@ func (c *VillageClient) TranscriptShares(ctx context.Context, id schema.Transcri
 	approved := make(map[schema.VillageUUID]bool, len(response.EnrichedShares))
 	for _, share := range response.EnrichedShares {
 		if share.Status != schema.VillageShareStatusApproved {
-			return nil, fmt.Errorf("%s: Village listed collective %q with status %q among the approved shares; the access cannot be reported; update Peasant or check the Village version", operation, share.GroupID, share.Status)
+			return nil, fmt.Errorf("%s: peasant online listed collective %q with status %q among the approved shares; the access cannot be reported; update Peasant or check the peasant online version", operation, share.GroupID, share.Status)
 		}
 		approved[share.GroupID] = true
 	}
 	shares := make([]TranscriptShare, 0, len(response.Shares))
 	for _, row := range response.Shares {
 		if row.GroupID == "" {
-			return nil, fmt.Errorf("%s: Village listed a share with no collective; the access cannot be reported; check the Village version", operation)
+			return nil, fmt.Errorf("%s: peasant online listed a share with no collective; the access cannot be reported; check the peasant online version", operation)
 		}
 		status := schema.VillageShareStatusApproved
 		if !approved[row.GroupID] {
@@ -160,7 +160,7 @@ func (c *VillageClient) LatestShareStatus(ctx context.Context, id schema.Transcr
 	var latest *schema.VillageShareEvent
 	for i := range events {
 		if !isShareStatus(events[i].Status) {
-			return "", fmt.Errorf("%s: Village returned status %q, which is outside the closed set, so the access cannot be reported; update Peasant or check the Village version", operation, events[i].Status)
+			return "", fmt.Errorf("%s: peasant online returned status %q, which is outside the closed set, so the access cannot be reported; update Peasant or check the peasant online version", operation, events[i].Status)
 		}
 		if latest == nil || events[i].EventNum > latest.EventNum {
 			latest = &events[i]
@@ -190,7 +190,7 @@ func (c *VillageClient) TranscriptVisibility(ctx context.Context, id schema.Tran
 	case schema.VillageTranscriptVisibilityPrivate, schema.VillageTranscriptVisibilityShared, schema.VillageTranscriptVisibilityPublic:
 		return visibility, nil
 	default:
-		return "", fmt.Errorf("%s: Village returned visibility %q, which is outside the closed set, so the access cannot be reported; update Peasant or check the Village version", operation, visibility)
+		return "", fmt.Errorf("%s: peasant online returned visibility %q, which is outside the closed set, so the access cannot be reported; update Peasant or check the peasant online version", operation, visibility)
 	}
 }
 
@@ -241,21 +241,21 @@ func (c *VillageClient) readCollectiveJSON(ctx context.Context, operation, path 
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s: reach Village: %w", operation, err)
+		return fmt.Errorf("%s: reach peasant online: %w", operation, err)
 	}
 	defer resp.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, collectiveResponseLimit+1))
 	if err != nil {
-		return fmt.Errorf("%s: read Village's answer: %w", operation, err)
+		return fmt.Errorf("%s: read peasant online's answer: %w", operation, err)
 	}
 	if len(raw) > collectiveResponseLimit {
-		return fmt.Errorf("%s: Village's answer exceeds the complete-response byte limit; no partial metadata is usable; narrow the source or upgrade Village and retry", operation)
+		return fmt.Errorf("%s: peasant online's answer exceeds the complete-response byte limit; no partial metadata is usable; narrow the source or upgrade peasant online and retry", operation)
 	}
 	if resp.StatusCode != http.StatusOK {
 		return &StatusError{Operation: operation, Path: path, StatusCode: resp.StatusCode, Message: villageErrorText(raw)}
 	}
 	if err := json.Unmarshal(raw, into); err != nil {
-		return fmt.Errorf("%s: decode Village's answer: %w", operation, err)
+		return fmt.Errorf("%s: decode peasant online's answer: %w", operation, err)
 	}
 	return nil
 }
@@ -275,7 +275,7 @@ func (c *VillageClient) changeShare(ctx context.Context, method, operation, path
 	}
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s: reach Village: %w", operation, err)
+		return fmt.Errorf("%s: reach peasant online: %w", operation, err)
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, collectiveResponseLimit))

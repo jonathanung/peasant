@@ -14,7 +14,7 @@ import (
 // collapses distinct base paths into the same account scope.
 func NormalizeVillageURL(raw string) (string, error) {
 	invalid := func() (string, error) {
-		return "", fmt.Errorf("select Village scope: ambiguous or unsupported base URL; no private observations were selected; supply an absolute HTTPS installation URL (HTTP is allowed only for loopback development)")
+		return "", fmt.Errorf("select peasant online scope: ambiguous or unsupported base URL; no private observations were selected; supply an absolute HTTPS installation URL (HTTP is allowed only for loopback development)")
 	}
 	u, err := url.Parse(raw)
 	if err != nil || u.Opaque != "" || u.Host == "" {

@@ -101,7 +101,7 @@ func ParseTranscriptRef(raw string) (TranscriptRef, error) {
 			"invalid transcript reference: empty\n" +
 				"  what: no transcript UUID or URL was given\n" +
 				"  why:  `peasant village transcripts pull` needs a reference to pull\n" +
-				"  fix:  pass a transcript UUID (e.g. 99d59925-36bc-424c-a789-8be54d9702ba) or a pasted village web URL")
+				"  fix:  pass a transcript UUID (e.g. 99d59925-36bc-424c-a789-8be54d9702ba) or a pasted peasant online web URL")
 	}
 
 	// URL form: anything that parses with a scheme + host. The path must be the

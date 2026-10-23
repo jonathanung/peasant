@@ -375,7 +375,7 @@ func (p *Pipeline) Run(ctx context.Context) (result *PushResult, err error) {
 				connErrors++
 				if connErrors >= connectionAbortThreshold {
 					abortErr = fmt.Errorf(
-						"aborting: %d connection failures to %s — check your network or village URL",
+						"aborting: %d connection failures to %s — check your network or peasant online URL",
 						connErrors, p.creds.VillageURL)
 				}
 			} else if sr.Status != PushStatusError {
@@ -1267,7 +1267,7 @@ func (p *Pipeline) pushSession(
 		}
 		stage.next(perf.StagePushReceiptPersist)
 		if receipt.ContentHash != request.ContentHash || receipt.RequestOperationFingerprint != expectedFingerprint {
-			err = fmt.Errorf("authoritative receipt mismatch: Village returned content hash %s and operation fingerprint %s, expected %s and %s from the exact request; local applied state was not changed", receipt.ContentHash, receipt.RequestOperationFingerprint, request.ContentHash, expectedFingerprint)
+			err = fmt.Errorf("authoritative receipt mismatch: peasant online returned content hash %s and operation fingerprint %s, expected %s and %s from the exact request; local applied state was not changed", receipt.ContentHash, receipt.RequestOperationFingerprint, request.ContentHash, expectedFingerprint)
 			diagnosticCtx, cancelDiagnostic := persistenceContext(ctx)
 			defer cancelDiagnostic()
 			_ = ledger.RecordPublicationAttempt(diagnosticCtx, store.PublicationAttemptDiagnostic{VillageOrigin: p.creds.VillageURL, OwnerUserID: p.creds.UserID, SessionID: sess.SessionID, ProjectHash: projectHash, Stage: store.PublicationAttemptStageValidate, Message: err.Error()})
@@ -1298,14 +1298,14 @@ func (p *Pipeline) pushSession(
 		desired := schema.TranscriptUpdateVisibility(visibility)
 		if held || schema.Visibility(receipt.Visibility) != visibility {
 			if err := p.observations.current(ctx, func() error { return nil }); err != nil {
-				return SessionPushResult{SessionID: sess.SessionID, HostSlug: sess.HostSlug, Title: title, Status: PushStatusError, Error: fmt.Errorf("content remains on Village but the selected account changed before visibility convergence; no further visibility change was sent; inspect Village and retry explicitly with the original account: %w", err)}
+				return SessionPushResult{SessionID: sess.SessionID, HostSlug: sess.HostSlug, Title: title, Status: PushStatusError, Error: fmt.Errorf("content remains on peasant online but the selected account changed before visibility convergence; no further visibility change was sent; inspect peasant online and retry explicitly with the original account: %w", err)}
 			}
 			stage.next(perf.StagePushVisibilityUpdate)
 			updated, _, updateErr := client.UpdateOwner(uploadCtx, receipt.TranscriptID, schema.OwnerTranscriptUpdateRequest{Visibility: &desired})
 			if updateErr != nil {
 				primary := fmt.Errorf("publication content succeeded but visibility convergence failed; the remote resource remains at its authoritative access state and no local terminal receipt was advanced; retry this session to apply the requested visibility: %w", updateErr)
 				if held {
-					primary = fmt.Errorf("the village did not apply the requested visibility to a transcript this account already published; no content was sent and the local receipt is unchanged; if the transcript no longer exists on the village, rerun with --force choosing only this session, and with --license to license it again: %w", updateErr)
+					primary = fmt.Errorf("peasant online did not apply the requested visibility to a transcript this account already published; no content was sent and the local receipt is unchanged; if the transcript no longer exists on peasant online, rerun with --force choosing only this session, and with --license to license it again: %w", updateErr)
 				}
 				diagnosticCtx, cancelDiagnostic := persistenceContext(ctx)
 				defer cancelDiagnostic()
@@ -1314,9 +1314,9 @@ func (p *Pipeline) pushSession(
 				return SessionPushResult{SessionID: sess.SessionID, HostSlug: sess.HostSlug, Title: title, Status: PushStatusError, Error: primary}
 			}
 			if schema.Visibility(updated.Visibility) != visibility || updated.TranscriptID != receipt.TranscriptID || updated.TranscriptURL != receipt.TranscriptURL {
-				primary := fmt.Errorf("owner update returned inconsistent authoritative identity or access state; local applied state was not changed; retry this session after verifying Village health")
+				primary := fmt.Errorf("owner update returned inconsistent authoritative identity or access state; local applied state was not changed; retry this session after verifying peasant online health")
 				if held {
-					primary = fmt.Errorf("owner update returned inconsistent authoritative identity or access state for a transcript this account already published; no content was sent and the local receipt is unchanged; after verifying Village health, rerun with --force choosing only this session to publish it again")
+					primary = fmt.Errorf("owner update returned inconsistent authoritative identity or access state for a transcript this account already published; no content was sent and the local receipt is unchanged; after verifying peasant online health, rerun with --force choosing only this session to publish it again")
 				}
 				diagnosticCtx, cancelDiagnostic := persistenceContext(ctx)
 				defer cancelDiagnostic()
@@ -1342,7 +1342,7 @@ func (p *Pipeline) pushSession(
 	if err := p.observations.current(persistCtx, func() error {
 		return ledger.SavePublication(persistCtx, store.PublicationRecord{VillageOrigin: p.creds.VillageURL, OwnerUserID: p.creds.UserID, SessionID: sess.SessionID, ProjectHash: projectHash, Receipt: receipt})
 	}); err != nil {
-		primary := fmt.Errorf("Village accepted the publication but the terminal receipt could not be persisted; local applied state remains non-current and this session's publication cursor was not advanced; retry this session to converge without replaying other successes: %w", err)
+		primary := fmt.Errorf("Peasant online accepted the publication but the terminal receipt could not be persisted; local applied state remains non-current and this session's publication cursor was not advanced; retry this session to converge without replaying other successes: %w", err)
 		diagnosticCtx, cancelDiagnostic := persistenceContext(ctx)
 		defer cancelDiagnostic()
 		_ = ledger.RecordPublicationAttempt(diagnosticCtx, store.PublicationAttemptDiagnostic{VillageOrigin: p.creds.VillageURL, OwnerUserID: p.creds.UserID, SessionID: sess.SessionID, ProjectHash: projectHash, Stage: store.PublicationAttemptStagePersistence, Message: primary.Error()})

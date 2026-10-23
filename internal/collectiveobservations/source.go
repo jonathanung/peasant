@@ -50,7 +50,7 @@ func (s *Service) AuthenticatedSourceFor(ctx context.Context, original auth.Cred
 	}
 	source, ok := reader.(Source)
 	if !ok {
-		return auth.CredentialSnapshot{}, nil, fmt.Errorf("fetch collective observation sources: authenticated transport lacks complete source reads; no metadata was installed; configure the production Village source adapter before retrying")
+		return auth.CredentialSnapshot{}, nil, fmt.Errorf("fetch collective observation sources: authenticated transport lacks complete source reads; no metadata was installed; configure the production peasant online source adapter before retrying")
 	}
 	return snapshot, &boundedSource{Source: source, slots: s.sourceSlots}, nil
 }

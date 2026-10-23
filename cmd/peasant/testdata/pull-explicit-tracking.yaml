@@ -28,7 +28,7 @@ cases:
   - {name: ambiguous-name-no-preference, refs: [Visible shelf], mode: ambiguous, errorContains: ambiguous}
   - {name: unknown-name-no-preference, refs: [Unknown], mode: unknown, errorContains: No exact collective name}
   - {name: fuzzy-name-not-selected, refs: [Visible], errorContains: No exact collective name}
-  - {name: cross-village-no-credentials-forwarded, refs: ['{foreign}/collectives/{id}'], errorContains: different Village, zeroAuth: true}
+  - {name: cross-village-no-credentials-forwarded, refs: ['{foreign}/collectives/{id}'], errorContains: different peasant online, zeroAuth: true}
   - {name: wrong-base-path-no-credentials-forwarded, basePath: /installation, refs: ['{origin}/elsewhere/collectives/{id}'], errorContains: base path, zeroAuth: true}
   - {name: unresolved-later-selector-tracks-none, refs: ['{id}', Unknown], mode: unknown, errorContains: No exact collective name}
   - {name: rotation-during-resolution-tracks-neither-account, refs: ['{id}'], rotateDetail: 1, errorContains: changed}

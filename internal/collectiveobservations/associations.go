@@ -39,7 +39,7 @@ func operationIssue(err error, operation schema.CollectiveOperation) schema.Oper
 	if len(message) > schema.MaxCollectiveOperationIssueBytes {
 		message = message[:schema.MaxCollectiveOperationIssueBytes]
 	}
-	return schema.OperationIssue{Code: code, Operation: operation, Message: message, Retry: "Check the selected account and Village connection, then explicitly retry metadata fetch; cached observations do not grant permission."}
+	return schema.OperationIssue{Code: code, Operation: operation, Message: message, Retry: "Check the selected account and peasant online connection, then explicitly retry metadata fetch; cached observations do not grant permission."}
 }
 
 // Associations reads saved per-transcript disclosure OFFLINE. A missing legacy

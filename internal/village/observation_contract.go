@@ -35,7 +35,7 @@ func decodeContributionDiscovery(raw json.RawMessage) (schema.VillageContributed
 		return response, err
 	}
 	if err := contract.Validate(value); err != nil {
-		return response, fmt.Errorf("validate complete contribution discovery: required canonical fields or counter types are invalid; no relevance was replaced; correct the Village response")
+		return response, fmt.Errorf("validate complete contribution discovery: required canonical fields or counter types are invalid; no relevance was replaced; correct the peasant online response")
 	}
 	if err := json.Unmarshal(raw, &response); err != nil {
 		return response, err

@@ -88,7 +88,7 @@ func (s *Service) SelectedCredentials(ctx context.Context) (auth.CredentialSnaps
 	creds := snapshot.Credentials()
 	id, err := uuid.Parse(creds.UserID)
 	if err != nil || id.String() != creds.UserID {
-		return auth.CredentialSnapshot{}, fmt.Errorf("select private collective scope: saved user identity is not a canonical Village UUID; no private observations selected; sign in again (unfiltered local inventory remains available): %w", auth.ErrSignedOut)
+		return auth.CredentialSnapshot{}, fmt.Errorf("select private collective scope: saved user identity is not a canonical peasant online UUID; no private observations selected; sign in again (unfiltered local inventory remains available): %w", auth.ErrSignedOut)
 	}
 	if _, err := auth.NormalizeVillageURL(creds.VillageURL); err != nil {
 		return auth.CredentialSnapshot{}, err
@@ -126,7 +126,7 @@ func (s *Service) authenticatedSnapshot(ctx context.Context, snapshot auth.Crede
 	creds.VillageURL = base
 	reader := s.newIdentityReader(creds)
 	if reader == nil {
-		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope: identity transport is missing; no observations were fetched; configure the Village client and retry")
+		return auth.CredentialSnapshot{}, nil, fmt.Errorf("verify collective observation scope: identity transport is missing; no observations were fetched; configure the peasant online client and retry")
 	}
 	user, err := sourceRead(ctx, s.sourceSlots, func() (schema.VillageUser, error) { return reader.VerifyUser(ctx) })
 	if err != nil {

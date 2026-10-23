@@ -51,14 +51,14 @@ func buildVillageTranscriptsListCommand(options ...villageListDependencies) *cob
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List pullable (remote, login required) or already-pulled (--local, offline) transcripts",
-		Long: `List transcripts you can pull from the village (the default — own and
+		Long: `List transcripts you can pull from peasant online (the default — own and
 group-shared transcripts; requires login), or the transcripts you have ALREADY
 pulled locally (--local; reads only local data and works offline).
 
 --collective narrows the remote listing to one or more collectives you belong
 to, named by a collective name, its UUID, or its /groups/<uuid> page URL, and
 pages to the end so the listing matches what a pull would take. --user keeps only
-the transcripts one village account contributed: combine it with --collective for
+the transcripts one peasant online account contributed: combine it with --collective for
 a single collective, or pass it alone to span every collective you can pull from.
 With --local, --user filters stored owner usernames without credentials or network.
 --collective instead selects saved per-row viewer disclosures in the selected
@@ -415,7 +415,7 @@ func printLocalListTable(cmd *cobra.Command, rows []store.PulledTranscriptRow) {
 func printRemoteListTable(cmd *cobra.Command, resp *schema.PullListResponse) {
 	w := cmd.OutOrStdout()
 	if resp == nil || len(resp.Transcripts) == 0 {
-		fmt.Fprintln(w, "No pullable transcripts available on the village.")
+		fmt.Fprintln(w, "No pullable transcripts available on peasant online.")
 		return
 	}
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)

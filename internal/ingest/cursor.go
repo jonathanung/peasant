@@ -367,7 +367,7 @@ func parseCursorTranscriptMetadata(data []byte, meta *UnifiedMetadata) (int64, i
 		meta.Diagnostics.Warnings = append(meta.Diagnostics.Warnings, DiagnosticEntry{
 			ErrorType:   "missing_model",
 			Location:    fmt.Sprintf("session %s", meta.SessionID),
-			Message:     "Cursor transcript omitted message.model; peasant will hold this session from village push because the village requires a recorded model.",
+			Message:     "Cursor transcript omitted message.model; peasant will hold this session from village push because peasant online requires a recorded model.",
 			Remediation: "Keep the transcript ingested for local analysis, but do not publish it until Cursor records model metadata or the source transcript is corrected.",
 		})
 	}

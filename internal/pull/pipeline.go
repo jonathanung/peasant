@@ -201,8 +201,8 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 	if !p.creds.IsLoggedIn() {
 		return &PullResult{Ref: ref, Status: PullStatusNotLoggedIn}, fmt.Errorf(
 			"peasant village pull: not logged in\n" +
-				"  what: no valid village credentials are present\n" +
-				"  why:  pulling a transcript contacts the village and requires authentication\n" +
+				"  what: no valid peasant online credentials are present\n" +
+				"  why:  pulling a transcript contacts peasant online and requires authentication\n" +
 				"  fix:  run `peasant village login`, then re-run the pull")
 	}
 	host := p.villageHost()
@@ -432,7 +432,7 @@ func (p *Pipeline) ObservePulledAssociations(ctx context.Context, result *PullRe
 		metadata = schema.PullAssociationMetadataResult{State: schema.PullAssociationMetadataUnknown, Warning: &schema.OperationIssue{
 			Code: schema.OperationIssueContract, Operation: schema.CollectiveOperationPull,
 			Message: "The optional association source returned an invalid result after the content pull succeeded; no fresh metadata can be reported.",
-			Retry:   "Run peasant village collectives fetch explicitly after checking the selected account and Village connection.",
+			Retry:   "Run peasant village collectives fetch explicitly after checking the selected account and peasant online connection.",
 		}}
 	}
 	result.AssociationMetadata = &metadata

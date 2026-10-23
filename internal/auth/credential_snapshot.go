@@ -17,11 +17,11 @@ const credentialLockTimeout = 30 * time.Second
 
 // ErrSignedOut means no valid selected credentials exist. Callers must not
 // fall back to another account's private cache or initiate login implicitly.
-var ErrSignedOut = errors.New("selected Village account is signed out; sign in to inspect private collective observations, or use unfiltered local transcript inventory without credentials")
+var ErrSignedOut = errors.New("selected peasant online account is signed out; sign in to inspect private collective observations, or use unfiltered local transcript inventory without credentials")
 
 // ErrCredentialsChanged refuses installation of a response obtained with an
 // earlier credential generation, even after switching back to the same user.
-var ErrCredentialsChanged = errors.New("selected Village credentials changed during the operation; uncommitted observations were discarded; retry explicitly with the currently selected account")
+var ErrCredentialsChanged = errors.New("selected peasant online credentials changed during the operation; uncommitted observations were discarded; retry explicitly with the currently selected account")
 
 // CredentialSnapshot pins a concrete config directory and credential generation.
 // Capture is local only; it does not verify the remote authenticated identity.

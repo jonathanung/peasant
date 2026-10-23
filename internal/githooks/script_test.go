@@ -255,7 +255,7 @@ func TestScript_RunsUploadAndNeverBlocksGit(t *testing.T) {
 		t.Fatalf("hook must exit successfully when the upload fails, got: %v", err)
 	}
 	for _, want := range []string{
-		"village upload did not complete",
+		"peasant online upload did not complete",
 		"exited 9",
 		repo,
 		hook,

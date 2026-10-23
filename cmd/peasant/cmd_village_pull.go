@@ -29,7 +29,7 @@ func requireVillageCredentials(cmd *cobra.Command) (*auth.Credentials, error) {
 		return nil, fmt.Errorf("not logged in — run 'peasant village login' first")
 	}
 	if creds.VillageURL == "" {
-		return nil, fmt.Errorf("village URL is not set — run 'peasant village login' to re-link your account")
+		return nil, fmt.Errorf("peasant online URL is not set — run 'peasant village login' to re-link your account")
 	}
 	return creds, nil
 }
@@ -92,21 +92,21 @@ func buildVillageTranscriptsPullCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "pull [<uuid|url>] [--collective <ref>]...",
-		Short: "Pull one transcript, or a collective's transcripts, from the village (login required)",
+		Short: "Pull one transcript, or a collective's transcripts, from peasant online (login required)",
 		Long: `Pull one transcript (and the annotations authored on it), or every transcript an
-accessible collective holds, from the Peasant village into the local
+accessible collective holds, from peasant online into the local
 village-pulls/ namespace and the pulled-transcripts index. Pulled data is foreign
 and one-way: it never enters ingest, analytics, or your annotate-push candidate
 set.
 
 Choose exactly one selection. A transcript reference is its UUID or a pasted
-village web URL. --collective names a server-visible collective by its exact
-name, UUID, or selected Village's /collectives/<uuid> or legacy /groups/<uuid>
+peasant online web URL. --collective names a server-visible collective by its exact
+name, UUID, or selected peasant online's /collectives/<uuid> or legacy /groups/<uuid>
 page URL. Full installation base paths must match. It is repeatable, and several
 values pull the union, each transcript once. A collective holds the transcripts
 offered to it and approved, so a transcript the caller owns but never shared with
 a listed collective is not part of the selection. --user keeps only the
-transcripts one village account contributed: combine it with --collective for a
+transcripts one peasant online account contributed: combine it with --collective for a
 single collective, or pass it alone to span every collective the caller can pull
 from.
 
@@ -145,7 +145,7 @@ succeed. Dry runs do not refresh metadata.`,
 				return fmt.Errorf("choose one selection: a transcript reference, or --collective/--user, not both")
 			}
 			if len(args) == 0 && !filters {
-				return fmt.Errorf("nothing to pull: pass a transcript UUID or a village web URL, or one or more --collective values, or --user")
+				return fmt.Errorf("nothing to pull: pass a transcript UUID or a peasant online web URL, or one or more --collective values, or --user")
 			}
 
 			var ref pull.TranscriptRef
@@ -222,12 +222,12 @@ succeed. Dry runs do not refresh metadata.`,
 	cmd.Flags().BoolVar(&force, "force", false, "Re-download and rewrite even when the local copy matches the served blob")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Report what would be pulled without writing anything")
 	cmd.Flags().BoolVar(&jsonOutput, defaults.JSONFlagName, false, "Output as JSON instead of human-readable")
-	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show extra pull detail (village host, pull directory, served-blob hash)")
+	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show extra pull detail (peasant online host, pull directory, served-blob hash)")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "Suppress the summary; print only errors and a final result line")
 	cmd.Flags().StringArrayVar(&collectiveRefs, "collective", nil,
 		"Pull every transcript a collective holds (a name, its UUID, or its /groups/<uuid> page URL). Repeatable; several values pull the union, each transcript once")
 	cmd.Flags().StringVar(&user, "user", "",
-		"Keep only the transcripts contributed by this village account. Combine with --collective for one collective; alone, it spans every collective you can pull from")
+		"Keep only the transcripts contributed by this peasant online account. Combine with --collective for one collective; alone, it spans every collective you can pull from")
 
 	return cmd
 }

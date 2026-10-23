@@ -82,7 +82,7 @@ func (a *actionObservations) published(ctx context.Context, receipt schema.Autho
 		Outcome: schema.LocalConfirmedContributionPublished, SourceReceiptID: &source,
 	})
 	if err != nil {
-		return fmt.Errorf("Village confirmed the content publication, but recording its local historical receipt failed; the remote content is not rolled back and no collective approval is implied; run 'peasant village collectives fetch' with the original account to reconcile before explicitly retrying: %w", err)
+		return fmt.Errorf("Peasant online confirmed the content publication, but recording its local historical receipt failed; the remote content is not rolled back and no collective approval is implied; run 'peasant village collectives fetch' with the original account to reconcile before explicitly retrying: %w", err)
 	}
 	return nil
 }
@@ -102,8 +102,8 @@ func (a *actionObservations) failed(ctx context.Context, operation schema.Collec
 		OperationID: operationID, Operation: operation, TranscriptID: transcript, CollectiveID: collective,
 		AttemptedAt: a.now().UTC(), Outcome: outcome,
 		Issue: schema.OperationIssue{Code: schema.OperationIssueRemote, Operation: operation,
-			Message: "The requested Village action did not return a confirmed successful result; a missing response does not prove that Village made no change.",
-			Retry:   "Inspect the transcript on Village and run 'peasant village collectives fetch' with the original account; retry explicitly only after checking the actual outcome."},
+			Message: "The requested peasant online action did not return a confirmed successful result; a missing response does not prove that peasant online made no change.",
+			Retry:   "Inspect the transcript on peasant online and run 'peasant village collectives fetch' with the original account; retry explicitly only after checking the actual outcome."},
 	})
 	if err != nil {
 		return &actionDiagnosticPersistenceError{primary: primary, persistence: err}
@@ -118,7 +118,7 @@ type actionDiagnosticPersistenceError struct {
 	persistence error
 }
 
-const diagnosticPersistenceWarning = "The local diagnostic could not be persisted; no new diagnostic was saved on this computer. Inspect Village and fetch history with the original account before explicitly retrying"
+const diagnosticPersistenceWarning = "The local diagnostic could not be persisted; no new diagnostic was saved on this computer. Inspect peasant online and fetch history with the original account before explicitly retrying"
 
 func (e *actionDiagnosticPersistenceError) Error() string {
 	return e.primary.Error() + "; " + diagnosticPersistenceWarning
@@ -165,13 +165,13 @@ func (s *observedSharer) shareCollectives(ctx context.Context, transcript schema
 	}
 	transport, ok := s.CollectiveSharer.(collectiveBatchTransport)
 	if !ok && preflight == nil {
-		preflight = fmt.Errorf("share transport cannot send all requested targets atomically; no share was sent or queued; configure the production Village batch adapter before retrying")
+		preflight = fmt.Errorf("share transport cannot send all requested targets atomically; no share was sent or queued; configure the production peasant online batch adapter before retrying")
 	}
 	steps := make([]schema.SyncPushStepResult, 0, len(ids))
 	if preflight != nil {
 		for _, id := range ids {
 			target := id
-			steps = append(steps, schema.SyncPushStepResult{Step: schema.SyncPushStepAddCollective, CollectiveID: &target, Outcome: schema.SyncPushStepFailed, Reason: "verify the requested collective sources before sharing: " + preflight.Error() + "; no share was sent or queued; check current access on Village and retry explicitly without changing audience or license"})
+			steps = append(steps, schema.SyncPushStepResult{Step: schema.SyncPushStepAddCollective, CollectiveID: &target, Outcome: schema.SyncPushStepFailed, Reason: "verify the requested collective sources before sharing: " + preflight.Error() + "; no share was sent or queued; check current access on peasant online and retry explicitly without changing audience or license"})
 		}
 		return steps, false
 	}
@@ -200,7 +200,7 @@ func (s *observedSharer) shareCollectives(ctx context.Context, transcript schema
 				err = a.service.RecordReceipt(persistCtx, a.snapshot, schema.LocalConfirmedContributionReceipt{ReceiptID: operationIDs[i].String(), Operation: schema.CollectiveOperationShare, TranscriptID: transcript, CollectiveID: &target, ConfirmedAt: a.now().UTC(), Outcome: schema.LocalConfirmedContributionSubmitted})
 				if err != nil {
 					step.Outcome = schema.SyncPushStepFailed
-					step.Reason = "Village confirmed the share request but recording its local receipt failed; the remote effect is not rolled back; inspect Village and run 'peasant village collectives fetch' with the original account: " + err.Error()
+					step.Reason = "Peasant online confirmed the share request but recording its local receipt failed; the remote effect is not rolled back; inspect peasant online and run 'peasant village collectives fetch' with the original account: " + err.Error()
 				}
 			default:
 				// Legacy servers could answer success while silently skipping a
@@ -230,7 +230,7 @@ func (s *observedSharer) ShareTranscript(ctx context.Context, transcript schema.
 		return err
 	}
 	if _, err := a.service.VerifyTargetsFor(ctx, a.snapshot, transcript, []schema.VillageUUID{collective}); err != nil {
-		return fmt.Errorf("verify the requested collective before sharing: %w; no share was sent or queued; check current access on Village and retry explicitly without changing audience or license", err)
+		return fmt.Errorf("verify the requested collective before sharing: %w; no share was sent or queued; check current access on peasant online and retry explicitly without changing audience or license", err)
 	}
 	if err := a.current(ctx, func() error { return nil }); err != nil {
 		return err
@@ -249,11 +249,11 @@ func (s *observedSharer) ShareTranscript(ctx context.Context, transcript schema.
 	status, readErr := s.LatestShareStatus(ctx, transcript, collective)
 	if readErr != nil {
 		return a.failed(persistCtx, schema.CollectiveOperationShare, &transcript, &collective, operationID,
-			fmt.Errorf("Village answered the share request, but its actual result could not be read; no collective approval is inferred; inspect Village before explicitly retrying: %w", readErr))
+			fmt.Errorf("Peasant online answered the share request, but its actual result could not be read; no collective approval is inferred; inspect peasant online before explicitly retrying: %w", readErr))
 	}
 	if status != schema.VillageShareStatusApproved && status != schema.VillageShareStatusPending {
 		return a.failed(persistCtx, schema.CollectiveOperationShare, &transcript, &collective, operationID,
-			&village.StatusError{StatusCode: http.StatusForbidden, Message: "Village did not confirm a live share for the requested collective; no share was queued; check its current contribution policy and your membership and retry explicitly"})
+			&village.StatusError{StatusCode: http.StatusForbidden, Message: "Peasant online did not confirm a live share for the requested collective; no share was queued; check its current contribution policy and your membership and retry explicitly"})
 	}
 	// A live readback and successful mutation confirm submission, not approval.
 	err = a.service.RecordReceipt(persistCtx, a.snapshot, schema.LocalConfirmedContributionReceipt{
@@ -262,7 +262,7 @@ func (s *observedSharer) ShareTranscript(ctx context.Context, transcript schema.
 		Outcome: schema.LocalConfirmedContributionSubmitted,
 	})
 	if err != nil {
-		return fmt.Errorf("Village confirmed the share request but its local receipt could not be recorded; the remote effect is not rolled back and approval is not inferred; inspect Village and run 'peasant village collectives fetch' with the original account: %w", err)
+		return fmt.Errorf("Peasant online confirmed the share request but its local receipt could not be recorded; the remote effect is not rolled back and approval is not inferred; inspect peasant online and run 'peasant village collectives fetch' with the original account: %w", err)
 	}
 	return s.observePair(ctx, transcript, collective)
 }
@@ -270,7 +270,7 @@ func (s *observedSharer) ShareTranscript(ctx context.Context, transcript schema.
 func (s *observedSharer) observePair(ctx context.Context, transcript schema.TranscriptID, collective schema.VillageUUID) error {
 	_, err := s.observations.service.ObserveOwnPairFor(ctx, s.observations.snapshot, collective, transcript)
 	if err != nil {
-		return fmt.Errorf("Village's action result is retained, but reading or recording its original-account contribution history failed; no confirmed receipt is erased and no remote rollback or approval is inferred; inspect Village and run 'peasant village collectives fetch' with the original account before retrying: %w", err)
+		return fmt.Errorf("Peasant online's action result is retained, but reading or recording its original-account contribution history failed; no confirmed receipt is erased and no remote rollback or approval is inferred; inspect peasant online and run 'peasant village collectives fetch' with the original account before retrying: %w", err)
 	}
 	return nil
 }
@@ -310,10 +310,10 @@ func (s *observedSharer) UnshareTranscript(ctx context.Context, transcript schem
 				TranscriptID: &transcript, CollectiveID: &collective, AttemptedAt: s.observations.now().UTC(), Outcome: schema.LocalOperationDiagnosticFailed,
 				Issue: schema.OperationIssue{Code: code, Operation: schema.CollectiveOperationFetch,
 					Message: "The withdrawal was confirmed, but its contribution history could not be fetched or recorded; saved history remains dated.",
-					Retry:   "Inspect Village and run 'peasant village collectives fetch' with the original account to reconcile history; do not republish merely because this metadata read failed."},
+					Retry:   "Inspect peasant online and run 'peasant village collectives fetch' with the original account to reconcile history; do not republish merely because this metadata read failed."},
 			})
 			if diagnosticErr != nil {
-				observationErr = errors.Join(observationErr, fmt.Errorf("the local history-failure diagnostic could not be recorded; no new diagnostic was saved; inspect Village and fetch with the original account: %w", diagnosticErr))
+				observationErr = errors.Join(observationErr, fmt.Errorf("the local history-failure diagnostic could not be recorded; no new diagnostic was saved; inspect peasant online and fetch with the original account: %w", diagnosticErr))
 			}
 			return &confirmedWithdrawalObservationError{cause: observationErr}
 		}
@@ -330,7 +330,7 @@ func (s *observedSharer) UnshareTranscript(ctx context.Context, transcript schem
 type confirmedWithdrawalObservationError struct{ cause error }
 
 func (e *confirmedWithdrawalObservationError) Error() string {
-	return "the withdrawal was confirmed by Village, but its contribution history is incomplete; no remote rollback or transcript deletion is inferred; inspect Village and run 'peasant village collectives fetch' with the original account: " + e.cause.Error()
+	return "the withdrawal was confirmed by peasant online, but its contribution history is incomplete; no remote rollback or transcript deletion is inferred; inspect peasant online and run 'peasant village collectives fetch' with the original account: " + e.cause.Error()
 }
 
 func (e *confirmedWithdrawalObservationError) Unwrap() error { return e.cause }

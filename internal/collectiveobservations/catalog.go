@@ -86,11 +86,11 @@ func referenceIdentity(base, ref string) (schema.VillageUUID, bool, error) {
 		origin.Fragment = ""
 		normalized, err := auth.NormalizeVillageURL(origin.String())
 		if err != nil || normalized != base {
-			return "", false, &ReferenceError{Message: "Collective URL belongs to a different Village installation or base path; no credentials forwarded; select that Village explicitly before retrying"}
+			return "", false, &ReferenceError{Message: "Collective URL belongs to a different peasant online installation or base path; no credentials forwarded; select that peasant online installation explicitly before retrying"}
 		}
 		return schema.VillageUUID(id), true, nil
 	}
-	return "", false, &ReferenceError{Message: "Collective URL does not belong to the selected Village base path; no credentials forwarded; use its exact canonical collective URL"}
+	return "", false, &ReferenceError{Message: "Collective URL does not belong to the selected peasant online base path; no credentials forwarded; use its exact canonical collective URL"}
 }
 
 func (s *Service) ResolveReference(ctx context.Context, ref string, online bool) (schema.VillageUUID, error) {
