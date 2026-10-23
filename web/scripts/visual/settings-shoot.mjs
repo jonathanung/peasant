@@ -6,15 +6,17 @@
    collectives. It starts peasant on that world, ingests the sessions through the real route, and
    shoots the mounted page in both themes:
 
-     default         the whole page as it opens (desktop, and 390px wide)
-     pending         a switch whose write is held in flight
-     failed          a text field the server refuses (re-import after = -5): value restored, reason shown
-     tagged          the village group: a row tagged "not in peasant config"
-     install         the auto-publish group offering "install in 3 repositories", before any call
+     default         the automatic publishing section as it opens (desktop, and 390px wide)
+     pending         a switch whose write is held in flight (the projects section)
+     failed          a text field the server refuses (re-import after = -5): value restored, reason
+                     shown (the advanced section)
+     tagged          the account section: a row tagged "not in peasant config"
+     install         the auto-publish rules offering "install in 3 repositories", before any call
      install-refusal the same action after a foreign hook appeared in one repository: two installed,
                      one blocked with its remedy
 
-   At 390px it also opens every group and fails if the page then scrolls sideways.
+   Each section is its own view (`/settings/?section=<id>`). At 390px it also opens every group of
+   the advanced section and fails if the page then scrolls sideways.
 
    Every write and install is real. Before each theme the world's hooks are reset, so both themes
    show the same states. The temp root lives under os.tmpdir(), not under a user's home or checkout,
@@ -230,6 +232,11 @@ try {
     }
     await abort(`${key} never reached ${want} (last ${await statusOf(page, key)}).`, 'rerun; if it repeats, the page did not settle the write.')
   }
+  /** Opens one settings section and waits until its group shows. */
+  const section = async (page, id, group) => {
+    await page.goto(`${ORIGIN}/settings/?section=${id}`, { waitUntil: 'networkidle0' })
+    await page.waitForSelector(`[data-group="${group}"]`, { timeout: 15000 })
+  }
   const open = async (theme, width = 1440) => {
     const page = await browser.newPage()
     await page.setViewport({ width, height: 900, deviceScaleFactor: 1 })
@@ -239,7 +246,7 @@ try {
     page.on('console', (message) => { if (message.type() === 'error' && !/favicon|^Failed to load resource/i.test(message.text())) errors.push(message.text()) })
     await applyDeterminism(page)
     await page.evaluateOnNewDocument((value) => { try { localStorage.setItem('peasant-theme', value) } catch {} }, theme)
-    await page.goto(`${ORIGIN}/settings/`, { waitUntil: 'networkidle0' })
+    await page.goto(`${ORIGIN}/settings/?section=automatic-publishing`, { waitUntil: 'networkidle0' })
     await page.waitForFunction(() => document.querySelector('[data-rule-id="acme-work"]')?.textContent.includes('Acme Platform'), { timeout: 15000 })
     await page.evaluate(() => document.fonts.ready)
     const attr = await page.$eval('html', (html) => html.getAttribute('data-theme'))
@@ -264,13 +271,16 @@ try {
         noteSize: style('.stg-note')?.fontSize,
         installRadius: style('.stg-install')?.borderRadius,
         groupRadius: style('.srow-group')?.borderRadius,
-        countNumerals: style('.srow-summary-count')?.fontVariantNumeric,
         installCountNumerals: style('.stg-install-title .tnum')?.fontVariantNumeric,
         tagText: document.querySelector('.srow-tag')?.textContent,
       }
     }) })
-    await shootRegion(page, '[data-group="village"]', join(dir, 'tagged.png'))
     await shootRegion(page, '[data-group="auto-publish"]', join(dir, 'install.png'))
+    await section(page, 'account', 'village')
+    await shootRegion(page, '[data-group="village"]', join(dir, 'tagged.png'))
+    await section(page, 'advanced', 'advanced')
+    probes.at(-1).countNumerals = await page.$eval('.srow-summary-count', (count) => getComputedStyle(count).fontVariantNumeric)
+    await section(page, 'projects', 'projects')
 
     // pending: hold one switch's write in flight, then let it land and put it back
     await page.setRequestInterception(true)
@@ -288,6 +298,7 @@ try {
     await waitStatus(page, 'daemon.projectMode', 'settled')
 
     // failed: the server refuses a negative re-import time; the value comes back with the reason
+    await section(page, 'advanced', 'advanced')
     await page.evaluate(() => { document.querySelector('[data-group="advanced"]').open = true })
     const row = '[data-setting-keys~="output.stalenessThresholdSec"]'
     await page.click(`${row} .srow-edit`)
@@ -301,6 +312,7 @@ try {
     await shootRegion(page, '[data-group="advanced"]', join(dir, 'failed.png'))
 
     // install with a refusal: a foreign hook appears in one repository after the page offered the install
+    await section(page, 'automatic-publishing', 'auto-publish')
     const before = await page.$eval('.stg-install .btn-primary', (button) => button.textContent.trim())
     if (before !== 'install in 3 repositories') await abort(`the install action reads "${before}".`, 'reset the hooks and rerun.')
     const foreign = join(repoPath('worker'), '.git/hooks/pre-push')
@@ -320,6 +332,7 @@ try {
     const narrow = await open(theme, 390)
     await narrow.page.screenshot({ path: join(dir, 'default-390.png'), fullPage: true })
     shots.push(relative(OUT, join(dir, 'default-390.png')))
+    await section(narrow.page, 'advanced', 'advanced')
     const overflow = await narrow.page.evaluate(() => {
       const closed = document.documentElement.scrollWidth - window.innerWidth
       document.querySelectorAll('details').forEach((details) => { details.open = true })
