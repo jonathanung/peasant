@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { useHomeSessions } from '@/hooks/useHomeSessions';
 import { SkeletonList } from '@/lib/skeleton';
+import { IngestTeach } from '@/components/IngestTeach';
 import Link from 'next/link';
 import {
   DataTable,
@@ -308,7 +309,10 @@ export function RootSessionList({ rows, childGroups = NO_CHILDREN, titles, previ
   const end = start + visible.length;
   return (
     <section ref={top} aria-label="sessions" aria-busy={reading || undefined} className="home-list" data-root-session-list="true">
-      {loading ? <SkeletonList rows={6} label="Loading your sessions" /> : visible.length === 0 ? (
+      {loading ? <SkeletonList rows={6} label="Loading your sessions" /> : visible.length === 0 && filter === 'all' && !hasMore && rows.length === 0 ? (
+        // Nothing recorded at all: say so, and link to the docs that teach recording.
+        <IngestTeach />
+      ) : visible.length === 0 ? (
         <p className="home-empty">{current > 1 ? 'no sessions on this page.' : EMPTY_FILTER_COPY[filter]}</p>
       ) : (
         <DataTable<ListRow>
