@@ -70,8 +70,8 @@ describe('MapRouter project discovery', () => {
     render(<MapRouter />);
 
     const panel = await screen.findByRole('status', { name: 'project selection recovery' });
-    expect(panel).toHaveTextContent('Peasant hides 2 projects and 5 sessions.');
-    expect(panel).toHaveTextContent('The web viewer does not list it.');
+    expect(panel).toHaveTextContent('peasant hides 2 projects and 5 sessions.');
+    expect(panel).toHaveTextContent('the web viewer does not list it.');
     expect(screen.queryByText('peasant ingest')).not.toBeInTheDocument();
     for (const identity of fixture.forbiddenIdentities) {
       expect(document.body.textContent).not.toContain(identity);

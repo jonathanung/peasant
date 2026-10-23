@@ -41,11 +41,11 @@ export function SelectionRecoveryPanel({
   return (
     <section role="status" aria-label="project selection recovery">
       <TeachingEmptyState
-        title="Your saved selection hides all projects."
+        title="your saved selection hides all projects."
         body={
           <span className="flex flex-col gap-2">
             <span>
-              Peasant hides{' '}
+              peasant hides{' '}
               <span className="font-mono tabular-nums">
                 {countLabel(hiddenProjects, 'project')}
               </span>{' '}
@@ -55,12 +55,12 @@ export function SelectionRecoveryPanel({
               </span>
               .
             </span>
-            <span>The data stays ingested and indexed.</span>
-            <span>The web viewer does not list it.</span>
-            <span>It is not available for a future push.</span>
-            <span>Peasant did not delete data.</span>
+            <span>the data stays ingested and indexed.</span>
+            <span>the web viewer does not list it.</span>
+            <span>it is not available for a future push.</span>
+            <span>peasant did not delete data.</span>
             <span>
-              To change the selection, run{' '}
+              to change the selection, run{' '}
               <code className="font-mono">peasant kickstart</code>.
             </span>
           </span>

@@ -22,7 +22,7 @@ const CHUNKS = join(WEB, 'out/_next/static/chunks')
 const PORT = process.env.PEASANT_RECOVERY_PORT || '8707'
 const ORIGIN = `http://localhost:${PORT}`
 const CHROME = process.env.CHROME_PATH
-const MARKER = 'Your saved selection hides all projects.'
+const MARKER = 'your saved selection hides all projects.'
 const PANEL = '[role="status"][aria-label="project selection recovery"]'
 const ROUTES = [{ id: 'home', path: '/' }, { id: 'map', path: '/map/' }]
 const pause = (ms) => new Promise((done) => setTimeout(done, ms))
@@ -78,12 +78,12 @@ const projectWord = selection.hiddenProjects === 1 ? 'project' : 'projects'
 const sessionWord = selection.hiddenSessions === 1 ? 'session' : 'sessions'
 const acceptedLines = [
   MARKER,
-  `Peasant hides ${selection.hiddenProjects.toLocaleString()} ${projectWord} and ${selection.hiddenSessions.toLocaleString()} ${sessionWord}.`,
-  'The data stays ingested and indexed.',
-  'The web viewer does not list it.',
-  'It is not available for a future push.',
-  'Peasant did not delete data.',
-  'To change the selection, run peasant kickstart.',
+  `peasant hides ${selection.hiddenProjects.toLocaleString()} ${projectWord} and ${selection.hiddenSessions.toLocaleString()} ${sessionWord}.`,
+  'the data stays ingested and indexed.',
+  'the web viewer does not list it.',
+  'it is not available for a future push.',
+  'peasant did not delete data.',
+  'to change the selection, run peasant kickstart.',
 ]
 const expectedCounts = [`${selection.hiddenProjects.toLocaleString()} ${projectWord}`, `${selection.hiddenSessions.toLocaleString()} ${sessionWord}`]
 
@@ -158,7 +158,7 @@ try {
           const descendants = panel ? [...panel.querySelectorAll('*')] : []
           const exact = (text) => descendants.find((element) => normalize(element.textContent) === text && visible(element))
           const heading = descendants.find((element) => /^H[1-6]$/.test(element.tagName) && normalize(element.textContent) === lines[0])
-          const body = exact('The data stays ingested and indexed.')
+          const body = exact('the data stays ingested and indexed.')
           const count = exact(counts[0])
           const copy = panel?.querySelector('button[aria-label="copy command to clipboard"]') || null
           if (copy) copy.focus({ focusVisible: true })
@@ -187,7 +187,7 @@ try {
             missing: lines.filter((line) => !exact(line)),
             missingCounts: counts.filter((value) => !exact(value)),
             leaks: identities.filter((identity) => panelText.includes(identity)),
-            wrongGuidance: panelText.includes('peasant ingest') || panelText.includes('A saved project selection is limiting'),
+            wrongGuidance: panelText.includes('peasant ingest') || panelText.includes('a saved project selection is limiting'),
             theme: [root.getAttribute('data-theme'), root.getAttribute('data-tb-theme')],
             themeMatches: root.getAttribute('data-theme') === activeTheme && root.getAttribute('data-tb-theme') === activeTheme,
             fontsLoaded: document.fonts.check('400 16px "Atkinson Hyperlegible"') && document.fonts.check('400 16px "Atkinson Hyperlegible Mono"'),

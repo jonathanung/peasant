@@ -393,10 +393,10 @@ describe('HomePage — the changes-first picker', () => {
     render(<HomePage />);
     await openView(PROJECTS_VIEW);
     const panel = await screen.findByRole('status', { name: 'project selection recovery' });
-    expect(panel).toHaveTextContent('Peasant hides 2 projects and 5 sessions.');
-    expect(panel).toHaveTextContent('The data stays ingested and indexed.');
-    expect(panel).toHaveTextContent('It is not available for a future push.');
-    expect(panel).toHaveTextContent('Peasant did not delete data.');
+    expect(panel).toHaveTextContent('peasant hides 2 projects and 5 sessions.');
+    expect(panel).toHaveTextContent('the data stays ingested and indexed.');
+    expect(panel).toHaveTextContent('it is not available for a future push.');
+    expect(panel).toHaveTextContent('peasant did not delete data.');
     expect(screen.queryByText('peasant ingest')).not.toBeInTheDocument();
     expect(screen.queryByText(/hidden by a saved selection/)).not.toBeInTheDocument();
     for (const identity of fixture.forbiddenIdentities) {
@@ -771,9 +771,9 @@ describe('HomePage — the changes-first picker', () => {
     fireEvent.click(within(notice).getByRole('button'));
     expect(notice.textContent).toBe(
       '2 projects and 5 sessions hidden by a saved selection'
-      + 'A saved project selection is limiting what’s shown here. '
-      + 'The data stays ingested and indexed — it is only hidden from this list.'
-      + 'Run peasant kickstart to review or widen the selection.',
+      + 'a saved project selection is limiting what’s shown here. '
+      + 'the data stays ingested and indexed; it is only hidden from this list.'
+      + 'run peasant kickstart to review or widen the selection.',
     );
   });
 

@@ -27,7 +27,7 @@ function SelectionNotice({ notice }: { notice: { hiddenProjects: number; hiddenS
     <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} className="inline-flex items-center gap-2 border border-rule px-3 py-1.5 font-mono text-sm text-ink-3 hover:text-ink hover:bg-surface-hover transition-colors focus-mono cursor-pointer">
       <EyeOff size={14} aria-hidden /><span className="tabular-nums">{parts.join(' and ')} hidden by a saved selection</span>{open ? <ChevronUp size={14} aria-hidden /> : <ChevronDown size={14} aria-hidden />}
     </button>
-    {open && <div className="flex flex-col gap-1 border border-rule bg-surface-hover px-4 py-3 text-sm text-ink-2"><p>A saved project selection is limiting what’s shown here. The data stays ingested and indexed — it is only hidden from this list.</p><p className="text-sm text-ink-3">Run <code className="font-mono">peasant kickstart</code> to review or widen the selection.</p></div>}
+    {open && <div className="flex flex-col gap-1 border border-rule bg-surface-hover px-4 py-3 text-sm text-ink-2"><p>a saved project selection is limiting what’s shown here. the data stays ingested and indexed; it is only hidden from this list.</p><p className="text-sm text-ink-3">run <code className="font-mono">peasant kickstart</code> to review or widen the selection.</p></div>}
   </div>;
 }
 

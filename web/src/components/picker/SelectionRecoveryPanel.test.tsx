@@ -44,17 +44,17 @@ describe('SelectionRecoveryPanel', () => {
       );
     expect(
       within(panel).getByRole('heading', {
-        name: 'Your saved selection hides all projects.',
+        name: 'your saved selection hides all projects.',
       }),
     ).toBeVisible();
-    expect(exactVisibleText('Peasant hides 2 projects and 5 sessions.')).toBeVisible();
+    expect(exactVisibleText('peasant hides 2 projects and 5 sessions.')).toBeVisible();
     expect(within(panel).getByText('2 projects')).toBeVisible();
     expect(within(panel).getByText('5 sessions')).toBeVisible();
-    expect(within(panel).getByText('The data stays ingested and indexed.')).toBeVisible();
-    expect(within(panel).getByText('The web viewer does not list it.')).toBeVisible();
-    expect(within(panel).getByText('It is not available for a future push.')).toBeVisible();
-    expect(within(panel).getByText('Peasant did not delete data.')).toBeVisible();
-    expect(exactVisibleText('To change the selection, run peasant kickstart.')).toBeVisible();
+    expect(within(panel).getByText('the data stays ingested and indexed.')).toBeVisible();
+    expect(within(panel).getByText('the web viewer does not list it.')).toBeVisible();
+    expect(within(panel).getByText('it is not available for a future push.')).toBeVisible();
+    expect(within(panel).getByText('peasant did not delete data.')).toBeVisible();
+    expect(exactVisibleText('to change the selection, run peasant kickstart.')).toBeVisible();
     for (const identity of fixture.forbiddenIdentities) {
       expect(panel.textContent).not.toContain(identity);
     }
