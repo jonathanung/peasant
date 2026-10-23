@@ -37,6 +37,19 @@ export interface SessionReindex {
 }
 
 /**
+ * The lines the last re-index of each session could not read, kept for this
+ * page load, so the publish popup can say its copy stops before one whichever
+ * surface ran the re-index (the popup itself, or the transcript page's
+ * not-indexed state). A later re-index that reads everything clears it.
+ */
+const lastUnreadable = new Map<string, UnreadableLine[]>();
+
+/** The lines the last re-index of this session could not read, if any. */
+export function unreadableAfterReindex(sessionId: string): readonly UnreadableLine[] {
+  return lastUnreadable.get(sessionId) ?? [];
+}
+
+/**
  * Re-index one recorded session through the local server
  * (POST /api/v1/sync/ingest/session) and wait for its answer. It re-reads this
  * session's recording only, on this computer; nothing leaves the machine. A
@@ -72,6 +85,8 @@ export async function reindexSession(
       ? body.unreadable.filter((entry): entry is UnreadableLine => typeof entry === 'object' && entry !== null
         && Number.isSafeInteger((entry as UnreadableLine).line) && typeof (entry as UnreadableLine).reason === 'string')
       : [];
+    if (unreadable.length > 0) lastUnreadable.set(sessionId, unreadable);
+    else lastUnreadable.delete(sessionId);
     return { notes, unreadable };
   } finally {
     clearTimeout(timer);

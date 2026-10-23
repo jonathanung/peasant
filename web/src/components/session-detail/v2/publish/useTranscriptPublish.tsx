@@ -21,7 +21,7 @@ import { guardReviewMatches } from '@/lib/share/reviewMatches';
 import { classifyScanFailure, REINDEX_DID_NOT_REPAIR, reindexFailureLine, reindexRetryable, type ReindexFailureCode } from '@/lib/share/scanFailure';
 import { checkingStage, type CheckingStep } from '@/lib/share/checkingStage';
 import { stepWithReason, unreadableNote } from '@/lib/share/publishFailure';
-import { reindexSession, SessionReindexError, type UnreadableLine } from '@/lib/api/ingest';
+import { reindexSession, SessionReindexError, unreadableAfterReindex, type UnreadableLine } from '@/lib/api/ingest';
 import { fetchSettings } from '@/lib/api/settings';
 import { AutomaticPublishingError, enableAutomaticPublishing } from './automaticPublishing';
 import { onlineCollectivesHref } from '@/lib/village/links';
@@ -407,8 +407,9 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   // finish says what stopped it and offers to run again when that can help;
   // one that ran while the scan still refuses says so, with the run's notes.
   // A re-index that could not read a recording line leaves the copy before
-  // it: said once, never a reason to block the publish.
-  const unreadable = reindex.status === 'done' ? unreadableNote(reindex.unreadable) : undefined;
+  // it: said once, never a reason to block the publish. The re-index may have
+  // run here or from the transcript page's not-indexed state.
+  const unreadable = unreadableNote(reindex.status === 'done' ? reindex.unreadable : unreadableAfterReindex(sessionId));
   const failureShown: { line: string; detail: string; action?: { label: string; onSelect: () => void } } | null = failure == null
     ? null
     : failure.kind === 'needs-reindex' && reindex.status === 'failed'
@@ -463,9 +464,18 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
         ? { stoppedAt: 'reading this session: it is not recorded on this computer yet; run peasant ingest, then retry', retry: reread }
         : read.status === 'ready' && publication?.state === 'published' && !read.audienceKnown
         ? { stoppedAt: 'reading who can read it online', retry: reread }
-        : collectivesRead.status === 'error'
-          ? { stoppedAt: stepWithReason('reading your collectives', collectivesRead.message), detail: collectivesRead.message, retry: () => setCollectivesNonce((nonce) => nonce + 1) }
-          : null;
+        : null;
+
+  // Collectives that could not be read are said inside "who can read it", with
+  // their own retry, not as a stopped publish: nothing was attempted yet.
+  // Publishing stays off until they load.
+  const accessFailure = collectivesRead.status === 'error'
+    ? {
+      line: `${stepWithReason('your collectives can’t load', collectivesRead.message)}.`,
+      detail: collectivesRead.message,
+      onRetry: () => setCollectivesNonce((nonce) => nonce + 1),
+    }
+    : undefined;
 
   // Publish only from a clean scan of the content now on the page, signed in,
   // with what village holds known. The automatic-setup preference is NOT a
@@ -473,7 +483,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
   // manual publish.
   // An update can be sent before the collectives list arrives: its draft is
   // "no change" until the reader makes one.
-  const canPublish = scanClean && signIn === 'signed-in' && blocked === null && read.status === 'ready'
+  const canPublish = scanClean && signIn === 'signed-in' && blocked === null && read.status === 'ready' && accessFailure === undefined
     && (draft !== null || publishedNow === 'update');
   const publishGuard = useRef({ ready: false, check: scan.isReviewReady });
   publishGuard.current = { ready: open && canPublish && publishingTo === undefined && !submitting, check: scan.isReviewReady };
@@ -679,6 +689,7 @@ export function useTranscriptPublish(options: TranscriptPublishOptions): Transcr
       joinHref={onlineCollectivesHref()}
       stoppedAt={stopped?.stoppedAt}
       stoppedDetail={stopped?.detail}
+      accessFailure={accessFailure}
       onRecover={blocked?.retry ? recover : undefined}
       onRetry={blocked === null ? stopped?.retry : undefined}
       done={outcome && outcome.kind !== 'stopped' ? outcome.done : undefined}

@@ -515,8 +515,8 @@ cases:
       bar: { state: not-published, text: not published, action: publish }
       popup:
         heading: publish “{title}”
-        texts: ['stopped while reading your collectives: can’t reach peasant online right now.']
-        primary: { label: retry, enabled: true }
+        texts: ['your collectives can’t load: can’t reach peasant online right now.']
+        primary: { label: publish, enabled: false }
       request: null
 
   - name: audience-unknown

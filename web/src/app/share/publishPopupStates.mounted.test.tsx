@@ -280,6 +280,7 @@ describe('stale local index', () => {
       line: '1 line in this session couldn’t be read, so the copy being published stops before it.',
       detail: `line 50 of the recording: ${reason}`,
     });
+    expect(dialog()).toHaveTextContent('1 line in this session couldn’t be read, so the copy being published stops before it.');
     await runStep('publish', user);
     await waitFor(() => expect(world.pushRequests).toHaveLength(1), WAIT);
   }, 15000);
@@ -371,7 +372,7 @@ describe('stopped publication retry', () => {
 
 const recoveryFixture = parseDocument(readFileSync(resolve(process.cwd(), 'src/app/share/testdata/publish-review-recovery.yaml'), 'utf8')).toJS() as {
   requiredNames: string[];
-  cases: { name: string; route: string; method: string }[];
+  cases: { name: string; route: string; method: string; retry?: string; inline?: boolean }[];
 };
 describe('prerequisite recovery through the actual popup action', () => {
   it('retains every required recovery', () => {
@@ -400,11 +401,17 @@ describe('prerequisite recovery through the actual popup action', () => {
       const user = userEvent.setup();
       for (const step of entry.steps) await runStep(step, user);
       const retry = await waitFor(() => {
-        const button = within(dialog()).getByRole('button', { name: 'retry' });
+        const button = within(dialog()).getByRole('button', { name: recovery.retry ?? 'retry' });
         expect(button).toBeEnabled();
         return button;
       }, WAIT);
-      expect(latestDialogProps.onRecover).toBeTypeOf('function');
+      if (recovery.inline) {
+        expect(latestDialogProps.accessFailure?.onRetry).toBeTypeOf('function');
+        expect(latestDialogProps.state).not.toBe('stopped');
+        expect(primaryButton()).toBeDisabled();
+      } else {
+        expect(latestDialogProps.onRecover).toBeTypeOf('function');
+      }
       expect(latestDialogProps.onRetry).toBeUndefined();
       const operation = `${recovery.method} ${recovery.route}`;
       const before = operations.filter((value) => value === operation).length;
