@@ -128,7 +128,7 @@ function hookSummary(rule: AutoPublishRule): string {
   const blocked = rule.repositories.filter((repository) => repository.hooks.some((hook) => hook.status === AutoPublishHookStatus.Blocked)).length;
   const parts = [`hook in ${installed} of ${total} ${total === 1 ? 'repository' : 'repositories'}`];
   if (blocked > 0) parts.push(`blocked in ${blocked}`);
-  return parts.join(' · ');
+  return parts.join(', ');
 }
 
 function hookWords(status: AutoPublishHookStatus): string {
@@ -217,7 +217,7 @@ function InstallPreview({ operations, rules, collectives }: {
       <ul className="stg-install-steps">
         {[...steps.entries()].map(([key, step]) => (
           <li key={key} className="stg-install-step">
-            {eventWords(step.event)} · publishes to {collectiveWords(step.to, collectives)}, private
+            {eventWords(step.event)}, publishes to {collectiveWords(step.to, collectives)}, private
           </li>
         ))}
       </ul>
@@ -470,7 +470,7 @@ export function AutoPublishRules({ rules, onRulesChange, collectives, collective
               <div key={rule.id} className="stg-rule" data-rule-id={rule.id}>
                 <SettingRow
                   label={rule.match}
-                  help={`${kindWords(rule.kind)} · ${rule.events.length === 0 ? 'paused, publishes nothing' : `publishes to ${collectiveWords(rule.collectives, collectives)} ${rule.events.map(eventWords).join(' and ')}`}`}
+                  help={`${kindWords(rule.kind)}, ${rule.events.length === 0 ? 'paused, publishes nothing' : `publishes to ${collectiveWords(rule.collectives, collectives)} ${rule.events.map(eventWords).join(' and ')}`}`}
                   control="switch"
                   value={rule.events.length > 0}
                   disabled={busy}
