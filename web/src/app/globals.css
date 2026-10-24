@@ -698,6 +698,26 @@ textarea::placeholder {
 .share-hierarchy-check {
   position: relative;
 }
+/* On a phone or a touch screen every checkbox in the share chooser takes a
+   comfortable tap without moving the box the rail is drawn to: an invisible
+   square the size of the comfortable target, centred on the box, belongs to
+   the checkbox's label. */
+@media (max-width: 40rem), (pointer: coarse) {
+  .share-rail-rows .check,
+  .share-helper-contexts .check {
+    position: relative;
+  }
+  .share-rail-rows .check::before,
+  .share-helper-contexts .check::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: var(--target-comfortable);
+    height: var(--target-comfortable);
+    transform: translate(-50%, -50%);
+  }
+}
 .share-hierarchy-check__mixed {
   position: absolute;
   left: 4px;
