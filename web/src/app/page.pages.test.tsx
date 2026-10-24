@@ -346,7 +346,7 @@ describe('mounted bounded Home', () => {
         }
         await waitFor(() => expect(screen.getByRole('region', { name: 'sessions' })).not.toHaveAttribute('aria-busy'));
         fireEvent.click(screen.getByRole('button', { name: 'page 1' }));
-        await waitFor(() => expect(screen.getByRole('link', { name: 'title root-0' }).closest('tr')).toHaveTextContent('published, up to date'));
+        await waitFor(() => expect(screen.getByRole('link', { name: 'title root-0' }).closest('tr')).toHaveTextContent('published'));
         expect(tokens(pageRequests().slice(before))).toEqual(overlap ? [...fixture.publish.loadedTokens, ...fixture.publish.loadedTokens] : fixture.publish.loadedTokens);
         expect(screen.getByRole('link', { name: 'title child-0' })).toBeInTheDocument();
       }

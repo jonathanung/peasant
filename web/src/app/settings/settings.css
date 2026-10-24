@@ -235,12 +235,10 @@
 .stg-readonly-control { flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; }
 
 @media (max-width: 767px) {
-  /* below md a value and its command (a read-only value, a folder list with its edit) do not
-     fit beside the label: they take their own line under it (fairtrade's row grid keeps a
-     switch on the label's line), and a long value wraps inside it instead of scrolling the
-     page sideways */
-  .stg-page .stg-readonly > .srow-control,
-  .stg-page .srow:has(> .srow-control > .srow-text) > .srow-control { grid-column: 1 / -1; justify-self: start; justify-content: flex-start; }
+  /* below md a read-only value and its command do not fit beside the label: they take their
+     own line under it (fairtrade stacks a text value and its edit itself), and a long value
+     wraps inside it instead of scrolling the page sideways */
+  .stg-page .stg-readonly > .srow-control { grid-column: 1 / -1; justify-self: start; justify-content: flex-start; }
   .stg-readonly-value { max-width: 100%; }
   .stg-command { max-width: 100%; min-width: 0; }
   .stg-readonly-control > .srow-status { display: none; }

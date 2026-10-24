@@ -524,7 +524,7 @@ describe('root page publish filters', () => {
       if (searchSpec) {
         fireEvent.change(screen.getByRole('searchbox', { name: 'search your sessions' }), { target: { value: 'child' } });
         const match = await screen.findByText('child search match');
-        await waitFor(() => expect(match.closest('[data-grouped-sessions-section]')?.querySelector('.pub-state-text')?.textContent).toBe('published, up to date'));
+        await waitFor(() => expect(match.closest('[data-grouped-sessions-section]')?.querySelector('.pub-state-text')?.textContent).toBe('published'));
         fireEvent.click(screen.getByRole('button', { name: 'clear search' }));
         list = await screen.findByRole('region', { name: 'sessions' });
       }
@@ -603,7 +603,7 @@ describe('root page list reads', () => {
     await waitFor(() =>
       expect(requests.some((url) => url.pathname === '/api/v1/publications' && url.searchParams.get('include') === 'audience')).toBe(true),
     );
-    expect(stateLabel(list, 's-pub')).toBe('published, up to date');
+    expect(stateLabel(list, 's-pub')).toBe('published');
   });
 
   it('fails closed with the selection guidance when the publications read cannot apply the saved selection', async () => {
@@ -664,7 +664,7 @@ describe('root page list reads', () => {
     const section = results.closest('[data-grouped-sessions-section]') as HTMLElement;
     expect(await within(section).findByText('the ingest test flakes on CI')).toBeInTheDocument();
     expect(within(section).getByText('you:', { exact: false })).toBeInTheDocument();
-    expect(section.querySelector('.pub-state-text')?.textContent).toBe('published, up to date');
+    expect(section.querySelector('.pub-state-text')?.textContent).toBe('published');
     expect(screen.queryByRole('region', { name: 'sessions' })).not.toBeInTheDocument();
     const searched = requests.find((url) => url.pathname === '/api/v1/search');
     expect(searched?.searchParams.get('q')).toBe('flakes');
