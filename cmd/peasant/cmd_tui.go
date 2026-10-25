@@ -84,7 +84,7 @@ func runTUI(cmd *cobra.Command, cfgPath string, mockDataStore string) error {
 	if err != nil {
 		cmd.SilenceUsage = true
 		if openErr != nil {
-			return fmt.Errorf("tui startup: %w; check the file's permissions, or move it aside and run `peasant harvest` to rebuild it", openErr)
+			return fmt.Errorf("tui startup: %w; check the file's permissions, or move it aside and run `peasant harvest` to rebuild it from your transcripts; a rebuild does not bring back local-only data such as annotations and the session selection, so keep the moved file", openErr)
 		}
 		return fmt.Errorf("failed to fetch sessions: %w", err)
 	}

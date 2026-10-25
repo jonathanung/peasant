@@ -38,6 +38,9 @@ func TestTUINamesAnUnreadableDatabase(t *testing.T) {
 	if strings.Contains(msg, "real provider not initialized") || !strings.Contains(msg, dbPath) {
 		t.Errorf("tui error should name the database it could not open (%s), got: %v", dbPath, err)
 	}
+	if !strings.Contains(msg, "keep the moved file") {
+		t.Errorf("the rebuild hint does not warn that local-only data is not rebuilt: %s", msg)
+	}
 	if strings.Contains(out, "Usage:") {
 		t.Errorf("tui printed usage for a runtime failure:\n%s", out)
 	}
