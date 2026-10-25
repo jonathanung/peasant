@@ -32,7 +32,7 @@ steps:
   # fmt-check recipe with the building toolchain's gofmt.
   - step: fmt
     program: sh
-    args: ["-c", "unformatted=$(git ls-files -z -- '*.go' | xargs -0 \"$(go env GOROOT)/bin/gofmt\" -l); if [ -n \"$unformatted\" ]; then echo \"$unformatted\"; exit 1; fi"]
+    args: ["-c", "unformatted=$(git ls-files -z -- '*.go' | xargs -0 \"$(go env GOROOT)/bin/gofmt\" -l -e) || exit 1; if [ -n \"$unformatted\" ]; then echo \"$unformatted\"; exit 1; fi"]
     target: fmt-check
     fragment: "xargs -0 \"$$(go env GOROOT)/bin/gofmt\" -l"
   - step: lint
