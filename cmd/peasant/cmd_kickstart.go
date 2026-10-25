@@ -216,6 +216,21 @@ func runLegacyFTUEWizard(
 	return nil
 }
 
+// kickstartResetTargetList names what --reset removes, resolved from the same
+// overrides resetAll uses, so the prompt lists exactly what will be deleted.
+type kickstartResetTargetList struct {
+	config, database, sync, state string
+}
+
+func kickstartResetTargets(configPath, dataDirOverride, stateDirOverride string) kickstartResetTargetList {
+	return kickstartResetTargetList{
+		config:   configPath,
+		database: string(defaults.ResolveDBFilePathWith(dataDirOverride)),
+		sync:     filepath.Join(string(defaults.ResolveDataDirPathWith(dataDirOverride)), "peasant-sync"),
+		state:    string(defaults.ResolveStateDirPathWith(stateDirOverride)),
+	}
+}
+
 // confirmKickstartReset lists what --reset removes and asks for consent. Like
 // confirmPrune it refuses outright unless the command's input is a terminal:
 // the ingested copies may be the only copy left once a harness has expired its
@@ -226,18 +241,23 @@ func confirmKickstartReset(cmd *cobra.Command, configPath string) (bool, error) 
 	if !isFile || !term.IsTerminal(int(file.Fd())) {
 		return false, fmt.Errorf("non-interactive terminal: `peasant kickstart --reset` refused to prompt for consent because its standard input is not a terminal; nothing was removed; re-run with --confirm to reset without a prompt, or run the command from an interactive shell")
 	}
-	dataDir := string(defaults.ResolveDataDirPathWith(dataDirOverride(cmd)))
-	w := cmd.ErrOrStderr()
+	targets := kickstartResetTargets(configPath, dataDirOverride(cmd), stateDirOverride(cmd))
+	return promptKickstartReset(cmd.ErrOrStderr(), file, targets), nil
+}
+
+// promptKickstartReset prints the targets and reads one answer. Only "y" or
+// "Y" consents; anything else, an empty line or EOF keeps everything.
+func promptKickstartReset(w io.Writer, r io.Reader, targets kickstartResetTargetList) bool {
 	fmt.Fprintln(w, "kickstart --reset permanently removes:")
-	fmt.Fprintf(w, "  config:       %s\n", configPath)
+	fmt.Fprintf(w, "  config:       %s\n", targets.config)
 	fmt.Fprintln(w, "  credentials:  the saved village login")
-	fmt.Fprintf(w, "  database:     %s\n", defaults.ResolveDBFilePathWith(dataDirOverride(cmd)))
-	fmt.Fprintf(w, "  peasant-sync: %s\n", filepath.Join(dataDir, "peasant-sync"))
-	fmt.Fprintf(w, "  state:        %s\n", defaults.ResolveStateDirPath())
+	fmt.Fprintf(w, "  database:     %s\n", targets.database)
+	fmt.Fprintf(w, "  peasant-sync: %s\n", targets.sync)
+	fmt.Fprintf(w, "  state:        %s\n", targets.state)
 	fmt.Fprint(w, "Reset everything? [y/N]: ")
 	var response string
-	fmt.Fscanln(file, &response)
-	return response == "y" || response == "Y", nil
+	fmt.Fscanln(r, &response)
+	return response == "y" || response == "Y"
 }
 
 // resetAll removes the config file, credentials, database, peasant-sync directory, and state directory.
@@ -264,10 +284,9 @@ func resetAll(cmd *cobra.Command, configPath string) error {
 		return fmt.Errorf("reset peasant-sync: %w", err)
 	}
 
-	// 5. State directory (PID files). Resolve at call time for the same reason
-	// as pidFilePath: a test that redirects XDG_STATE_HOME resets its own state,
-	// not the developer's.
-	stateDir := string(defaults.ResolveStateDirPath())
+	// 5. State directory (PID files), honoring --state-dir like the other
+	// locations honor --data-dir and --config-dir.
+	stateDir := string(defaults.ResolveStateDirPathWith(stateDirOverride(cmd)))
 	if err := removeAllIfExists(stateDir); err != nil {
 		return fmt.Errorf("reset state: %w", err)
 	}

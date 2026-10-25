@@ -17,15 +17,16 @@ import (
 
 // seedResetFixture writes a config, a database, a peasant-sync transcript and a
 // state file under isolated directories and returns their paths.
-func seedResetFixture(t *testing.T) (dataDir, configDir string, paths []string) {
+func seedResetFixture(t *testing.T) (dataDir, configDir, stateDir string, paths []string) {
 	t.Helper()
-	dataDir, configDir = t.TempDir(), t.TempDir()
-	t.Setenv(defaults.EnvXDGStateHome.String(), t.TempDir())
+	// Every location is a per-test directory passed by flag, so the tests stay
+	// parallel and never resolve the developer's real state directory.
+	dataDir, configDir, stateDir = t.TempDir(), t.TempDir(), t.TempDir()
 	paths = []string{
 		defaults.ResolveConfigFilePathWith(configDir).String(),
 		string(defaults.ResolveDBFilePathWith(dataDir)),
 		filepath.Join(string(defaults.ResolveDataDirPathWith(dataDir)), "peasant-sync", "proj", "s1", "s1--transcript.jsonl"),
-		filepath.Join(string(defaults.ResolveStateDirPath()), "web-18690.pid"),
+		filepath.Join(string(defaults.ResolveStateDirPathWith(stateDir)), "web-18690.pid"),
 	}
 	for _, p := range paths {
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
@@ -35,10 +36,10 @@ func seedResetFixture(t *testing.T) (dataDir, configDir string, paths []string) 
 			t.Fatal(err)
 		}
 	}
-	return dataDir, configDir, paths
+	return dataDir, configDir, stateDir, paths
 }
 
-func runKickstartReset(t *testing.T, dataDir, configDir string, stdin *bytes.Buffer, args ...string) (error, bool) {
+func runKickstartReset(t *testing.T, dataDir, configDir, stateDir string, stdin *bytes.Buffer, args ...string) (error, bool) {
 	t.Helper()
 	deps := defaultKickstartCommandDeps()
 	wizardReached := false
@@ -54,15 +55,16 @@ func runKickstartReset(t *testing.T, dataDir, configDir string, stdin *bytes.Buf
 	root.SetIn(stdin)
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
-	root.SetArgs(append([]string{"--data-dir", dataDir, "--config-dir", configDir, "kickstart", "--reset"}, args...))
+	root.SetArgs(append([]string{"--data-dir", dataDir, "--config-dir", configDir, "--state-dir", stateDir, "kickstart", "--reset"}, args...))
 	return root.Execute(), wizardReached
 }
 
 // TestKickstartResetRefusesWithoutConsent proves --reset deletes nothing when
 // its input is not a terminal and --confirm is absent.
 func TestKickstartResetRefusesWithoutConsent(t *testing.T) {
-	dataDir, configDir, paths := seedResetFixture(t)
-	err, reached := runKickstartReset(t, dataDir, configDir, bytes.NewBufferString("y\n"))
+	t.Parallel()
+	dataDir, configDir, stateDir, paths := seedResetFixture(t)
+	err, reached := runKickstartReset(t, dataDir, configDir, stateDir, bytes.NewBufferString("y\n"))
 	if err == nil || !strings.Contains(err.Error(), "--confirm") {
 		t.Fatalf("kickstart --reset without a terminal: err = %v, want a refusal naming --confirm", err)
 	}
@@ -78,13 +80,45 @@ func TestKickstartResetRefusesWithoutConsent(t *testing.T) {
 
 // TestKickstartResetWithConfirmRemovesEverything keeps the scripted path.
 func TestKickstartResetWithConfirmRemovesEverything(t *testing.T) {
-	dataDir, configDir, paths := seedResetFixture(t)
-	if err, _ := runKickstartReset(t, dataDir, configDir, &bytes.Buffer{}, "--confirm"); err != nil {
+	t.Parallel()
+	dataDir, configDir, stateDir, paths := seedResetFixture(t)
+	if err, _ := runKickstartReset(t, dataDir, configDir, stateDir, &bytes.Buffer{}, "--confirm"); err != nil {
 		t.Fatalf("kickstart --reset --confirm: %v", err)
 	}
 	for _, p := range paths {
 		if _, statErr := os.Stat(p); !os.IsNotExist(statErr) {
 			t.Fatalf("confirmed reset left %s (stat err %v)", p, statErr)
 		}
+	}
+}
+
+// TestKickstartResetPromptAnswers covers the interactive answers: only y or Y
+// consents; N, an empty line and EOF keep everything. It also checks the
+// prompt names the --state-dir location it would remove.
+func TestKickstartResetPromptAnswers(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		name, input string
+		want        bool
+	}{
+		{"y", "y\n", true},
+		{"Y", "Y\n", true},
+		{"N", "N\n", false},
+		{"empty line", "\n", false},
+		{"EOF", "", false},
+		{"yes spelled out", "yes\n", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			stateDir := t.TempDir()
+			var prompt bytes.Buffer
+			got := promptKickstartReset(&prompt, strings.NewReader(c.input), kickstartResetTargets("cfg.yaml", "", stateDir))
+			if got != c.want {
+				t.Fatalf("answer %q: consent = %v, want %v", c.input, got, c.want)
+			}
+			if !strings.Contains(prompt.String(), string(defaults.ResolveStateDirPathWith(stateDir))) || !strings.Contains(prompt.String(), "[y/N]") {
+				t.Fatalf("prompt does not name the --state-dir location:\n%s", prompt.String())
+			}
+		})
 	}
 }
