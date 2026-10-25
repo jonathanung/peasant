@@ -23,6 +23,7 @@ import (
 	"github.com/peasant-labs/peasant/internal/tui/kickstart"
 	"github.com/peasant-labs/schema"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 type kickstartCommandDeps struct {
@@ -88,7 +89,7 @@ func BuildKickstartCommand() *cobra.Command {
 }
 
 func buildKickstartCommand(deps kickstartCommandDeps) *cobra.Command {
-	var reset bool
+	var reset, confirmReset bool
 
 	cmd := &cobra.Command{
 		Use:     "kickstart",
@@ -99,6 +100,16 @@ func buildKickstartCommand(deps kickstartCommandDeps) *cobra.Command {
 			configPath := resolveConfigPath(cmd)
 
 			if reset {
+				if !confirmReset {
+					ok, err := confirmKickstartReset(cmd, configPath)
+					if err != nil {
+						return err
+					}
+					if !ok {
+						fmt.Fprintln(cmd.ErrOrStderr(), "Reset cancelled; nothing was removed.")
+						return nil
+					}
+				}
 				if err := resetAll(cmd, configPath); err != nil {
 					return err
 				}
@@ -157,7 +168,8 @@ func buildKickstartCommand(deps kickstartCommandDeps) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&reset, "reset", false, "Remove config, credentials, database, ingested data, and state (full reset)")
+	cmd.Flags().BoolVar(&reset, "reset", false, "Remove config, credentials, database, ingested data, and state (full reset); asks for confirmation")
+	cmd.Flags().BoolVar(&confirmReset, "confirm", false, "With --reset: skip the confirmation prompt (for scripts/CI)")
 	return cmd
 }
 
@@ -202,6 +214,30 @@ func runLegacyFTUEWizard(
 		return fmt.Errorf("setup wizard failed: %w", err)
 	}
 	return nil
+}
+
+// confirmKickstartReset lists what --reset removes and asks for consent. Like
+// confirmPrune it refuses outright unless the command's input is a terminal:
+// the ingested copies may be the only copy left once a harness has expired its
+// own transcripts, so a piped or closed stdin cannot approve the delete.
+func confirmKickstartReset(cmd *cobra.Command, configPath string) (bool, error) {
+	in := cmd.InOrStdin()
+	file, isFile := in.(*os.File)
+	if !isFile || !term.IsTerminal(int(file.Fd())) {
+		return false, fmt.Errorf("non-interactive terminal: `peasant kickstart --reset` refused to prompt for consent because its standard input is not a terminal; nothing was removed; re-run with --confirm to reset without a prompt, or run the command from an interactive shell")
+	}
+	dataDir := string(defaults.ResolveDataDirPathWith(dataDirOverride(cmd)))
+	w := cmd.ErrOrStderr()
+	fmt.Fprintln(w, "kickstart --reset permanently removes:")
+	fmt.Fprintf(w, "  config:       %s\n", configPath)
+	fmt.Fprintln(w, "  credentials:  the saved village login")
+	fmt.Fprintf(w, "  database:     %s\n", defaults.ResolveDBFilePathWith(dataDirOverride(cmd)))
+	fmt.Fprintf(w, "  peasant-sync: %s\n", filepath.Join(dataDir, "peasant-sync"))
+	fmt.Fprintf(w, "  state:        %s\n", defaults.ResolveStateDirPath())
+	fmt.Fprint(w, "Reset everything? [y/N]: ")
+	var response string
+	fmt.Fscanln(file, &response)
+	return response == "y" || response == "Y", nil
 }
 
 // resetAll removes the config file, credentials, database, peasant-sync directory, and state directory.
