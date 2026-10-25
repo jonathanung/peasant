@@ -352,6 +352,14 @@ Rules:
   extraction: the adapter verifies the actual captured bytes. Managed captures
   can retain previously proved relationships after native files rotate only
   under the retained-transcript identity and digest checks.
+- Changing what a mined record means bumps the structural proof version, so
+  the next discovery re-reads every cached Claude transcript once and replaces
+  its record. Version 3 did this for display titles: a title taken from an
+  `isMeta` record (for example "Your claude.ai usage limit has reset ...")
+  was cached and shown until the transcript changed. After an upgrade to
+  version 3, the first harvest re-reads every Claude transcript once, which
+  costs about as much as a first harvest. After that, unchanged files are
+  served from the cache again. No manual refresh or cache deletion is needed.
 - Discovery deletes the records of transcripts that are gone, but only under the
   source paths that the run walked.
 - The cache is best effort. A missing or failing cache makes discovery mine every

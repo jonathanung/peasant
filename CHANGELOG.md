@@ -7,6 +7,13 @@ Release, which holds the signed artifacts and checksums.
 
 ## [Unreleased]
 
+### Fixed
+- Claude discovery no longer takes a session title from an `isMeta` record
+  such as "Your claude.ai usage limit has reset ...". The cached title is
+  refreshed automatically: the first harvest after upgrading re-reads every
+  cached Claude transcript once (structural proof version 3), so it takes
+  about as long as a first harvest. Later runs reuse the cache as before.
+
 ## [0.13.4] - 2026-10-28
 
 ### Changed
