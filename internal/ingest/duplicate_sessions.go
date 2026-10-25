@@ -27,7 +27,7 @@ func refuseDuplicateSessionIDs(fsys FileSystem, sessions []DiscoveredSession, se
 	}
 	paths := make(map[key]map[ResolvedPath]DiscoveredSession)
 	for _, s := range sessions {
-		if !duplicateCheckedHarness(s.Harness) || (selected != nil && s.ParentUUID == nil && !selected(s)) {
+		if !duplicateCheckedHarness(s.Harness) {
 			continue
 		}
 		k := key{s.Harness, s.SessionID}
@@ -35,6 +35,21 @@ func refuseDuplicateSessionIDs(fsys FileSystem, sessions []DiscoveredSession, se
 			paths[k] = map[ResolvedPath]DiscoveredSession{}
 		}
 		paths[k][s.SourcePath] = s
+	}
+	// The selection is asked only about claims on a duplicated id, so a run
+	// without duplicates calls it exactly as before.
+	for k, claims := range paths {
+		if len(claims) < 2 || selected == nil {
+			continue
+		}
+		for p, s := range claims {
+			if s.ParentUUID == nil && !selected(s) {
+				delete(claims, p)
+			}
+		}
+		if len(claims) < 2 {
+			delete(paths, k)
+		}
 	}
 	kept := sessions[:0:0]
 	var refused []SessionResult
