@@ -3,31 +3,48 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
+	"fmt"
+	"os/exec"
+	"strconv"
 	"strings"
 
 	"golang.org/x/sys/windows"
 )
 
-// isPeasantWebServer checks the process's executable image. Windows offers no
-// portable way to read another process's command line, so this is weaker than
-// the unix check: it confirms the PID runs this peasant executable, not which
-// port it serves.
-func isPeasantWebServer(pid, _ int) bool {
+// isPeasantWebServer checks that the PID runs this peasant executable and
+// listens on the port. Windows offers no portable way to read another
+// process's command line, so the port is confirmed from the TCP table
+// (`netstat -ano -p tcp`) instead.
+func isPeasantWebServer(pid, port int) (bool, error) {
 	handle, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
 	if err != nil {
-		return false
+		return false, nil // gone, or not ours to inspect
 	}
 	defer windows.CloseHandle(handle)
 	buf := make([]uint16, windows.MAX_LONG_PATH)
 	size := uint32(len(buf))
 	if err := windows.QueryFullProcessImageName(handle, 0, &buf[0], &size); err != nil {
-		return false
+		return false, fmt.Errorf("%w %d: %v", errProcessProbe, pid, err)
 	}
-	self, err := os.Executable()
+	if !sameExecutable(windows.UTF16ToString(buf[:size])) {
+		return false, nil
+	}
+	out, err := exec.Command("netstat", "-ano", "-p", "tcp").Output()
 	if err != nil {
-		return false
+		return false, fmt.Errorf("%w %d: netstat: %v", errProcessProbe, pid, err)
 	}
-	return strings.EqualFold(filepath.Base(windows.UTF16ToString(buf[:size])), filepath.Base(self))
+	return listensOn(string(out), pid, port), nil
+}
+
+// listensOn reports whether netstat output has a LISTENING row on port owned
+// by pid.
+func listensOn(netstat string, pid, port int) bool {
+	suffix, owner := ":"+strconv.Itoa(port), strconv.Itoa(pid)
+	for _, line := range strings.Split(netstat, "\n") {
+		f := strings.Fields(line)
+		if len(f) == 5 && strings.HasSuffix(f[1], suffix) && strings.EqualFold(f[3], "LISTENING") && f[4] == owner {
+			return true
+		}
+	}
+	return false
 }

@@ -53,44 +53,104 @@ func writePIDFile(t *testing.T, port, pid int) string {
 	return path
 }
 
+// waitForCommandLine blocks until the process table shows pid running with
+// the server's arguments for port: the wake source is the child's exec
+// completing. It fails the test after a deadline instead of sleeping blind.
+func waitForCommandLine(t *testing.T, pid, port int) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		if ok, err := isPeasantWebServer(pid, port); err == nil && ok {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("PID %d never showed the stand-in server's command line", pid)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// assertNotSignalled checks stopWeb took a no-signal branch for a process it
+// must leave alone. stopWeb signals synchronously, so the error branch is the
+// authoritative assertion; the liveness probe only catches a signal that
+// already landed.
+func assertNotSignalled(t *testing.T, what string, cmd *exec.Cmd, exited <-chan struct{}, err error) {
+	t.Helper()
+	if err == nil || !strings.Contains(err.Error(), "nothing was signalled") {
+		t.Errorf("stopWeb with a PID file naming %s = %v, want a nothing-was-signalled error", what, err)
+	}
+	select {
+	case <-exited:
+		t.Errorf("web stop signalled PID %d (%s), which is not a peasant web server", cmd.Process.Pid, what)
+	default:
+	}
+}
+
 // TestStopWebLeavesAnUnrelatedProcessAlone guards #671: a stale PID file that
 // names some other process (here `sleep`) must not get it signalled. The file
-// is removed and the error says it was stale.
+// is removed and the error says it was stale. Ports are per test, so the
+// tests run in parallel.
 func TestStopWebLeavesAnUnrelatedProcessAlone(t *testing.T) {
+	t.Parallel()
 	port := freePort(t)
 	cmd := exec.Command("sleep", "300")
 	exited := startChild(t, cmd)
 	pidFile := writePIDFile(t, port, cmd.Process.Pid)
 
 	err := stopWeb(port)
+	assertNotSignalled(t, "`sleep`", cmd, exited, err)
 	if err == nil || !strings.Contains(err.Error(), "stale") {
-		t.Errorf("stopWeb with a PID file naming `sleep` = %v, want a stale-PID-file error", err)
-	}
-	select {
-	case <-exited:
-		t.Fatalf("web stop signalled PID %d, which is `sleep`, not a peasant web server", cmd.Process.Pid)
-	case <-time.After(300 * time.Millisecond):
+		t.Errorf("want a stale-PID-file error, got %v", err)
 	}
 	if _, statErr := os.Stat(pidFile); !os.IsNotExist(statErr) {
 		t.Errorf("stale PID file %s was kept (stat err %v)", pidFile, statErr)
 	}
 }
 
+// TestStopWebLeavesAnotherProgramWithServerArgsAlone is the #714 review repro:
+// a different executable started with the server's own trailing arguments
+// (`python3 -c … web start --foreground --port P`) must not be signalled.
+func TestStopWebLeavesAnotherProgramWithServerArgsAlone(t *testing.T) {
+	t.Parallel()
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 not installed")
+	}
+	port := freePort(t)
+	cmd := exec.Command(python, "-c", "import time; time.sleep(300)", "web", "start", "--foreground", "--port", strconv.Itoa(port))
+	exited := startChild(t, cmd)
+	writePIDFile(t, port, cmd.Process.Pid)
+	deadline := time.Now().Add(10 * time.Second)
+	for !commandLineShows(cmd.Process.Pid, "time.sleep") {
+		if time.Now().After(deadline) {
+			t.Fatal("python3 stand-in never started")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	assertNotSignalled(t, "python3 with the server's arguments", cmd, exited, stopWeb(port))
+}
+
+// commandLineShows reports whether ps shows want in pid's command line.
+func commandLineShows(pid int, want string) bool {
+	out, err := exec.Command("ps", "-ww", "-o", "args=", "-p", strconv.Itoa(pid)).Output()
+	return err == nil && strings.Contains(string(out), want)
+}
+
 // TestStopWebStopsTheServerItStarted keeps the fallback working for a real
-// match: a child whose command line is the detached server's
-// (`… web start --foreground --port N`) is stopped.
+// match: a child of this executable whose command line is the detached
+// server's (`… web start --foreground --port N`) is stopped.
 func TestStopWebStopsTheServerItStarted(t *testing.T) {
 	if os.Getenv(webServerStandInEnv) == "1" {
 		time.Sleep(90 * time.Second)
 		os.Exit(0)
 	}
+	t.Parallel()
 	port := freePort(t)
 	cmd := exec.Command(os.Args[0], "-test.run=^TestStopWebStopsTheServerItStarted$", "--", "web", "start", "--foreground", "--port", strconv.Itoa(port))
 	cmd.Env = append(os.Environ(), webServerStandInEnv+"=1")
 	exited := startChild(t, cmd)
 	writePIDFile(t, port, cmd.Process.Pid)
-	// Give the child time to exec so its command line is the stand-in's.
-	time.Sleep(200 * time.Millisecond)
+	waitForCommandLine(t, cmd.Process.Pid, port)
 
 	if err := stopWeb(port); err != nil {
 		t.Fatalf("stopWeb(%d) on the server's own PID: %v", port, err)
