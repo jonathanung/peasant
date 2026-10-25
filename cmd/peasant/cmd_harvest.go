@@ -862,25 +862,9 @@ func printIndexProfileStage(w io.Writer, stage ingest.IndexProfileStage) {
 	fmt.Fprintf(w, "    %s: %s%s\n", stage.Stage, stage.Duration.Round(time.Millisecond), progress)
 }
 
-// runVerify checks database schema integrity.
-func runVerify(cmd *cobra.Command, verbose, content, repair bool) error {
-	if repair && !content {
-		return fmt.Errorf("harvest verify: --repair requires --content; nothing was checked and nothing changed; re-run with `peasant harvest verify --content --repair`")
-	}
-	if content {
-		return runVerifyContent(cmd, repair)
-	}
-	ctx := cmd.Context()
-	dbPath := string(defaults.ResolveDBFilePathWith(dataDirOverride(cmd)))
-
-	db, err := store.Open(dbPath)
-	if err != nil {
-		return fmt.Errorf("open database: %w", err)
-	}
-	defer db.Close()
-
-	out := cmd.OutOrStdout()
-
+// verifyTablePresence prints the schema overview and the table presence
+// check, and fails when an expected table is missing.
+func verifyTablePresence(out io.Writer, db *store.Store, dbPath string, expectedTables []string) error {
 	// Header
 	fmt.Fprintln(out, "==============================================")
 	fmt.Fprintln(out, "Peasant Database Verification")
@@ -897,8 +881,6 @@ func runVerify(cmd *cobra.Command, verbose, content, repair bool) error {
 		return fmt.Errorf("get table names: %w", err)
 	}
 
-	// Expected tables from schema.go
-	expectedTables := store.AllTableNames
 	schemaVersion := "v1-v20 (migrations)"
 
 	fmt.Fprintf(out, "Expected schema: %s\n", schemaVersion)
@@ -935,6 +917,43 @@ func runVerify(cmd *cobra.Command, verbose, content, repair bool) error {
 
 	fmt.Fprintln(out, "Status: PASSED")
 	fmt.Fprintln(out, "All expected tables are present.")
+	return nil
+}
+
+// runVerify checks database schema integrity.
+func runVerify(cmd *cobra.Command, verbose, content, repair bool) error {
+	if repair && !content {
+		return fmt.Errorf("harvest verify: --repair requires --content; nothing was checked and nothing changed; re-run with `peasant harvest verify --content --repair`")
+	}
+	ctx := cmd.Context()
+	dbPath := string(defaults.ResolveDBFilePathWith(dataDirOverride(cmd)))
+
+	db, err := store.Open(dbPath)
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer func() {
+		if db != nil {
+			db.Close()
+		}
+	}()
+
+	out := cmd.OutOrStdout()
+	expectedTables := store.AllTableNames
+	if err := verifyTablePresence(out, db, dbPath, expectedTables); err != nil {
+		return err
+	}
+	// --content builds on the presence check: content verification on a
+	// database that is missing a table would report PASSED over it. It opens
+	// its own store with a writer, so this read handle closes first.
+	if content {
+		if err := db.Close(); err != nil {
+			return fmt.Errorf("close database: %w", err)
+		}
+		db = nil
+		fmt.Fprintln(out)
+		return runVerifyContent(cmd, repair)
+	}
 
 	// 4. Table Statistics
 	fmt.Fprintln(out, "\n4. Table Statistics")
