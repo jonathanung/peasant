@@ -132,6 +132,9 @@ func runWebForeground(cmd *cobra.Command, cfgPath string, port int, devMode bool
 	if err != nil {
 		return fmt.Errorf("web startup: load config %q: %w; the server stopped before opening stored history; fix the reported configuration field and retry", cfgPath, err)
 	}
+	// Apply --data-dir once, here: the web server's live config feeds its
+	// publish and reindex routes, and output.basePath is read-only there.
+	applyDataDirOverride(cmd, cfg)
 	visibility := sessionvisibility.New(cfg.Selection)
 
 	// Apply CLI overrides for mock data store
@@ -162,7 +165,7 @@ func runWebForeground(cmd *cobra.Command, cfgPath string, port int, devMode bool
 	var analyticsStore *store.Store
 	dataDir := string(defaults.ResolveDataDirPathWith(dataDirOverride(cmd)))
 	dbPath := string(defaults.ResolveDBFilePathWith(dataDirOverride(cmd)))
-	generationOptions, generationErr := generationStoreOptions(outputBasePath(cmd, cfg))
+	generationOptions, generationErr := generationStoreOptions(cfg.Output.BasePath)
 	if generationErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: cannot configure managed generation reads: %v\n", generationErr)
 		generationOptions = nil
@@ -174,7 +177,7 @@ func runWebForeground(cmd *cobra.Command, cfgPath string, port int, devMode bool
 	} else {
 		dbCloser = db.Close
 		analyticsStore = db
-		realProvider = api.NewStoreDataProvider(db, visibility, outputBasePath(cmd, cfg))
+		realProvider = api.NewStoreDataProvider(db, visibility, cfg.Output.BasePath)
 	}
 	if dbCloser != nil {
 		defer dbCloser()
@@ -204,7 +207,7 @@ func runWebForeground(cmd *cobra.Command, cfgPath string, port int, devMode bool
 	// the harvest wrote: the configured base path when set, else this data
 	// directory's peasant-sync. Resolving it here honors --data-dir, so a
 	// server started with one serves the tree its harvest wrote.
-	outputDir := outputBasePath(cmd, cfg)
+	outputDir := cfg.Output.BasePath
 	if outputDir == "" {
 		outputDir = filepath.Join(dataDir, "peasant-sync")
 	}

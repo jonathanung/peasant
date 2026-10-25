@@ -659,7 +659,7 @@ Requires either --session for a single session or --session-from-file for a batc
 			}
 			defer cleanup()
 
-			cfg, err := loadConfig(resolveConfigPath(cmd))
+			cfg, err := loadCommandConfig(cmd, resolveConfigPath(cmd))
 			if err != nil {
 				return err
 			}
@@ -676,9 +676,9 @@ Requires either --session for a single session or --session-from-file for a batc
 				var exported *schema.SessionDetailPayload
 				var exportErr error
 				if lastGood {
-					exported, exportErr = exportSessionTranscriptSelected(ctx, db, fs, sid, ingest.SessionReadSelection{LastGood: true}, outputBasePath(cmd, cfg))
+					exported, exportErr = exportSessionTranscriptSelected(ctx, db, fs, sid, ingest.SessionReadSelection{LastGood: true}, cfg.Output.BasePath)
 				} else {
-					exported, exportErr = exportSessionTranscript(ctx, db, fs, sid, outputBasePath(cmd, cfg))
+					exported, exportErr = exportSessionTranscript(ctx, db, fs, sid, cfg.Output.BasePath)
 				}
 				if exportErr != nil {
 					fmt.Fprintf(cmd.ErrOrStderr(), "warning: session %s: %v\n", sid, exportErr)

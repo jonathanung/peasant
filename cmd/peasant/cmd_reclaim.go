@@ -58,11 +58,11 @@ func BuildReclaimCommand() *cobra.Command {
 			"The database path is printed after a successful run.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfgPath := resolveConfigPath(cmd)
-			cfg, err := loadConfig(cfgPath)
+			cfg, err := loadCommandConfig(cmd, cfgPath)
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
-			ownedRoot, err := ingest.NewResolvedPath(outputBasePath(cmd, cfg))
+			ownedRoot, err := ingest.NewResolvedPath(cfg.Output.BasePath)
 			if err != nil {
 				return fmt.Errorf("resolve the owned-artifact root: %w", err)
 			}
