@@ -863,8 +863,10 @@ func printIndexProfileStage(w io.Writer, stage ingest.IndexProfileStage) {
 }
 
 // verifyTablePresence prints the schema overview and the table presence
-// check, and fails when an expected table is missing.
-func verifyTablePresence(out io.Writer, db *store.Store, dbPath string, expectedTables []string) error {
+// check, and fails when an expected table is missing. When more checks follow
+// (--content), a pass is reported for the tables only, so the one overall
+// "Status:" line is the last check's.
+func verifyTablePresence(out io.Writer, db *store.Store, dbPath string, expectedTables []string, moreChecks bool) error {
 	// Header
 	fmt.Fprintln(out, "==============================================")
 	fmt.Fprintln(out, "Peasant Database Verification")
@@ -918,6 +920,10 @@ func verifyTablePresence(out io.Writer, db *store.Store, dbPath string, expected
 		return fmt.Errorf("database verification failed: %d missing table(s)", len(missingTables))
 	}
 
+	if moreChecks {
+		fmt.Fprintln(out, "Tables: PASSED (all expected tables are present); content checks follow")
+		return nil
+	}
 	fmt.Fprintln(out, "Status: PASSED")
 	fmt.Fprintln(out, "All expected tables are present.")
 	return nil
@@ -946,7 +952,7 @@ func runVerify(cmd *cobra.Command, verbose, content, repair bool) error {
 	if err != nil {
 		return err
 	}
-	if err := verifyTablePresence(out, db, dbPath, expectedTables); err != nil {
+	if err := verifyTablePresence(out, db, dbPath, expectedTables, content); err != nil {
 		return err
 	}
 	// --content builds on the presence check: content verification on a
