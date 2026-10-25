@@ -704,19 +704,25 @@ func buildFTUEIngestRunnerWithProgress(cmd *cobra.Command, configPath string) (f
 			return nil, fmt.Errorf("pipeline failed: %w", err)
 		}
 
-		providerCounts := aggregateProviderCounts(result.Sessions)
-
-		s := result.Summary
-		return &ftue.IngestResult{
-			New:            s.New,
-			Updated:        s.Updated,
-			Unchanged:      s.Unchanged,
-			Errors:         s.Errors,
-			Duration:       result.Duration,
-			ProviderCounts: providerCounts,
-			Diagnostics:    append([]ingest.DiagnosticEntry(nil), result.Diagnostics...),
-		}, nil
+		return kickstartIngestResult(result), nil
 	}, progState
+}
+
+// kickstartIngestResult is the wizard's view of a pipeline run. Sessions the
+// selection excluded are carried as their own count so the wizard's totals
+// add up.
+func kickstartIngestResult(result *ingest.PipelineResult) *ftue.IngestResult {
+	s := result.Summary
+	return &ftue.IngestResult{
+		New:                 s.New,
+		Updated:             s.Updated,
+		Unchanged:           s.Unchanged,
+		ExcludedBySelection: s.ExcludedBySelection,
+		Errors:              s.Errors,
+		Duration:            result.Duration,
+		ProviderCounts:      aggregateProviderCounts(result.Sessions),
+		Diagnostics:         append([]ingest.DiagnosticEntry(nil), result.Diagnostics...),
+	}
 }
 
 // kickstartAllowedSessionIDs preserves the difference between unrestricted
