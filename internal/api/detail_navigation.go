@@ -113,6 +113,7 @@ func (p *StoreDataProvider) DetailReadPayload(ctx context.Context, id string) (*
 		return nil, fmt.Errorf("store adapter: detail read totals for session %s: %w", id, err)
 	}
 	withStoredTotals(detail, row)
+	detail.Turns = foldRepeatedTextTurns(detail.Turns)
 	read, err := DecorateDetailReadPayload(ctx, detail, p.ResolveStoredTargets)
 	if err != nil {
 		return nil, err
