@@ -21,10 +21,10 @@ func TestDiscoveryReportsUnreadableSourceDirectories(t *testing.T) {
 	}
 	fs := &ingest.OSFileSystem{}
 	cases := map[string]func() ingest.SourceAdapter{
-		"claude-code": func() ingest.SourceAdapter {
+		string(ingest.HarnessClaudeCode): func() ingest.SourceAdapter {
 			return ingest.NewClaudeAdapter(fs, testutil.DefaultGitResolver(), salt.Salt{})
 		},
-		"codex": func() ingest.SourceAdapter {
+		string(ingest.HarnessCodex): func() ingest.SourceAdapter {
 			return ingest.NewCodexAdapter(fs, testutil.DefaultGitResolver(), salt.Salt{})
 		},
 	}
