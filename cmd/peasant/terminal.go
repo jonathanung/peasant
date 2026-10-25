@@ -18,19 +18,12 @@ func (e noTerminalError) Error() string {
 	return fmt.Sprintf("`peasant %s` needs an interactive terminal; run it from a terminal session (to ingest without the wizard, use `peasant harvest`)", e.command)
 }
 
-// terminalAvailable reports whether a Bubble Tea program can reach a terminal:
-// either stdin is one, or the controlling terminal can be opened. It is a
-// variable so tests can simulate a detached process.
-var terminalAvailable = func() bool {
-	if term.IsTerminal(int(os.Stdin.Fd())) {
-		return true
-	}
-	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
-	if err != nil {
-		return false
-	}
-	_ = tty.Close()
-	return true
+// terminalAvailable reports whether a Bubble Tea program can both read keys
+// and draw: stdout must be a terminal (so escape codes never land in a pipe or
+// file), and input must be reachable (see inputTerminalAvailable, which is
+// platform-specific).
+func terminalAvailable() bool {
+	return term.IsTerminal(int(os.Stdout.Fd())) && inputTerminalAvailable()
 }
 
 // requireTerminal is the check every production Bubble Tea boundary runs
