@@ -1,11 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/peasant-labs/peasant/internal/ingest"
 )
 
 // TestHarvestHumanOutputNamesWhyASessionFailed proves the human summary says
@@ -37,6 +40,36 @@ func TestHarvestHumanOutputNamesWhyASessionFailed(t *testing.T) {
 		}
 		if !strings.Contains(output, "ERROR") || !strings.Contains(output, "capture JSONL record 2: malformed complete JSON") {
 			t.Errorf("harvest %v does not say why the session failed:\n%s", args, output)
+		}
+	}
+}
+
+// TestVerboseSummaryPutsEachReasonUnderItsRow proves a failure reason prints
+// directly under its own row in --verbose, before the subagent lines, and a
+// failed subagent gets its own reason line.
+func TestVerboseSummaryPutsEachReasonUnderItsRow(t *testing.T) {
+	t.Parallel()
+	root := ingest.SessionID("eeeeeeee-0000-4000-8000-000000000001")
+	child := ingest.SessionID("eeeeeeee-0000-4000-8000-000000000002")
+	result := &ingest.PipelineResult{Sessions: []ingest.SessionResult{
+		{SessionID: root, Harness: ingest.HarnessClaudeCode, Error: errors.New("root reason")},
+		{SessionID: child, Harness: ingest.HarnessClaudeCode, ParentUUID: &root, Error: errors.New("child reason")},
+	}}
+	var b strings.Builder
+	printSummary(&b, result, true, false, "", "", nil, 0)
+	var lines []string
+	for _, l := range strings.Split(b.String(), "\n") {
+		if strings.Contains(l, string(root)) || strings.Contains(l, string(child)) || strings.Contains(l, "reason") {
+			lines = append(lines, strings.TrimSpace(l))
+		}
+	}
+	want := []string{string(root), "root reason", string(child), "child reason"}
+	if len(lines) != len(want) {
+		t.Fatalf("summary lines %q, want rows and reasons in order %q:\n%s", lines, want, b.String())
+	}
+	for i, w := range want {
+		if !strings.Contains(lines[i], w) {
+			t.Fatalf("line %d = %q, want %q; order %q", i, lines[i], w, lines)
 		}
 	}
 }
