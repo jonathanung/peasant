@@ -59,7 +59,7 @@ func TestClaudeDiscoveryReportsAgentIDCollisionAcrossParents(t *testing.T) {
 	}
 	var found bool
 	for _, d := range adapter.DiscoveryDiagnostics() {
-		if d.Code == "claude_agent_id_collision" && strings.Contains(d.Location, "agent-a1b2c3d.jsonl") {
+		if d.Code == ingest.DiscoveryCodeClaudeAgentIDCollision && strings.Contains(d.Location, "agent-a1b2c3d.jsonl") {
 			found = true
 		}
 	}

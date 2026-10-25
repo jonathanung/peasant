@@ -19,6 +19,10 @@ import (
 	"github.com/peasant-labs/redact"
 )
 
+// DiscoveryCodeClaudeAgentIDCollision is the DiscoveryDiagnostic code for a
+// Claude subagent left out because another session's subagent has its id.
+const DiscoveryCodeClaudeAgentIDCollision = "claude_agent_id_collision"
+
 // ClaudeAdapter discovers and extracts metadata from Claude Code JSONL transcripts.
 type ClaudeAdapter struct {
 	diagnostics         []DiscoveryDiagnostic
@@ -316,11 +320,11 @@ func (a *ClaudeAdapter) Discover(ctx context.Context, cfg SourceConfig) ([]Disco
 				if admittedParent[entry.subagentID] != entry.parentID {
 					a.diagnostics = append(a.diagnostics, DiscoveryDiagnostic{
 						Provider: HarnessClaudeCode,
-						Code:     "claude_agent_id_collision",
+						Code:     DiscoveryCodeClaudeAgentIDCollision,
 						Location: entry.path,
 						Summary:  "subagent left out: another session's subagent has the same agent id",
 						Detail: fmt.Sprintf("subagent %s of session %s was not ingested because %s (session %s) already holds that id; "+
-							"subagent ids are not scoped to their parent yet", entry.subagentID, entry.parentID, kept, admittedParent[entry.subagentID]),
+							"discovery keeps whichever transcript it reaches first, and subagent ids are not scoped to their parent yet", entry.subagentID, entry.parentID, kept, admittedParent[entry.subagentID]),
 					})
 				}
 				continue
