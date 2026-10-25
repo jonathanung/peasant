@@ -34,8 +34,8 @@ func TestRefuseDuplicateSessionIDsScope(t *testing.T) {
 		selected func(DiscoveredSession) bool
 		refused  bool
 	}{
-		{"claude", HarnessClaudeCode, nil, true},
-		{"codex", HarnessCodex, nil, true},
+		{"claude-two-files", HarnessClaudeCode, nil, true},
+		{"codex-two-files", HarnessCodex, nil, true},
 		{"opencode-two-stores", HarnessOpenCode, nil, false},
 		{"cursor-two-paths", HarnessCursor, nil, false},
 		{"claude-deselected", HarnessClaudeCode, func(DiscoveredSession) bool { return false }, false},
