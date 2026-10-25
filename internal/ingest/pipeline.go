@@ -278,12 +278,14 @@ type indexedMeta struct {
 // Pipeline composes all ingest stages with dependency injection.
 // It is the concrete implementation of Discoverer, DiffResolver, and OrphanCleaner.
 type Pipeline struct {
-	fs       FileSystem
-	git      GitResolver
-	adapters map[Harness]AdapterFactory
-	config   PipelineConfig
-	store    SessionStore // nil = skip DB insert (backward compatible)
-	salt     salt.Salt    // per-installation HMAC salt for project hash derivation
+	// runLockPath is the WithRunLock lock file; empty takes no lock.
+	runLockPath string
+	fs          FileSystem
+	git         GitResolver
+	adapters    map[Harness]AdapterFactory
+	config      PipelineConfig
+	store       SessionStore // nil = skip DB insert (backward compatible)
+	salt        salt.Salt    // per-installation HMAC salt for project hash derivation
 
 	// generationIDs optionally assigns the installed identity of each
 	// managed generation candidate. Production leaves it nil and mints a fresh
@@ -725,6 +727,11 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("pipeline start: %w", err)
 	}
+	unlock, err := p.lockRun(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	// REINDEX mode: alternative code path that scans peasant-sync output
 	// instead of discovering from source providers.

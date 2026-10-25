@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -1422,6 +1423,7 @@ func (h *syncHandler) newIngestPipeline(progState *ingest.ProgressState, scope *
 	}
 
 	pipeline, err := ingest.NewPipeline(fs, git, ingest.DefaultAdapterRegistry, pipelineCfg,
+		ingest.WithRunLock(filepath.Join(string(h.dataDir()), ingest.RunLockFileName)),
 		ingest.WithStore(db),
 		ingest.WithMetricsStore(db),
 		ingest.WithSalt(db.InstallationSalt()),

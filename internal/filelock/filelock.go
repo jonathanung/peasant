@@ -48,3 +48,7 @@ func Acquire(path string, deadline time.Time) (ReleaseFunc, error) {
 	}
 	return release, nil
 }
+
+// IsDeadline reports whether err is Acquire giving up because the lock stayed
+// held until the deadline, as opposed to failing to open the lock file.
+func IsDeadline(err error) bool { return errors.Is(err, errDeadline) }
