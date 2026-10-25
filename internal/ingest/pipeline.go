@@ -767,6 +767,10 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 		}
 		p.reportDiagnostic(DiagnosticEntry{ErrorType: "native_discovery_unavailable", Location: "native discovery", Message: err.Error() + "; continuing maintenance of usable stored sessions", Remediation: "Restore access to the configured harness sources and retry harvest to acquire unseen native changes."})
 	}
+	allSessions, duplicateResults := refuseDuplicateSessionIDs(allSessions)
+	for _, refused := range duplicateResults {
+		p.reportDiagnostic(DiagnosticEntry{ErrorType: "duplicate_session_id", Location: string(refused.Harness) + " " + string(refused.SessionID), Message: refused.Error.Error(), Remediation: "Remove or rename one of the files and retry harvest."})
+	}
 	emitProgress(prog, ProgressEvent{Kind: KindEnd, Stage: StageDiscover, Done: len(allSessions), Total: len(allSessions)})
 	p.recordIndexProfileStage(StageDiscover, discoverProfileStart, len(allSessions), len(allSessions))
 	prepareProfileStart := time.Now()
@@ -862,6 +866,7 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 	//   skipped — unselected or unchanged captured sources: no processing.
 	//   toProcess — new or changed sources, including active sessions.
 	var sessionResults []SessionResult
+	sessionResults = append(sessionResults, duplicateResults...)
 	var indexSessions []indexedMeta // sessions to index after write
 	var toProcessEntries []DiffEntry
 	dryRunSessions := make([]SessionResult, 0, len(diffResult.Sessions))
