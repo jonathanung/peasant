@@ -47,7 +47,8 @@ func TestHarvestRefusesOneSessionIDInTwoSourceFiles(t *testing.T) {
 		t.Fatalf("harvest succeeded although two source files claim session %s:\n%s", sid, output)
 	}
 	if !strings.Contains(output, "   - 1     errors") || !strings.Contains(output, "same session id") ||
-		!strings.Contains(output, "-tmp-qa-one") || !strings.Contains(output, "-tmp-qa-two") {
+		!strings.Contains(output, "-tmp-qa-one") || !strings.Contains(output, "-tmp-qa-two") ||
+		!strings.Contains(output, "do not delete") {
 		t.Fatalf("harvest does not report the duplicate id as one failed session naming both files:\n%s", output)
 	}
 	// The run's audit outcomes must record the refusal; an unlisted reason

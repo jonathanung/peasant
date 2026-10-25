@@ -767,10 +767,6 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 		}
 		p.reportDiagnostic(DiagnosticEntry{ErrorType: "native_discovery_unavailable", Location: "native discovery", Message: err.Error() + "; continuing maintenance of usable stored sessions", Remediation: "Restore access to the configured harness sources and retry harvest to acquire unseen native changes."})
 	}
-	allSessions, duplicateResults := refuseDuplicateSessionIDs(allSessions)
-	for _, refused := range duplicateResults {
-		p.reportDiagnostic(DiagnosticEntry{ErrorType: "duplicate_session_id", Location: string(refused.Harness) + " " + string(refused.SessionID), Message: refused.Error.Error(), Remediation: "Remove or rename one of the files and retry harvest."})
-	}
 	emitProgress(prog, ProgressEvent{Kind: KindEnd, Stage: StageDiscover, Done: len(allSessions), Total: len(allSessions)})
 	p.recordIndexProfileStage(StageDiscover, discoverProfileStart, len(allSessions), len(allSessions))
 	prepareProfileStart := time.Now()
@@ -782,6 +778,12 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 			p.recordIndexProfileStage(StagePrepare, prepareProfileStart, 0, len(allSessions))
 			return nil, fmt.Errorf("pipeline prepare session filter after discovery: %w", err)
 		}
+	}
+	// After the selection is prepared, so a deselected duplicate is skipped
+	// by the selection like any other session instead of failing the run.
+	allSessions, duplicateResults := refuseDuplicateSessionIDs(p.fs, allSessions, p.config.SessionFilter)
+	for _, refused := range duplicateResults {
+		p.reportDiagnostic(DiagnosticEntry{ErrorType: "duplicate_session_id", Location: string(refused.Harness) + " " + string(refused.SessionID), Message: refused.Error.Error(), Remediation: "Move one of the files out of the harness directory (keep a copy; it may be the only one) and retry harvest."})
 	}
 
 	// Fill in the verdict on every session an EARLIER run stored, before this
