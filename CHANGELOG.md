@@ -7,6 +7,16 @@ Release, which holds the signed artifacts and checksums.
 
 ## [Unreleased]
 
+### Fixed
+- `--data-dir` now moves the peasant-sync transcript copies with the
+  database for every command (harvest, push, export, verify, reclaim,
+  migrate, kickstart, web and tui), as its help text says. Earlier
+  versions wrote those copies under the default data home instead.
+  **If you used `--data-dir` before**, the old copies stay where they
+  were. Run `peasant --data-dir <dir> harvest --force` once to copy every
+  session into `<dir>/peasant/peasant-sync`, then delete the old copies
+  under the default data home if no default-location install uses them.
+
 ## [0.13.4] - 2026-10-28
 
 ### Changed
