@@ -105,7 +105,8 @@ func (e ClaudeTranscriptEvidence) Fresh(scope ClaudeEvidenceScope, info os.FileI
 
 // ClaudeIdentityProofVersion invalidates legacy cache rows once when structural
 // identity evidence changes. Unchanged, current rows require no transcript read.
-const ClaudeIdentityProofVersion = 2
+// Version 3 re-mines rows whose cached Title came from an isMeta record.
+const ClaudeIdentityProofVersion = 3
 
 // ClaudeIdentityRecord retains only native structural coordinates, never message
 // text. Repeated session IDs describe the distribution and chain, not ownership.

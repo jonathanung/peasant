@@ -17,7 +17,7 @@ var claudeHintsTitleYAML []byte
 const (
 	claudeHintsTitleRoot     = "/claude"
 	claudeHintsTitleSession  = "11111111-1111-4111-8111-111111111111"
-	claudeHintsTitleRows     = 15
+	claudeHintsTitleRows     = 20
 	claudeHintsTitleFilePath = claudeHintsTitleRoot + "/-workspace/" + claudeHintsTitleSession + ".jsonl"
 )
 
