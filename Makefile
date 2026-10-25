@@ -78,7 +78,7 @@ web-stub:
 	@touch web/out/.gitkeep
 
 fmt-check:
-	@unformatted=$$(git ls-files -z -- '*.go' | xargs -0 gofmt -l); \
+	@unformatted=$$(git ls-files -z -- '*.go' | xargs -0 "$$(go env GOROOT)/bin/gofmt" -l); \
 	if [ -n "$$unformatted" ]; then \
 		echo "Go files not gofmt-clean (run make fmt):"; \
 		echo "$$unformatted"; \
