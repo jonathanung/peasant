@@ -64,11 +64,16 @@ func runTUI(cmd *cobra.Command, cfgPath string, mockDataStore string) error {
 	var realProvider api.DataProvider
 	dataDir := string(defaults.ResolveDataDirPathWith(dataDirOverride(cmd)))
 	dbPath := string(defaults.ResolveDBFilePathWith(dataDirOverride(cmd)))
-	if err := os.MkdirAll(dataDir, defaults.PrivateDirPerm); err == nil {
-		if db, err := store.Open(dbPath); err == nil {
-			defer db.Close()
-			realProvider = api.NewStoreDataProvider(db, visibility, cfg.Output.BasePath)
-		}
+	// A fully mocked TUI needs no database, so an open failure is kept and
+	// reported only if a section then needs the real store.
+	var openErr error
+	if err := os.MkdirAll(dataDir, defaults.PrivateDirPerm); err != nil {
+		openErr = fmt.Errorf("create the data directory %s: %w", dataDir, err)
+	} else if db, err := store.Open(dbPath); err != nil {
+		openErr = fmt.Errorf("open the analytics database %s: %w", dbPath, err)
+	} else {
+		defer db.Close()
+		realProvider = api.NewStoreDataProvider(db, visibility, cfg.Output.BasePath)
 	}
 
 	// Create progressive provider
@@ -77,6 +82,10 @@ func runTUI(cmd *cobra.Command, cfgPath string, mockDataStore string) error {
 	// Fetch sessions (TUI current takes a static list)
 	sessions, err := provider.Sessions(ctx)
 	if err != nil {
+		cmd.SilenceUsage = true
+		if openErr != nil {
+			return fmt.Errorf("tui startup: %w; check the file's permissions, or move it aside and run `peasant harvest` to rebuild it", openErr)
+		}
 		return fmt.Errorf("failed to fetch sessions: %w", err)
 	}
 
