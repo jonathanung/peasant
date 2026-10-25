@@ -10,13 +10,12 @@ note: >
   Found in #699: about 60 Local API error responses sent {"error":...} as text/plain,
   and the ones built by string concatenation broke on a quote in the message.
 rule:
-  any:
-    - pattern: http.Error($W, `$BODY`, $CODE)
-    - pattern: http.Error($W, fmt.Sprintf(`$BODY`, $$$), $CODE)
-    - pattern: http.Error($W, $A + $B, $CODE)
+  # The body is written in the call: a literal, a Sprintf, or a
+  # concatenation whose leftmost literal opens the JSON envelope.
+  pattern: http.Error($W, $BODY, $CODE)
 constraints:
   BODY:
-    regex: '^\{"error"'
+    regex: '^(fmt\.Sprintf\(\s*)?[`"]\{\\?"error'
 files:
   - "internal/api/**/*.go"
 ignore:
