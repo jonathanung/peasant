@@ -593,7 +593,18 @@ func outputHarvest(cmd *cobra.Command, execution harvestExecution, options harve
 		printIndexProfile(os.Stderr, options.indexProfiler.Snapshot())
 	}
 	if options.flags.jsonOutput {
-		return printJSON(cmd.OutOrStdout(), result)
+		if err := printJSON(cmd.OutOrStdout(), result); err != nil {
+			return err
+		}
+		// The exit code must not depend on the output format: a script that
+		// asks for JSON learns about a failed session the same way.
+		if result.Summary.Errors > 0 {
+			// Usage text would land on stdout after the document and make
+			// it unparseable.
+			cmd.SilenceUsage = true
+			return fmt.Errorf("%d session(s) failed", result.Summary.Errors)
+		}
+		return nil
 	}
 	printSummary(cmd.OutOrStdout(), result, options.flags.verbose, options.flags.includeActive, options.outputDir, options.configPath, options.sources, options.customPatternCount)
 	if remaining := result.Summary.ContentCaptureRemaining; remaining > 0 {
