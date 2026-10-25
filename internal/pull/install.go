@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/peasant-labs/peasant/internal/defaults"
 	"github.com/peasant-labs/peasant/internal/store"
+	"github.com/peasant-labs/peasant/internal/village"
 	"github.com/peasant-labs/schema"
 )
 
@@ -118,8 +119,8 @@ func (p *Pipeline) updateMetadata(ctx context.Context, host string, id schema.Tr
 	if err != nil {
 		return installError(err)
 	}
-	var old schema.PullTranscriptInfo
-	if err := json.Unmarshal(data, &old); err != nil {
+	old, err := village.DecodePullTranscriptInfo(data)
+	if err != nil {
 		return installError(err)
 	}
 	a, err := json.Marshal(old)
@@ -251,14 +252,15 @@ func (p *Pipeline) contentDigestWithMetadata(dir, metadataPath, host string, id 
 	if err != nil {
 		return "", err
 	}
-	if err := json.Unmarshal(d, &meta); err != nil {
+	if meta, err = village.DecodePullTranscriptInfo(d); err != nil {
 		return "", err
 	}
+	metaOwnerID, _ := publicPersonColumns(meta.Owner)
 	if len(b) == 0 ||
 		manifest.ManifestVersion != PullManifestVersion ||
 		manifest.TranscriptID != id || meta.TranscriptID != id ||
 		manifest.VillageHost != host || manifest.VillageURL != p.creds.VillageURL ||
-		manifest.OwnerUserID != meta.OwnerUserID ||
+		manifest.OwnerUserID != metaOwnerID ||
 		manifest.LocalSessionID != meta.LocalID || manifest.ServedBlobHash == "" {
 		return "", fmt.Errorf("validate complete pull files: manifest, metadata or blob identity does not match transcript %s; retain files and re-pull with --force", id)
 	}
@@ -304,6 +306,9 @@ func (p *Pipeline) recoverInstall(ctx context.Context, host string, id schema.Tr
 	}
 	var j installJournal
 	if err := json.Unmarshal(data, &j); err != nil {
+		return installError(err)
+	}
+	if err := normalizeJournalAnnotations(&j.Commit); err != nil {
 		return installError(err)
 	}
 	stageID, err := uuid.Parse(j.Stage)
@@ -534,8 +539,8 @@ func (p *Pipeline) validateProjectionWithMetadata(dir, metadataPath string, comm
 	if err != nil {
 		return err
 	}
-	var meta schema.PullTranscriptInfo
-	if err := json.Unmarshal(data, &meta); err != nil {
+	meta, err := village.DecodePullTranscriptInfo(data)
+	if err != nil {
 		return err
 	}
 	manifest, ok := p.storedManifest(dir)
@@ -544,8 +549,8 @@ func (p *Pipeline) validateProjectionWithMetadata(dir, metadataPath string, comm
 	}
 	annotations := make([]schema.PullAnnotation, 0, len(commit.Annotations))
 	for _, row := range commit.Annotations {
-		var a schema.PullAnnotation
-		if err := json.Unmarshal([]byte(row.Payload), &a); err != nil {
+		a, err := village.DecodePullAnnotation([]byte(row.Payload))
+		if err != nil {
 			return err
 		}
 		annotations = append(annotations, a)
@@ -619,6 +624,31 @@ func (p *Pipeline) cleanAbandonedStages(root string, transcriptID schema.Transcr
 				return installError(err)
 			}
 		}
+	}
+	return nil
+}
+
+// normalizeJournalAnnotations re-encodes each journaled annotation payload in
+// the shape this CLI writes. A journal left by an earlier CLI holds payloads
+// in the pull contract 0.2.0 shape (authorUserId/authorUsername); decoding
+// them through the same reader as a fresh pull and re-encoding makes the
+// journal compare equal to the projection rebuilt from the published files, so
+// an interrupted install from an older CLI recovers. The journaled author
+// columns are kept as written, so they must still match the payload's author
+// (for a 0.2.0 payload, the same account id and username) or the projection
+// check refuses the journal.
+func normalizeJournalAnnotations(commit *store.PullCommit) error {
+	for i := range commit.Annotations {
+		row := &commit.Annotations[i]
+		annotation, err := village.DecodePullAnnotation([]byte(row.Payload))
+		if err != nil {
+			return fmt.Errorf("read journaled annotation %s: %w", row.ContentHash, err)
+		}
+		payload, err := json.Marshal(annotation)
+		if err != nil {
+			return fmt.Errorf("re-encode journaled annotation %s: %w", row.ContentHash, err)
+		}
+		row.Payload = string(payload)
 	}
 	return nil
 }

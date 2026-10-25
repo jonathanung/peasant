@@ -286,7 +286,7 @@ func unsupportedBlobContractErr(id schema.TranscriptID, detail string) error {
 type pulledContextJSON struct {
 	TranscriptID  string                `json:"transcriptId"`
 	VillageHost   string                `json:"villageHost"`
-	OwnerUsername string                `json:"ownerUsername"`
+	OwnerUsername *string               `json:"ownerUsername"` // null when the owner was anonymous to this viewer
 	LocalID       string                `json:"localSessionId,omitempty"`
 	License       string                `json:"license,omitempty"`
 	Entries       []schema.SessionEntry `json:"entries"`
@@ -297,7 +297,7 @@ func renderPulledContextJSON(cmd *cobra.Command, id schema.TranscriptID, row *st
 	out := pulledContextJSON{
 		TranscriptID:  id.String(),
 		VillageHost:   row.VillageHost,
-		OwnerUsername: row.OwnerUsername,
+		OwnerUsername: storedOwnerJSON(row.OwnerUsername),
 		LocalID:       row.LocalSessionID,
 		License:       string(row.License),
 		Entries:       entries,
@@ -314,9 +314,7 @@ func renderPulledContextJSON(cmd *cobra.Command, id schema.TranscriptID, row *st
 func printPulledProvenanceHeader(cmd *cobra.Command, id schema.TranscriptID, row *store.PulledTranscriptRow) {
 	w := cmd.OutOrStdout()
 	fmt.Fprintf(w, "pulled transcript %s\n", id)
-	if row.OwnerUsername != "" {
-		fmt.Fprintf(w, "  owner:   @%s\n", row.OwnerUsername)
-	}
+	fmt.Fprintf(w, "  owner:   %s\n", ownerLabel(row.OwnerUsername))
 	if row.VillageHost != "" {
 		fmt.Fprintf(w, "  village: %s\n", row.VillageHost)
 	}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ import (
 	"github.com/peasant-labs/peasant/internal/store"
 	"github.com/peasant-labs/peasant/internal/store/storetest"
 	"github.com/peasant-labs/peasant/internal/testutil"
+	"github.com/peasant-labs/peasant/internal/village"
 	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite"
 	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite/sqlitex"
 	"github.com/peasant-labs/schema"
@@ -96,7 +98,7 @@ func assertInstalledContent(t *testing.T, db *store.Store, final string, reader 
 	}
 	if manifest.TranscriptID != testutil.TestTranscriptID ||
 		manifest.ServedBlobHash != schema.ComputeTranscriptHash(bytes) ||
-		manifest.OwnerUserID != reader.Meta.OwnerUserID || manifest.LocalSessionID != reader.Meta.LocalID {
+		manifest.OwnerUserID != reader.Meta.Owner.ID.String() || manifest.LocalSessionID != reader.Meta.LocalID {
 		t.Fatalf("manifest identity/hash differs: %+v", manifest)
 	}
 	if manifest.VillageURL != testVillageURL || manifest.VillageHost != testutil.TestVillageHost ||
@@ -111,7 +113,7 @@ func assertInstalledContent(t *testing.T, db *store.Store, final string, reader 
 			t.Fatal("fixture must provide annotation hash")
 		}
 		expectedHashes[*a.ContentHash] = true
-		expectedProvenance = append(expectedProvenance, pull.ManifestAnnotation{ContentHash: *a.ContentHash, AuthorUserID: a.AuthorUserID, AuthorUsername: a.AuthorUsername})
+		expectedProvenance = append(expectedProvenance, pull.ManifestAnnotation{ContentHash: *a.ContentHash, AuthorUserID: a.Author.ID.String(), AuthorUsername: a.Author.Username})
 	}
 	if !reflect.DeepEqual(manifest.Annotations, expectedProvenance) {
 		t.Fatalf("annotation provenance differs: %+v", manifest.Annotations)
@@ -150,7 +152,7 @@ func assertInstalledContent(t *testing.T, db *store.Store, final string, reader 
 			t.Fatal(err)
 		}
 		actual, ok := projection[manifest.VillageHost+"|"+*a.ContentHash]
-		expected := store.PulledAnnotationRow{VillageHost: manifest.VillageHost, ContentHash: *a.ContentHash, TranscriptID: manifest.TranscriptID, LocalSessionID: manifest.LocalSessionID, AuthorUserID: a.AuthorUserID, AuthorUsername: a.AuthorUsername, Payload: string(payload), PulledAt: manifest.PulledAt}
+		expected := store.PulledAnnotationRow{VillageHost: manifest.VillageHost, ContentHash: *a.ContentHash, TranscriptID: manifest.TranscriptID, LocalSessionID: manifest.LocalSessionID, AuthorUserID: a.Author.ID.String(), AuthorUsername: a.Author.Username, Payload: string(payload), PulledAt: manifest.PulledAt}
 		if !ok || !reflect.DeepEqual(actual, expected) {
 			t.Fatalf("stored annotation payload/authorship differs for %s: actual=%+v expected=%+v", *a.ContentHash, actual, expected)
 		}
@@ -378,6 +380,14 @@ func TestContentInstallSafety(t *testing.T) {
 				}
 				return
 			}
+			if c.Kind == "older-cli" {
+				rewriteJournalAsOlderCLI(t, journalPath, journal, stage)
+				if err := run(replacementReader(), filesystem, db, c.Force); err != nil {
+					t.Fatalf("interrupted install from an older CLI was not recovered: %v", err)
+				}
+				assertInstalledContent(t, db, final, replacementReader())
+				return
+			}
 			switch c.Target {
 			case "version":
 				journal["version"] = json.RawMessage(`99`)
@@ -433,7 +443,7 @@ func TestContentInstallSafety(t *testing.T) {
 				if err := json.Unmarshal(data, &meta); err != nil {
 					t.Fatal(err)
 				}
-				meta.OwnerUserID = "wrong-owner"
+				meta.Owner = testutil.PublicProfile("0a000000-0000-4000-8000-0000000000ff", "wrong-owner")
 				data, err = json.Marshal(meta)
 				if err != nil {
 					t.Fatal(err)
@@ -537,4 +547,75 @@ func (f *installSwapFS) Rename(src, dst string) error {
 		f.swap()
 	}
 	return f.FileSystem.Rename(src, dst)
+}
+
+// rewriteJournalAsOlderCLI turns a pending install into the one an earlier
+// CLI (pull contract 0.2.0) would have left: the staged metadata snapshot and
+// the journaled annotation payloads carry the owner and author as account
+// strings, and the journal digest covers those staged bytes.
+func rewriteJournalAsOlderCLI(t *testing.T, journalPath string, journal map[string]json.RawMessage, stage string) {
+	t.Helper()
+	metadataPath := filepath.Join(stage, pull.MetadataFilename)
+	current, err := os.ReadFile(metadataPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := village.DecodePullTranscriptInfo(current)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyMetadata, err := testutil.LegacyPullEnvelope(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(metadataPath, legacyMetadata, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var commit store.PullCommit
+	if err := json.Unmarshal(journal["commit"], &commit); err != nil {
+		t.Fatal(err)
+	}
+	if len(commit.Annotations) == 0 {
+		t.Fatal("the older-CLI journal needs an annotation to carry the 0.2.0 author shape")
+	}
+	for i := range commit.Annotations {
+		annotation, err := village.DecodePullAnnotation([]byte(commit.Annotations[i].Payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		legacy, err := testutil.LegacyPullEnvelope([]schema.PullAnnotation{annotation})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var rows []json.RawMessage
+		if err := json.Unmarshal(legacy, &rows); err != nil || len(rows) != 1 {
+			t.Fatalf("re-encode legacy annotation: %v", err)
+		}
+		if !strings.Contains(string(rows[0]), `"authorUserId"`) {
+			t.Fatalf("legacy payload lacks the 0.2.0 author strings: %s", rows[0])
+		}
+		commit.Annotations[i].Payload = string(rows[0])
+	}
+	if journal["commit"], err = json.Marshal(commit); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := os.ReadFile(filepath.Join(stage, pull.ManifestFilename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	blob, err := os.ReadFile(filepath.Join(stage, pull.TranscriptFilename))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := schema.ComputeTranscriptHash([]byte(schema.ComputeTranscriptHash(manifest) + schema.ComputeTranscriptHash(blob) + schema.ComputeTranscriptHash(legacyMetadata)))
+	if journal["digest"], err = json.Marshal(digest); err != nil {
+		t.Fatal(err)
+	}
+	data, err := json.Marshal(journal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(journalPath, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
 }

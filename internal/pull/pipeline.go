@@ -26,7 +26,7 @@ import (
 // calls it EXACTLY ONCE per run, before the FETCH stages; the four GETs are pure
 // data calls that do NOT re-preflight the pull window.
 type VillageReader interface {
-	NegotiatePull(ctx context.Context) error
+	NegotiatePull(ctx context.Context) (schema.PushContractVersion, error)
 	ListPullableTranscripts(ctx context.Context, opts village.PullListOptions) (*schema.PullListResponse, error)
 	GetPullTranscript(ctx context.Context, id schema.TranscriptID) (*schema.PullTranscriptInfo, error)
 	GetPullTranscriptContent(ctx context.Context, id schema.TranscriptID, ifNoneMatch string) (io.ReadCloser, string, error)
@@ -209,10 +209,24 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 
 	// --- NEGOTIATE (once per command; a bulk caller sets SkipNegotiate after its
 	// own single NegotiatePull) ---
+	envelope := opts.EnvelopeVersion
 	if !opts.SkipNegotiate {
-		if err := p.reader.NegotiatePull(ctx); err != nil {
+		negotiated, err := p.reader.NegotiatePull(ctx)
+		if err != nil {
 			return &PullResult{Ref: ref, Status: classifyStatus(err), VillageHost: host}, err
 		}
+		envelope = negotiated
+	} else if opts.EnvelopeVersion != "" {
+		// The caller negotiated on its own client: tell this reader which
+		// envelope to decode, so it refuses the other shape.
+		if reader, ok := p.reader.(interface {
+			SetPullEnvelope(schema.PushContractVersion)
+		}); ok {
+			reader.SetPullEnvelope(opts.EnvelopeVersion)
+		}
+	}
+	if envelope == "" {
+		envelope = defaults.PullContractVersion
 	}
 
 	pullDir := p.pullDir(host, ref.ID)
@@ -239,6 +253,7 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 		}
 		meta = fetched
 	}
+	meta = readerMeta(meta)
 
 	if !opts.DryRun {
 		if err := p.recoverInstall(ctx, host, ref.ID, opts.Force); err != nil {
@@ -265,7 +280,26 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 		storedHash = storedManifest.ServedBlobHash
 		storedETag = storedManifest.ServedETag
 	}
-	if !opts.Force &&
+	// A stored copy whose people the village now shows differently is re-pulled
+	// in full instead of taking a metadata-only update, so the manifest and the
+	// annotation provenance are rewritten and keep no identity the village no
+	// longer shows (and pick up a renamed username):
+	//   - the owner changed kind, account or username;
+	//   - an annotation author stored as a profile is now shown differently.
+	//     Only a fresh annotation read can tell, so a stored copy that names any
+	//     author re-reads its annotations here; the read is reused below.
+	refresh := opts.Force || (hasStored && storedOwnerChanged(storedManifest, meta.Owner))
+	var annotations []schema.PullAnnotation
+	annotationsRead := false
+	if !refresh && hasStored && storedHasProfileAuthor(storedManifest) {
+		read, status, err := p.readAnnotations(ctx, ref.ID, meta.Owner)
+		if err != nil {
+			return &PullResult{Ref: ref, Status: status, VillageHost: host}, err
+		}
+		annotations, annotationsRead = read, true
+		refresh = storedAuthorsChanged(storedManifest, manifestAnnotations(annotations))
+	}
+	if !refresh &&
 		storedHash != "" && meta.ContentHash != "" &&
 		storedHash == meta.ContentHash {
 		if err := p.updateMetadata(ctx, host, ref.ID, meta, opts.DryRun); err != nil {
@@ -306,7 +340,7 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 	// second DIFF path). The ETag is the transport token; the raw hash is for
 	// content identity only.
 	ifNoneMatch := ""
-	if !opts.Force {
+	if !refresh {
 		ifNoneMatch = storedETag
 	}
 	body, etag, err := p.reader.GetPullTranscriptContent(ctx, ref.ID, ifNoneMatch)
@@ -357,7 +391,7 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 	// (no ETag, no metadata ContentHash) but we already hold a byte-identical copy
 	// with the same recomputed hash, this is still up-to-date — avoid a needless
 	// rewrite. Only applies when not forcing.
-	if !opts.Force && storedHash != "" && servedHash == storedHash {
+	if !refresh && storedHash != "" && servedHash == storedHash {
 		if err := p.updateMetadata(ctx, host, ref.ID, meta, false); err != nil {
 			return &PullResult{Ref: ref, Status: PullStatusError, VillageHost: host, PullDir: pullDir}, err
 		}
@@ -371,30 +405,31 @@ func (p *Pipeline) PullTranscript(ctx context.Context, ref TranscriptRef, opts P
 		}, nil
 	}
 
-	// --- FETCH-ANNOTATIONS (to memory) ---
-	annotations, err := p.reader.GetPullTranscriptAnnotations(ctx, ref.ID)
-	if err != nil {
-		return &PullResult{Ref: ref, Status: classifyStatus(err), VillageHost: host}, err
-	}
-	if err := validatePulledAnnotations(annotations); err != nil {
-		return &PullResult{Ref: ref, Status: PullStatusError, VillageHost: host}, err
+	// --- FETCH-ANNOTATIONS (to memory; reused when the DIFF already read them) ---
+	if !annotationsRead {
+		read, status, err := p.readAnnotations(ctx, ref.ID, meta.Owner)
+		if err != nil {
+			return &PullResult{Ref: ref, Status: status, VillageHost: host}, err
+		}
+		annotations = read
 	}
 
 	now := p.clock.NowUnixMilli()
 
 	// Build the manifest + the metadata snapshot + the annotation provenance.
+	ownerID, ownerUsername := publicPersonColumns(meta.Owner)
 	manifest := PullManifest{
 		ManifestVersion:     PullManifestVersion,
 		VillageURL:          p.creds.VillageURL,
 		VillageHost:         host,
 		TranscriptID:        ref.ID,
 		LocalSessionID:      meta.LocalID,
-		OwnerUserID:         meta.OwnerUserID,
-		OwnerUsername:       meta.OwnerUsername,
+		OwnerUserID:         ownerID,
+		OwnerUsername:       ownerUsername,
 		ServedETag:          servedETag,
 		ServedBlobHash:      servedHash,
 		BlobContractVersion: meta.ContractVersion,
-		PullEnvelopeVersion: defaults.PullContractVersion,
+		PullEnvelopeVersion: envelope,
 		PulledAt:            now,
 		Annotations:         manifestAnnotations(annotations),
 	}
@@ -436,6 +471,20 @@ func (p *Pipeline) ObservePulledAssociations(ctx context.Context, result *PullRe
 		}}
 	}
 	result.AssociationMetadata = &metadata
+}
+
+// readAnnotations fetches a transcript's annotations, validates the batch at
+// the schema boundary, and returns them as this CLI may show them. On failure
+// it returns the status the caller reports.
+func (p *Pipeline) readAnnotations(ctx context.Context, id schema.TranscriptID, owner schema.VillagePublicOwner) ([]schema.PullAnnotation, PullStatus, error) {
+	annotations, err := p.reader.GetPullTranscriptAnnotations(ctx, id)
+	if err != nil {
+		return nil, classifyStatus(err), err
+	}
+	if err := validatePulledAnnotations(annotations); err != nil {
+		return nil, PullStatusError, err
+	}
+	return readerAnnotations(annotations, owner), "", nil
 }
 
 // validatePulledAnnotations applies the schema's canonical response target
@@ -504,16 +553,17 @@ func (p *Pipeline) buildCommit(host, pullDir, servedHash string, now int64, meta
 	for i := range annotations {
 		rows = append(rows, p.annotationRow(host, now, meta, &annotations[i]))
 	}
+	ownerID, ownerUsername := publicPersonColumns(meta.Owner)
 	return store.PullCommit{
 		Transcript: store.PulledTranscriptRow{
 			VillageHost:     host,
 			TranscriptID:    meta.TranscriptID,
-			OwnerUserID:     meta.OwnerUserID,
-			OwnerUsername:   meta.OwnerUsername,
+			OwnerUserID:     ownerID,
+			OwnerUsername:   ownerUsername,
 			LocalSessionID:  meta.LocalID,
 			Title:           meta.Title,
 			Harness:         meta.Harness,
-			ProjectName:     meta.ProjectName,
+			ProjectName:     projectNameColumn(meta.ProjectName),
 			ContentHash:     servedHash,
 			Visibility:      meta.Visibility,
 			License:         meta.License,
@@ -531,13 +581,14 @@ func (p *Pipeline) buildCommit(host, pullDir, servedHash string, now int64, meta
 // stored as the payload.
 func (p *Pipeline) annotationRow(host string, now int64, meta *schema.PullTranscriptInfo, a *schema.PullAnnotation) store.PulledAnnotationRow {
 	payload, _ := json.Marshal(a)
+	authorID, authorUsername := publicPersonColumns(a.Author)
 	return store.PulledAnnotationRow{
 		VillageHost:    host,
 		ContentHash:    annotationContentHash(a),
 		TranscriptID:   meta.TranscriptID,
 		LocalSessionID: meta.LocalID,
-		AuthorUserID:   a.AuthorUserID,
-		AuthorUsername: a.AuthorUsername,
+		AuthorUserID:   authorID,
+		AuthorUsername: authorUsername,
 		Payload:        string(payload),
 		PulledAt:       now,
 	}
@@ -566,10 +617,11 @@ func manifestAnnotations(annotations []schema.PullAnnotation) []ManifestAnnotati
 	out := make([]ManifestAnnotation, 0, len(annotations))
 	for i := range annotations {
 		a := &annotations[i]
+		authorID, authorUsername := publicPersonColumns(a.Author)
 		out = append(out, ManifestAnnotation{
 			ContentHash:    annotationContentHash(a),
-			AuthorUserID:   a.AuthorUserID,
-			AuthorUsername: a.AuthorUsername,
+			AuthorUserID:   authorID,
+			AuthorUsername: authorUsername,
 		})
 	}
 	return out

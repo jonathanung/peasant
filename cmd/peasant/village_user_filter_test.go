@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
+
 	"github.com/peasant-labs/peasant/internal/defaults"
 	"github.com/peasant-labs/peasant/internal/testutil"
 	"github.com/peasant-labs/schema"
@@ -29,6 +31,7 @@ type userFilterWorld struct {
 	Transcripts []struct {
 		ID          schema.TranscriptID `yaml:"id"`
 		Owner       string              `yaml:"owner"`
+		Anonymous   bool                `yaml:"anonymous"`
 		Collectives []string            `yaml:"collectives"`
 	} `yaml:"transcripts"`
 }
@@ -58,6 +61,8 @@ func (c userFilterCase) args() []string {
 		args = append(args, "list", "--local", "--json")
 	case "list-local-table":
 		args = append(args, "list", "--local")
+	case "list-table":
+		args = append(args, "list")
 	default:
 		args = append(args, "pull")
 	}
@@ -112,8 +117,11 @@ func TestVillageUserFilterFixtures(t *testing.T) {
 			for _, row := range fixture.World.Transcripts {
 				// Each contributor is a distinct village account, so the filter has
 				// more than one account to choose between.
-				server.SetPullTranscriptOwnedBy(row.ID, pullCollectiveTestBlob(t, row.ID), nil,
-					"user-"+row.Owner+"-001", row.Owner)
+				owner := schema.AnonymousVillageOwner()
+				if !row.Anonymous {
+					owner = testutil.PublicProfile(uuid.NewSHA1(uuid.NameSpaceOID, []byte(row.Owner)).String(), row.Owner)
+				}
+				server.SetPullTranscriptOwner(row.ID, pullCollectiveTestBlob(t, row.ID), nil, owner)
 				for _, name := range row.Collectives {
 					server.Share(row.ID, byName[name], schema.VillageShareStatusApproved)
 				}
@@ -157,17 +165,31 @@ func TestVillageUserFilterFixtures(t *testing.T) {
 						t.Fatal(err)
 					}
 					got = append(got, id)
+					// The JSON owner is the username, or null for an anonymous
+					// owner, never an empty string.
+					for _, world := range fixture.World.Transcripts {
+						if world.ID != id {
+							continue
+						}
+						if world.Anonymous && row.Owner != nil {
+							t.Errorf("offline JSON owner of anonymous %s = %q, want null", id, *row.Owner)
+						}
+						if !world.Anonymous && (row.Owner == nil || *row.Owner != world.Owner) {
+							t.Errorf("offline JSON owner of %s = %v, want %q", id, row.Owner, world.Owner)
+						}
+					}
 				}
 				if !sameTranscriptSet(got, c.Expect) {
 					t.Errorf("offline listing = %v, want %v", got, c.Expect)
 				}
-			case "list-local-table":
+			case "list-local-table", "list-table":
 				for _, row := range fixture.World.Transcripts {
 					if strings.Contains(out, row.ID.String()) != slices.Contains(c.Expect, row.ID) {
 						t.Errorf("unexpected presence of transcript %s in %q", row.ID, out)
 					}
+					assertTableOwnerLabel(t, out, row.ID, row.Owner, row.Anonymous)
 				}
-				if len(c.Expect) == 0 && !strings.Contains(out, "No transcripts pulled yet.") {
+				if c.Command == "list-local-table" && len(c.Expect) == 0 && !strings.Contains(out, "No transcripts pulled yet.") {
 					t.Errorf("missing empty inventory message: %q", out)
 				}
 			case "list":
@@ -194,6 +216,29 @@ func TestVillageUserFilterFixtures(t *testing.T) {
 				t.Fatalf("case %q has no assertion for command %q", c.Name, c.Command)
 			}
 		})
+	}
+}
+
+// assertTableOwnerLabel checks the OWNER cell of a transcript's table line:
+// "@name" for a profile, "anon" for an anonymous owner, and never "@" with an
+// empty name.
+func assertTableOwnerLabel(t *testing.T, out string, id schema.TranscriptID, owner string, anonymous bool) {
+	t.Helper()
+	for _, line := range strings.Split(out, "\n") {
+		if !strings.Contains(line, id.String()) {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			t.Fatalf("table line for %s has no owner cell: %q", id, line)
+		}
+		want := "@" + owner
+		if anonymous {
+			want = "anon"
+		}
+		if fields[1] != want {
+			t.Errorf("owner cell for %s = %q, want %q (line %q)", id, fields[1], want, line)
+		}
 	}
 }
 

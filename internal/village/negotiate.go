@@ -117,6 +117,30 @@ func ClassifyContract(cli, min, current schema.PushContractVersion) ContractNego
 	return NegotiationWithin
 }
 
+// NegotiatePullWindow returns the pull envelope the village serves when this
+// CLI reads it. A pull request names no version, so the village serves its
+// current envelope to every caller: the one envelope that matters is the
+// village's advertised current version, and this CLI accepts the village only
+// when that version lies inside the CLI's window [cliMin, cliCurrent]. The
+// village's own floor says what older CLIs it still claims to serve and does
+// not change what this CLI receives.
+//
+// A newer current version is refused even when the village's window reaches
+// back into the CLI's: on a 0.x contract a minor bump is not additive (pull
+// contract 0.3.0 removed the account strings 0.2.0 carried), so this CLI cannot
+// read an envelope newer than its own. ok is false when current is empty or
+// outside the window; the caller handles an unadvertised window (both bounds
+// empty) before calling.
+func NegotiatePullWindow(cliMin, cliCurrent, min, current schema.PushContractVersion) (schema.PushContractVersion, bool) {
+	if current == "" || compareSemver(current, cliMin) < 0 || compareSemver(current, cliCurrent) > 0 {
+		return "", false
+	}
+	if min != "" && compareSemver(min, current) > 0 {
+		return "", false
+	}
+	return current, true
+}
+
 // CanDowngrade reports whether this CLI can serialize the older `target`
 // contract. A MAJOR-version gap is a breaking change and is NOT downgradable;
 // same-major older targets are (additions are backward-droppable).

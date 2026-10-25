@@ -74,9 +74,19 @@ type CollectiveVillage struct {
 	failTranscriptRead   bool
 	transcriptReads      int
 	requiresNewerPeasant bool
-	collectivesStatus    int
-	repositoriesStatus   int
-	promptRequests       []schema.VillagePromptRequest
+	// legacyPullEnvelope makes the double serve pull contract 0.2.0: it
+	// advertises the [0.1.0, 0.2.0] window today's released village advertises
+	// and sends the owner and author as the ownerUserId/ownerUsername and
+	// authorUserId/authorUsername account strings.
+	legacyPullEnvelope bool
+	// legacyCollectivePeople makes the double send collective records and
+	// linked repositories as a village before Village API 0.29.0 did: a
+	// created_by account id instead of creator, and a linked_by account id
+	// string instead of a public owner.
+	legacyCollectivePeople bool
+	collectivesStatus      int
+	repositoriesStatus     int
+	promptRequests         []schema.VillagePromptRequest
 	// pullBlobs holds each pullable transcript's served blob bytes, keyed by
 	// transcript. pullAnnotations holds its authored annotations, and pullInfos
 	// holds the metadata view the listing and the single-transcript GET serve.
@@ -196,6 +206,44 @@ func (v *CollectiveVillage) RequireNewerPeasant(required bool) {
 	v.requiresNewerPeasant = required
 }
 
+// ServeLegacyPullEnvelope makes the double serve pull contract 0.2.0, the
+// envelope a village that has not adopted the public owner still serves: the
+// window [0.1.0, 0.2.0] and the owner and author account strings. False
+// restores the current envelope.
+func (v *CollectiveVillage) ServeLegacyPullEnvelope(legacy bool) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.legacyPullEnvelope = legacy
+}
+
+// ServeLegacyCollectivePeople makes the double send collective records and
+// linked repositories in the shape a village before Village API 0.29.0 sends
+// (created_by and a string linked_by). False restores the current shape.
+func (v *CollectiveVillage) ServeLegacyCollectivePeople(legacy bool) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.legacyCollectivePeople = legacy
+}
+
+// encodeCollectives writes a collective or repository answer, in the legacy
+// person shape when ServeLegacyCollectivePeople is set.
+func (v *CollectiveVillage) encodeCollectives(w http.ResponseWriter, value any) {
+	v.mu.Lock()
+	legacy := v.legacyCollectivePeople
+	v.mu.Unlock()
+	if !legacy {
+		_ = json.NewEncoder(w).Encode(value)
+		return
+	}
+	body, err := LegacyCollectivePeople(value)
+	if err != nil {
+		v.t.Errorf("encode legacy collective people: %v", err)
+		http.Error(w, `{"error":"encode"}`, http.StatusInternalServerError)
+		return
+	}
+	_, _ = w.Write(body)
+}
+
 // DeleteTranscript removes a transcript and its shares, as its owner can on
 // Village, so every later read or share change of it answers 404.
 func (v *CollectiveVillage) DeleteTranscript(transcript schema.TranscriptID) {
@@ -250,6 +298,12 @@ func (v *CollectiveVillage) SetPullTranscript(transcript schema.TranscriptID, bl
 // between. An optional localSessionID preserves the original recorded-session
 // correlation for fixtures with annotations on that session.
 func (v *CollectiveVillage) SetPullTranscriptOwnedBy(transcript schema.TranscriptID, blob []byte, annotations []schema.PullAnnotation, ownerUserID, ownerUsername string, localSessionID ...string) {
+	v.SetPullTranscriptOwner(transcript, blob, annotations, schema.NewVillagePublicProfile(schema.VillageUUID(ownerUserID), ownerUsername, nil, nil), localSessionID...)
+}
+
+// SetPullTranscriptOwner is SetPullTranscriptOwnedBy with the owner as the
+// village shows them to the caller, so a fixture can serve an anonymous owner.
+func (v *CollectiveVillage) SetPullTranscriptOwner(transcript schema.TranscriptID, blob []byte, annotations []schema.PullAnnotation, owner schema.VillagePublicOwner, localSessionID ...string) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	cp := append([]byte(nil), blob...)
@@ -259,8 +313,7 @@ func (v *CollectiveVillage) SetPullTranscriptOwnedBy(transcript schema.Transcrip
 	hash := schema.ComputeTranscriptHash(cp)
 	v.pullInfos[transcript] = schema.PullTranscriptInfo{
 		TranscriptID:    transcript,
-		OwnerUserID:     ownerUserID,
-		OwnerUsername:   ownerUsername,
+		Owner:           owner,
 		Title:           "pull title for " + transcript.String(),
 		Harness:         schema.HarnessClaudeCode,
 		Visibility:      schema.VisibilityGroup,
@@ -459,7 +512,7 @@ func (v *CollectiveVillage) serve(w http.ResponseWriter, r *http.Request) {
 		if group.Acceptance == "" {
 			group.Acceptance = schema.VillageGroupAcceptanceOpen
 		}
-		_ = json.NewEncoder(w).Encode(schema.VillageGroupDetailResponse{Group: schema.VillageGroupDetailRecord{ID: id, Name: group.Name, AcceptanceMode: group.Acceptance, DataAccess: schema.VillageGroupDataAccessMembersOnly, CreatedAt: villageDoubleTime, UpdatedAt: villageDoubleTime}})
+		v.encodeCollectives(w, schema.VillageGroupDetailResponse{Group: schema.VillageGroupDetailRecord{ID: id, Name: group.Name, Creator: villageDoubleCreator, AcceptanceMode: group.Acceptance, DataAccess: schema.VillageGroupDataAccessMembersOnly, CreatedAt: villageDoubleTime, UpdatedAt: villageDoubleTime}})
 	case r.Method == http.MethodGet && path == "/api/v1/auth/me":
 		v.mu.Lock()
 		user := v.authenticatedUser
@@ -485,6 +538,9 @@ func (v *CollectiveVillage) serve(w http.ResponseWriter, r *http.Request) {
 			ContentCapabilities:    schema.AllContentCapabilities,
 		}
 		v.mu.Lock()
+		if v.legacyPullEnvelope {
+			window.MinPullContractVersion, window.PullContractVersion = "0.1.0", "0.2.0"
+		}
 		if v.requiresNewerPeasant {
 			window.MinPushContractVersion, window.PushContractVersion = "99.0.0", "99.0.0"
 			window.MinPullContractVersion, window.PullContractVersion = "99.0.0", "99.0.0"
@@ -762,14 +818,14 @@ func (v *CollectiveVillage) listCollectives(w http.ResponseWriter) {
 			continue
 		}
 		groups = append(groups, schema.VillageUserGroup{
-			ID: collective.ID, Name: collective.Name, CreatedBy: "00000000-0000-4000-8000-000000000001",
+			ID: collective.ID, Name: collective.Name, Creator: villageDoubleCreator,
 			CreatedAt: villageDoubleTime, UpdatedAt: villageDoubleTime,
 			AcceptanceMode: collective.Acceptance, DataAccess: schema.VillageGroupDataAccessMembersOnly,
 			LinkedGithubOrg: collective.LinkedGithubOrg, TranscriptDeletionPolicy: schema.VillageTranscriptDeletionUserChoice,
 			Role: schema.VillageGroupRoleMember, MemberSince: villageDoubleTime, MemberCount: 2,
 		})
 	}
-	_ = json.NewEncoder(w).Encode(groups)
+	v.encodeCollectives(w, groups)
 }
 
 func (v *CollectiveVillage) listRepositories(w http.ResponseWriter, id schema.VillageUUID) {
@@ -790,9 +846,9 @@ func (v *CollectiveVillage) listRepositories(w http.ResponseWriter, id schema.Vi
 	repositories := make([]schema.VillageLinkedRepository, 0, len(collective.Repositories))
 	for _, fullName := range collective.Repositories {
 		owner, name, _ := strings.Cut(fullName, "/")
-		repositories = append(repositories, schema.VillageLinkedRepository{ID: "00000000-0000-4000-8000-000000000002", GroupID: id, Owner: owner, Name: name, InstallationID: 1, LinkedBy: "00000000-0000-4000-8000-000000000001"})
+		repositories = append(repositories, schema.VillageLinkedRepository{ID: "00000000-0000-4000-8000-000000000002", GroupID: id, Owner: owner, Name: name, InstallationID: 1, LinkedBy: villageDoubleCreator})
 	}
-	_ = json.NewEncoder(w).Encode(schema.VillageLinkedRepositoriesResponse{Repositories: repositories})
+	v.encodeCollectives(w, schema.VillageLinkedRepositoriesResponse{Repositories: repositories})
 }
 
 // pullableLocked reports whether the double holds pull data for the transcript
@@ -890,7 +946,10 @@ func (v *CollectiveVillage) listPullable(w http.ResponseWriter, r *http.Request)
 	if pageRows == nil {
 		pageRows = []schema.PullTranscriptInfo{}
 	}
-	_ = json.NewEncoder(w).Encode(schema.PullListResponse{Transcripts: pageRows, Page: page, Limit: limit, Total: total})
+	v.mu.Lock()
+	legacy := v.legacyPullEnvelope
+	v.mu.Unlock()
+	v.encodePull(w, schema.PullListResponse{Transcripts: pageRows, Page: page, Limit: limit, Total: total}, legacy)
 }
 
 // pullAnnotationHashesLocked returns the content-hash set the double holds for
@@ -976,6 +1035,7 @@ func (v *CollectiveVillage) pullTranscript(w http.ResponseWriter, r *http.Reques
 	anns := append([]schema.PullAnnotation(nil), v.pullAnnotations[transcript]...)
 	failContent := v.failPullContent[transcript]
 	pullable := ok && !v.public[transcript]
+	legacy := v.legacyPullEnvelope
 	if r.Method == http.MethodGet && tail == "content" {
 		v.contentCalls[transcript]++
 	}
@@ -991,7 +1051,7 @@ func (v *CollectiveVillage) pullTranscript(w http.ResponseWriter, r *http.Reques
 	}
 	switch tail {
 	case "":
-		_ = json.NewEncoder(w).Encode(info)
+		v.encodePull(w, info, legacy)
 	case "content":
 		if failContent {
 			http.Error(w, `{"error":"content unavailable"}`, http.StatusInternalServerError)
@@ -1009,12 +1069,32 @@ func (v *CollectiveVillage) pullTranscript(w http.ResponseWriter, r *http.Reques
 		if anns == nil {
 			anns = []schema.PullAnnotation{}
 		}
-		_ = json.NewEncoder(w).Encode(anns)
+		v.encodePull(w, anns, legacy)
 	default:
 		v.t.Errorf("unexpected Village pull request %s %s", r.Method, r.URL.Path)
 		http.Error(w, `{"error":"unexpected"}`, http.StatusNotFound)
 	}
 }
+
+// encodePull writes a pull response. In the legacy envelope every owner and
+// author is rewritten into the pull contract 0.2.0 account strings.
+func (v *CollectiveVillage) encodePull(w http.ResponseWriter, value any, legacy bool) {
+	if !legacy {
+		_ = json.NewEncoder(w).Encode(value)
+		return
+	}
+	body, err := LegacyPullEnvelope(value)
+	if err != nil {
+		v.t.Errorf("encode legacy pull envelope: %v", err)
+		http.Error(w, `{"error":"encode"}`, http.StatusInternalServerError)
+		return
+	}
+	_, _ = w.Write(body)
+}
+
+// villageDoubleCreator is the one person the double reports as a collective's
+// creator and a repository's linker.
+var villageDoubleCreator = schema.NewVillagePublicProfile("00000000-0000-4000-8000-000000000001", "creator", nil, nil)
 
 // villageDoubleTime is the one time the double reports for its rows.
 var villageDoubleTime = time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)

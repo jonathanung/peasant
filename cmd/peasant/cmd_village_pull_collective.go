@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/peasant-labs/peasant/internal/auth"
@@ -132,7 +134,8 @@ func runVillageTranscriptsPullCollectives(cmd *cobra.Command, db *store.Store, c
 	// whole run instead of failing transcript by transcript. A village that
 	// predates the collectives filter advertises an older window here, which is
 	// what stops this CLI from over-pulling.
-	if err := client.NegotiatePull(ctx); err != nil {
+	envelope, err := client.NegotiatePull(ctx)
+	if err != nil {
 		if ctx.Err() != nil {
 			cmd.SilenceUsage = true
 			return collectivePullCancellationError(0, 0, names, flags.User, ctx.Err())
@@ -260,10 +263,11 @@ func runVillageTranscriptsPullCollectives(cmd *cobra.Command, db *store.Store, c
 		// the window was checked. Both spare a per-transcript request.
 		meta := row
 		result, pullErr := pipeline.PullTranscript(ctx, ref, pull.PullOptions{
-			Force:         flags.Force,
-			DryRun:        flags.DryRun,
-			Meta:          &meta,
-			SkipNegotiate: true,
+			Force:           flags.Force,
+			DryRun:          flags.DryRun,
+			Meta:            &meta,
+			SkipNegotiate:   true,
+			EnvelopeVersion: envelope,
 		})
 		printPullMetadataWarning(cmd, result)
 		if err := ctx.Err(); err != nil {
@@ -371,14 +375,27 @@ func currentHeldTranscripts(ctx context.Context, db *store.Store, client *villag
 		return nil, err
 	}
 
+	listedByID := make(map[schema.TranscriptID]schema.PullTranscriptInfo, len(listed))
+	for _, row := range listed {
+		listedByID[row.TranscriptID] = row
+	}
 	current := make(map[schema.TranscriptID]store.PulledTranscriptRow)
 	for _, result := range answer.Results {
 		if !result.ContentCurrent || !result.AnnotationsCurrent {
 			continue
 		}
-		if local, ok := heldByID[result.TranscriptID]; ok {
-			current[result.TranscriptID] = local
+		local, ok := heldByID[result.TranscriptID]
+		if !ok {
+			continue
 		}
+		// The gate compares hashes, not people: a held copy whose owner or
+		// annotation authors the village may now show differently goes to the
+		// pipeline, which rewrites what it no longer shows.
+		manifest, err := os.ReadFile(filepath.Join(local.PullDir, pull.ManifestFilename))
+		if err != nil || !pull.HeldIdentityCurrent(manifest, listedByID[result.TranscriptID]) {
+			continue
+		}
+		current[result.TranscriptID] = local
 	}
 	return current, nil
 }
