@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,9 +39,34 @@ func (f *gatedWalkFS) WalkDir(root string, fn fs.WalkDirFunc) error {
 	return f.OSFileSystem.WalkDir(root, fn)
 }
 
+// waitingWarning is a slog handler that closes seen when the run lock logs
+// that it is waiting for another harvest: the wake source for the negative
+// assertion below.
+type waitingWarning struct {
+	slog.Handler
+	seen chan struct{}
+	once sync.Once
+}
+
+func (h *waitingWarning) Handle(ctx context.Context, r slog.Record) error {
+	if strings.Contains(r.Message, "another harvest is running") {
+		h.once.Do(func() { close(h.seen) })
+	}
+	return h.Handler.Handle(ctx, r)
+}
+
 // TestConcurrentHarvestsOnOneDataDirRunOneAtATime proves a second harvest on
 // the same data dir waits for the first instead of racing it.
+//
+// Not parallel: it swaps the process-wide slog default to observe the second
+// harvest's "waiting" warning, which no parallel test may share.
 func TestConcurrentHarvestsOnOneDataDirRunOneAtATime(t *testing.T) {
+	// Wrap a fresh handler: wrapping slog.Default().Handler() deadlocks
+	// (the default handler writes through log, which calls back into slog).
+	warned := &waitingWarning{Handler: slog.NewTextHandler(io.Discard, nil), seen: make(chan struct{})}
+	previous := slog.Default()
+	slog.SetDefault(slog.New(warned))
+	t.Cleanup(func() { slog.SetDefault(previous) })
 	dir := t.TempDir()
 	src := filepath.Join(t.TempDir(), "projects")
 	for i := 1; i <= 3; i++ {
@@ -79,7 +107,14 @@ func TestConcurrentHarvestsOnOneDataDirRunOneAtATime(t *testing.T) {
 		t.Fatal("first harvest never reached discovery")
 	}
 	go func() { o, e := run(); second <- outcome{o, e} }()
-	time.Sleep(2 * time.Second)
+	// Wake when the second harvest reports it is waiting on the lock: it
+	// has reached the point where, without the lock, it would walk.
+	select {
+	case <-warned.seen:
+	case <-time.After(30 * time.Second):
+		close(gate.release)
+		t.Fatal("second harvest never reported waiting for the first")
+	}
 	if walks := gate.walks.Load(); walks != 1 {
 		close(gate.release)
 		<-first

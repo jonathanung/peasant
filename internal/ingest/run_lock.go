@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -29,6 +30,18 @@ func WithRunLock(path string) PipelineOption {
 	return func(p *Pipeline) { p.runLockPath = path }
 }
 
+// ErrHarvestRunning is Run's error when WithRunLockNoWait is set and another
+// harvest holds the data dir's lock.
+var ErrHarvestRunning = errors.New("another harvest is running on this data dir")
+
+// WithRunLockNoWait makes Run fail at once with ErrHarvestRunning instead of
+// waiting when the WithRunLock lock is held. The web server uses it: a
+// request cannot show a waiting state or be cancelled while it waits, and a
+// wedged CLI harvest would block it indefinitely.
+func WithRunLockNoWait() PipelineOption {
+	return func(p *Pipeline) { p.runLockNoWait = true }
+}
+
 // lockRun takes the WithRunLock lock, waiting for a running holder with one
 // warning and honoring cancellation. A dry run writes nothing and takes none.
 func (p *Pipeline) lockRun(ctx context.Context) (func(), error) {
@@ -47,6 +60,9 @@ func (p *Pipeline) lockRun(ctx context.Context) (func(), error) {
 		}
 		if !filelock.IsDeadline(err) {
 			return nil, fmt.Errorf("pipeline start: take the harvest lock: %w", err)
+		}
+		if p.runLockNoWait {
+			return nil, fmt.Errorf("pipeline start: %w; retry when it finishes", ErrHarvestRunning)
 		}
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("pipeline start: canceled while waiting for another harvest on this data dir: %w", ctxErr)
