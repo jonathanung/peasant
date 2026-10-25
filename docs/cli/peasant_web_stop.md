@@ -10,7 +10,7 @@ peasant web stop [flags]
 
 ```
   -h, --help       help for stop
-      --port int   Port the server is listening on (default 8690)
+      --port int   Port the server is listening on (1-65535) (default 8690)
 ```
 
 ### Options inherited from parent commands

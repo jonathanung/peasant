@@ -15,7 +15,7 @@ peasant web start [flags]
   -h, --help                     help for start
       --mock-data-store string   Use mock data store (comma-separated: web,tui,api or dashboard,sessions,trends,metrics,qualitySessions)
       --no-browser               Don't auto-open browser
-      --port int                 Port to listen on (default 8690)
+      --port int                 Port to listen on (1-65535) (default 8690)
       --verbose                  Enable verbose logging (debug level)
 ```
 
