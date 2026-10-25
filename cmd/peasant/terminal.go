@@ -15,7 +15,19 @@ import (
 type noTerminalError struct{ command string }
 
 func (e noTerminalError) Error() string {
-	return fmt.Sprintf("`peasant %s` needs an interactive terminal; run it from a terminal session (to ingest without the wizard, use `peasant harvest`)", e.command)
+	msg := fmt.Sprintf("`peasant %s` needs an interactive terminal; run it from a terminal session", e.command)
+	if alt := noTerminalAlternative[e.command]; alt != "" {
+		msg += " (" + alt + ")"
+	}
+	return msg
+}
+
+// noTerminalAlternative names what to run instead of each interactive command
+// when there is no terminal.
+var noTerminalAlternative = map[string]string{
+	"kickstart": "to ingest without the wizard, use `peasant harvest`",
+	"config":    "to change settings without it, edit config.yaml; `peasant --help` shows its path under --config",
+	"tui":       "for the dashboard, sessions and trends without a terminal UI, use `peasant web`",
 }
 
 // terminalAvailable reports whether a Bubble Tea program can both read keys

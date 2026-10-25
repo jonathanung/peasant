@@ -33,7 +33,7 @@ func TestInteractiveCommandsWithoutTerminal(t *testing.T) {
 		os.Exit(0)
 	}
 	t.Parallel()
-	for _, name := range []string{"kickstart", "config", "tui"} {
+	for name, hint := range map[string]string{"kickstart": "peasant harvest", "config": "edit config.yaml", "tui": "peasant web"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			home := t.TempDir()
@@ -60,6 +60,12 @@ func TestInteractiveCommandsWithoutTerminal(t *testing.T) {
 			}
 			if !strings.Contains(got, "needs an interactive terminal") || strings.Contains(strings.ToLower(got), "tty") {
 				t.Errorf("want the one-line terminal message without the raw Bubble Tea TTY error, got:\n%s", got)
+			}
+			if !strings.Contains(got, hint) {
+				t.Errorf("want the %s-specific alternative %q, got:\n%s", name, hint, got)
+			}
+			if name != "kickstart" && strings.Contains(got, "peasant harvest") {
+				t.Errorf("%s got kickstart's harvest hint:\n%s", name, got)
 			}
 			if strings.Contains(got, "Usage:") {
 				t.Errorf("usage block printed for a missing terminal:\n%s", got)
