@@ -17,7 +17,15 @@ import (
 // serves for id.
 func harvestFixtureDetail(t *testing.T, harness, fixture, sourceSubdir, id string) *schema.SessionDetailReadPayload {
 	t.Helper()
-	dir := t.TempDir()
+	dir, configPath := harvestFixture(t, harness, fixture, sourceSubdir)
+	return fixtureDetail(t, dir, configPath, id)
+}
+
+// harvestFixture harvests one of the repo's e2e fixtures with only its harness
+// enabled and returns the data dir and config path the harvest used.
+func harvestFixture(t *testing.T, harness, fixture, sourceSubdir string) (dir, configPath string) {
+	t.Helper()
+	dir = t.TempDir()
 	src := filepath.Join(t.TempDir(), "src")
 	if err := os.CopyFS(src, os.DirFS(filepath.Join("..", "..", "internal", "e2e", "testdata", fixture))); err != nil {
 		t.Fatal(err)
@@ -30,13 +38,20 @@ func harvestFixtureDetail(t *testing.T, harness, fixture, sourceSubdir, id strin
 			sources += fmt.Sprintf("  %s: {enabled: false}\n", h)
 		}
 	}
-	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	configPath = filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte("version: 1\nsources:\n"+sources+"output:\n  basePath: "+filepath.Join(dir, "out")+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if out, err := executeHarvestCmd(t, dir, []string{"--config=" + configPath}); err != nil {
 		t.Fatalf("harvest %s: %v\n%s", fixture, err, out)
 	}
+	return dir, configPath
+}
+
+// fixtureDetail returns the session detail GET /api/v1/sessions/{id} serves
+// from a harvestFixture store.
+func fixtureDetail(t *testing.T, dir, configPath, id string) *schema.SessionDetailReadPayload {
+	t.Helper()
 	cfg, err := loadConfig(configPath)
 	if err != nil {
 		t.Fatal(err)
