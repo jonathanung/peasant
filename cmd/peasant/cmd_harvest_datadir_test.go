@@ -62,8 +62,8 @@ func TestHarvestDataDirOwnsPeasantSync(t *testing.T) {
 
 // TestRuntimeConfigFollowsDataDir proves every config loader a running
 // command reads paths from applies --data-dir once: the push/harvest run
-// loader (dry and real), the generic runtime loader, and therefore the config
-// the web server serves its publish and reindex routes from. A configured
+// loader (dry and real) and the runtime loader, which is also the loader
+// runWebForeground builds the config for its publish and reindex routes with. A configured
 // output.basePath elsewhere keeps winning, and the loader behind config
 // editing still returns the file's own value so a save never writes the
 // override into config.yaml.

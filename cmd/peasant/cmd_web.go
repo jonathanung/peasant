@@ -21,7 +21,6 @@ import (
 	"github.com/peasant-labs/peasant/internal/browser"
 	"github.com/peasant-labs/peasant/internal/config"
 	"github.com/peasant-labs/peasant/internal/defaults"
-	"github.com/peasant-labs/peasant/internal/ingest"
 	"github.com/peasant-labs/peasant/internal/mock"
 	"github.com/peasant-labs/peasant/internal/sessionvisibility"
 	"github.com/peasant-labs/peasant/internal/store"
@@ -128,13 +127,13 @@ func runWebForeground(cmd *cobra.Command, cfgPath string, port int, devMode bool
 	defer cancel()
 
 	// Load config
-	cfg, err := config.LoadForBrowsing(cfgPath, &ingest.OSFileSystem{}, &ingest.ExecGitResolver{})
+	// loadCommandConfig applies --data-dir once, here: the web server's live
+	// config feeds its publish and reindex routes, and output.basePath is
+	// read-only there.
+	cfg, err := loadCommandConfig(cmd, cfgPath)
 	if err != nil {
 		return fmt.Errorf("web startup: load config %q: %w; the server stopped before opening stored history; fix the reported configuration field and retry", cfgPath, err)
 	}
-	// Apply --data-dir once, here: the web server's live config feeds its
-	// publish and reindex routes, and output.basePath is read-only there.
-	applyDataDirOverride(cmd, cfg)
 	visibility := sessionvisibility.New(cfg.Selection)
 
 	// Apply CLI overrides for mock data store
