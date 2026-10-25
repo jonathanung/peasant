@@ -98,6 +98,9 @@ func buildKickstartCommand(deps kickstartCommandDeps) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			configPath := resolveConfigPath(cmd)
+			if confirmReset && !reset {
+				return fmt.Errorf("--confirm only applies with --reset; nothing was changed; run `peasant kickstart --reset --confirm` to reset without a prompt")
+			}
 
 			if reset {
 				if !confirmReset {

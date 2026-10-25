@@ -122,3 +122,28 @@ func TestKickstartResetPromptAnswers(t *testing.T) {
 		})
 	}
 }
+
+// TestKickstartConfirmRequiresReset proves --confirm alone is rejected before
+// anything runs, instead of being silently ignored.
+func TestKickstartConfirmRequiresReset(t *testing.T) {
+	t.Parallel()
+	deps := defaultKickstartCommandDeps()
+	reached := false
+	deps.discover = func(context.Context, string, string, *discoverySpinner) (ftue.ProviderInventory, []ftue.SessionListing, kickstart.SubagentRelation) {
+		reached = true
+		return ftue.ProviderInventory{}, nil, nil
+	}
+	root := newTestRoot()
+	root.AddCommand(buildKickstartCommand(deps))
+	root.SetIn(&bytes.Buffer{})
+	root.SetOut(&bytes.Buffer{})
+	root.SetErr(&bytes.Buffer{})
+	root.SetArgs([]string{"--data-dir", t.TempDir(), "--config-dir", t.TempDir(), "--state-dir", t.TempDir(), "kickstart", "--confirm"})
+	err := root.Execute()
+	if err == nil || !strings.Contains(err.Error(), "--confirm only applies with --reset") {
+		t.Fatalf("kickstart --confirm without --reset: err = %v", err)
+	}
+	if reached {
+		t.Fatal("kickstart --confirm without --reset started discovery")
+	}
+}

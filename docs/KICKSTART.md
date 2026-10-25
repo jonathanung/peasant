@@ -143,7 +143,11 @@ describes what the branchless rows save.
 
 `--reset` removes Peasant configuration, credentials, database, ingested data, and state before
 starting again. It lists those paths and asks for confirmation first. Without a terminal it refuses
-and removes nothing; pass `--confirm` to reset from a script. Without `--reset`, kickstart loads the resolved `--config` or `--config-dir` file and
+and removes nothing; pass `--confirm` to reset from a script. `--confirm` without `--reset` is
+rejected. After a confirmed reset kickstart starts the setup wizard, which needs a terminal, so
+`--reset --confirm` from a script removes the data and then exits 1 with the no-terminal error.
+
+Without `--reset`, kickstart loads the resolved `--config` or `--config-dir` file and
 changes that configuration. It preserves unrelated settings, custom source paths, and other loaded
 values. Kickstart does not rebuild the file from defaults or silently write a different path.
 
