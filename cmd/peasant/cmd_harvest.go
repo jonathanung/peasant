@@ -881,9 +881,12 @@ func verifyTablePresence(out io.Writer, db *store.Store, dbPath string, expected
 		return fmt.Errorf("get table names: %w", err)
 	}
 
-	schemaVersion := "v1-v20 (migrations)"
-
-	fmt.Fprintf(out, "Expected schema: %s\n", schemaVersion)
+	foundVersion, err := store.SchemaVersionAt(dbPath)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(out, "Expected schema: v%d\n", store.CurrentSchemaVersion())
+	fmt.Fprintf(out, "Found schema:    v%d\n", foundVersion)
 	fmt.Fprintf(out, "Expected tables: %d\n", len(expectedTables))
 	fmt.Fprintf(out, "Found tables:    %d\n", len(existingTables))
 
@@ -939,7 +942,10 @@ func runVerify(cmd *cobra.Command, verbose, content, repair bool) error {
 	}()
 
 	out := cmd.OutOrStdout()
-	expectedTables := store.AllTableNames
+	expectedTables, err := store.ExpectedTableNames()
+	if err != nil {
+		return err
+	}
 	if err := verifyTablePresence(out, db, dbPath, expectedTables); err != nil {
 		return err
 	}
