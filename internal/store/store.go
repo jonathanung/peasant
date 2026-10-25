@@ -321,6 +321,19 @@ type openOptions struct {
 	// count; the pipeline passes its resolved configuration so the store
 	// lanes ask the same splitter over the same knobs.
 	writeConfig *ingest.WriteConfig
+	// immutable opens a read-only store with SQLite's immutable=1 so it
+	// needs no -shm file; see WithImmutableReadOnly.
+	immutable bool
+}
+
+// WithImmutableReadOnly makes OpenReadOnlyWithOptions open the database with
+// SQLite's immutable=1, for a data directory the process cannot write. A WAL
+// database otherwise needs to create its -shm file next to the database even
+// to read, and fails with "attempt to write a readonly database". The open is
+// refused while a non-empty -wal file exists, because immutable reads would
+// skip the committed frames in it.
+func WithImmutableReadOnly() OpenOption {
+	return func(o *openOptions) { o.immutable = true }
 }
 
 // WithWriteConfig gives the store's staging and activation lanes their
