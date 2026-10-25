@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/peasant-labs/peasant/internal/defaults"
+	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite"
+	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite/sqlitex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,5 +49,25 @@ func TestHarvestRefusesOneSessionIDInTwoSourceFiles(t *testing.T) {
 	if !strings.Contains(output, "   - 1     errors") || !strings.Contains(output, "same session id") ||
 		!strings.Contains(output, "-tmp-qa-one") || !strings.Contains(output, "-tmp-qa-two") {
 		t.Fatalf("harvest does not report the duplicate id as one failed session naming both files:\n%s", output)
+	}
+	// The run's audit outcomes must record the refusal; an unlisted reason
+	// code made the whole outcome write fail.
+	conn, err := sqlite.OpenConn(string(defaults.ResolveDBFilePathWith(dir)), sqlite.OpenReadOnly)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	var reasons []string
+	if err := sqlitex.ExecuteTransient(conn, `SELECT reason_code FROM ingest_run_outcomes WHERE session_id = ?`, &sqlitex.ExecOptions{
+		Args: []any{sid},
+		ResultFunc: func(stmt *sqlite.Stmt) error {
+			reasons = append(reasons, stmt.ColumnText(0))
+			return nil
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(reasons) == 0 {
+		t.Fatalf("no audit outcome was recorded for the refused session %s", sid)
 	}
 }
