@@ -66,7 +66,7 @@ func BuildMigrateCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("load config: %w", err)
 			}
-			ownedRoot, err := ingest.NewResolvedPath(cfg.Output.BasePath)
+			ownedRoot, err := ingest.NewResolvedPath(outputBasePath(cmd, cfg))
 			if err != nil {
 				return fmt.Errorf("resolve the owned-artifact root: %w", err)
 			}

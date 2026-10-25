@@ -309,7 +309,7 @@ func runHarvestWith(cmd *cobra.Command, mode harvestMode, flags *harvestFlags, f
 		}
 	}
 
-	outputDir := cfg.Output.BasePath
+	outputDir := outputBasePath(cmd, cfg)
 	if flags.outputPath != "" {
 		outputDir = flags.outputPath
 	}

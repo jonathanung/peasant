@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/peasant-labs/peasant/internal/config"
@@ -242,4 +243,16 @@ func resolveOptionalSessionIDs(cmd *cobra.Command) ([]string, error) {
 // if they do not already exist. It is a no-op if the directory already exists.
 func ensureOutputDir(path string) error {
 	return os.MkdirAll(path, 0o755)
+}
+
+// outputBasePath returns the peasant-sync root for cmd. --data-dir promises
+// that "the DB + peasant-sync live under <data-dir>/peasant", so when the flag
+// is set and the config still carries the default output path (the one derived
+// from XDG_DATA_HOME), the root follows the flag. An output.basePath the user
+// configured elsewhere keeps winning.
+func outputBasePath(cmd *cobra.Command, cfg *config.Config) string {
+	if override := dataDirOverride(cmd); override != "" && cfg.Output.BasePath == defaults.ResolveOutputBasePath().String() {
+		return filepath.Join(string(defaults.ResolveDataDirPathWith(override)), defaults.OutputSyncSubdir)
+	}
+	return cfg.Output.BasePath
 }

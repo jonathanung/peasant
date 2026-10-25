@@ -676,9 +676,9 @@ Requires either --session for a single session or --session-from-file for a batc
 				var exported *schema.SessionDetailPayload
 				var exportErr error
 				if lastGood {
-					exported, exportErr = exportSessionTranscriptSelected(ctx, db, fs, sid, ingest.SessionReadSelection{LastGood: true}, cfg.Output.BasePath)
+					exported, exportErr = exportSessionTranscriptSelected(ctx, db, fs, sid, ingest.SessionReadSelection{LastGood: true}, outputBasePath(cmd, cfg))
 				} else {
-					exported, exportErr = exportSessionTranscript(ctx, db, fs, sid, cfg.Output.BasePath)
+					exported, exportErr = exportSessionTranscript(ctx, db, fs, sid, outputBasePath(cmd, cfg))
 				}
 				if exportErr != nil {
 					fmt.Fprintf(cmd.ErrOrStderr(), "warning: session %s: %v\n", sid, exportErr)

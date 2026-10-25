@@ -162,7 +162,7 @@ func runWebForeground(cmd *cobra.Command, cfgPath string, port int, devMode bool
 	var analyticsStore *store.Store
 	dataDir := string(defaults.ResolveDataDirPathWith(dataDirOverride(cmd)))
 	dbPath := string(defaults.ResolveDBFilePathWith(dataDirOverride(cmd)))
-	generationOptions, generationErr := generationStoreOptions(cfg.Output.BasePath)
+	generationOptions, generationErr := generationStoreOptions(outputBasePath(cmd, cfg))
 	if generationErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: cannot configure managed generation reads: %v\n", generationErr)
 		generationOptions = nil
@@ -174,7 +174,7 @@ func runWebForeground(cmd *cobra.Command, cfgPath string, port int, devMode bool
 	} else {
 		dbCloser = db.Close
 		analyticsStore = db
-		realProvider = api.NewStoreDataProvider(db, visibility, cfg.Output.BasePath)
+		realProvider = api.NewStoreDataProvider(db, visibility, outputBasePath(cmd, cfg))
 	}
 	if dbCloser != nil {
 		defer dbCloser()
@@ -204,7 +204,7 @@ func runWebForeground(cmd *cobra.Command, cfgPath string, port int, devMode bool
 	// the harvest wrote: the configured base path when set, else this data
 	// directory's peasant-sync. Resolving it here honors --data-dir, so a
 	// server started with one serves the tree its harvest wrote.
-	outputDir := cfg.Output.BasePath
+	outputDir := outputBasePath(cmd, cfg)
 	if outputDir == "" {
 		outputDir = filepath.Join(dataDir, "peasant-sync")
 	}

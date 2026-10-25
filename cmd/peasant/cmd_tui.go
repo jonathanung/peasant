@@ -67,7 +67,7 @@ func runTUI(cmd *cobra.Command, cfgPath string, mockDataStore string) error {
 	if err := os.MkdirAll(dataDir, defaults.PrivateDirPerm); err == nil {
 		if db, err := store.Open(dbPath); err == nil {
 			defer db.Close()
-			realProvider = api.NewStoreDataProvider(db, visibility, cfg.Output.BasePath)
+			realProvider = api.NewStoreDataProvider(db, visibility, outputBasePath(cmd, cfg))
 		}
 	}
 

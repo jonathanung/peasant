@@ -126,9 +126,9 @@ func buildKickstartJourneyOperations(cmd *cobra.Command, configPath string, load
 		if err != nil || creds == nil || !creds.IsValid() {
 			return nil, retrySessions(ftue.StagePublication, ids), fmt.Errorf("authenticate kickstart publication: valid peasant online credentials were not available after consent; imported sessions remain local; run 'peasant village login' and retry kickstart")
 		}
-		options, err := generationStoreOptionsReadOnly(cfg.Output.BasePath)
+		options, err := generationStoreOptionsReadOnly(outputBasePath(cmd, cfg))
 		if err != nil {
-			return nil, retrySessions(ftue.StagePublication, ids), fmt.Errorf("prepare managed readers for kickstart publication at configured output %q: %w; no publication was attempted and imported sessions remain local; repair the configured output path and retry kickstart", cfg.Output.BasePath, err)
+			return nil, retrySessions(ftue.StagePublication, ids), fmt.Errorf("prepare managed readers for kickstart publication at configured output %q: %w; no publication was attempted and imported sessions remain local; repair the configured output path and retry kickstart", outputBasePath(cmd, cfg), err)
 		}
 		db, err := store.Open(string(defaults.ResolveDBFilePathWith(dataDirOverride(cmd))), options...)
 		if err != nil {

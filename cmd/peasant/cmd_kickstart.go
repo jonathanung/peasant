@@ -637,7 +637,7 @@ func buildFTUEIngestRunnerWithProgress(cmd *cobra.Command, configPath string) (f
 
 		sources := ftueSources(cfg, answers)
 
-		outputPath := cfg.Output.BasePath
+		outputPath := outputBasePath(cmd, cfg)
 		if outputPath == "" {
 			outputPath = string(defaults.ResolveDataDirPathWith(dataDirOverride(cmd)))
 		}
