@@ -153,31 +153,38 @@ are replayed once through the ordinary push candidate path.
 | `peasant sessions tag remove <session> <tag>` | Remove a tag from a session |
 | `peasant sessions tag list <session>` | List all tags for a session |
 
-### `peasant ingest verify` flags
+### `peasant harvest verify` flags
+
+(`peasant ingest verify` is a hidden alias.)
 
 | Flag | Description |
 |------|-------------|
 | `--verbose` | Show sample data from each table |
+| `--content` | Verify session content objects and the search index |
+| `--repair` | Mark content corruptions found by `--content` for the repair activation (requires `--content`) |
 
-### `peasant ingest` flags
+### `peasant harvest` flags
+
+(`peasant ingest` is a hidden alias and takes the same flags.)
 
 | Flag | Description |
 |------|-------------|
-| `--dry-run` | Show what would be ingested without writing |
-| `--force` | Re-ingest all sessions (respects staleness) |
-| `--include-active` | Also ingest sessions still being written |
+| `--dry-run` | Show what would be processed without writing |
+| `--force` | Force re-process sessions that match current filters |
+| `--all` | Process ALL sessions (clears filters, implies `--force`) |
 | `--session <ids>` | Filter to specific session IDs (repeatable, comma-separated). Overrides the selection index. |
 | `--since <duration>` | Filter to sessions from the last N period (e.g. `2w`, `3m`, `7d`) |
-| `--source-harness <h>` | Override source harness (`claude-code`, `opencode`, `codex`, `cursor`, `strike`) |
-| `--source-path <path>` | Override source path for the provider (replaces config, not additive) |
+| `--source-harness <h>` | Override source harness (`claude-code`, `opencode`, `codex`, `cursor`, `strike`, `pi`) |
+| `--source-path <path>` | Override source paths for the harness (replaces config, not additive) |
 | `--output <path>` | Override output base path |
 | `--json` | Output as JSON instead of human-readable |
-| `--verbose` | Show file-level detail with subagent expansion |
-| `--reindex` | Re-process sessions with stale or missing index data |
+| `--verbose` | Show file-level detail |
+| `--profile-index` | Print INDEX parse/write timing diagnostics |
 | `--detect-commits` | Detect and store git commits linked to each session (default on; pass `--detect-commits=false` to skip) |
-| `--config <path>` | Path to config file |
+| `--include-active` | Deprecated and has no effect: active sessions are processed by default |
+| `--config <path>` | Path to config file (global flag) |
 
-When a selection index is configured (via `peasant kickstart`), ingest automatically filters to only
+When a selection index is configured (via `peasant kickstart`), harvest automatically filters to only
 the selected projects, branches, and sessions. The `--session` flag overrides this filter.
 
 ### `peasant web start` flags
