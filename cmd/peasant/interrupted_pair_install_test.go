@@ -188,7 +188,7 @@ func runInstallCommand(t *testing.T, w installWorld, command string, filesystem 
 	root.SetArgs(w.args(command))
 	// A failed session still prints the full JSON document; the command then
 	// exits non-zero for it, which the callers assert through result.Sessions.
-	if err := root.Execute(); err != nil && !strings.HasSuffix(err.Error(), "session(s) failed") {
+	if err := root.Execute(); err != nil && !errors.Is(err, errSessionsFailed) {
 		t.Fatalf("mounted %s: %v\n%s\n%s", command, err, &out, &diagnostics)
 	}
 	var result jsonPipelineResult
