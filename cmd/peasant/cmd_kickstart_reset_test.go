@@ -25,6 +25,12 @@ func seedResetFixture(t *testing.T) (dataDir, configDir, stateDir string, paths 
 	paths = []string{
 		defaults.ResolveConfigFilePathWith(configDir).String(),
 		string(defaults.ResolveDBFilePathWith(dataDir)),
+		// SQLite sidecars a killed process leaves behind (for example
+		// `peasant sessions list | head` dying of SIGPIPE). A stale WAL left
+		// beside the next, fresh database could be replayed into it.
+		string(defaults.ResolveDBFilePathWith(dataDir)) + "-wal",
+		string(defaults.ResolveDBFilePathWith(dataDir)) + "-shm",
+		string(defaults.ResolveDBFilePathWith(dataDir)) + "-journal",
 		filepath.Join(string(defaults.ResolveDataDirPathWith(dataDir)), "peasant-sync", "proj", "s1", "s1--transcript.jsonl"),
 		filepath.Join(string(defaults.ResolveStateDirPathWith(stateDir)), "web-18690.pid"),
 	}

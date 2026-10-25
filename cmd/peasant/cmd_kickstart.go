@@ -254,7 +254,7 @@ func promptKickstartReset(w io.Writer, r io.Reader, targets kickstartResetTarget
 	fmt.Fprintln(w, "kickstart --reset permanently removes:")
 	fmt.Fprintf(w, "  config:       %s\n", targets.config)
 	fmt.Fprintln(w, "  credentials:  the saved village login")
-	fmt.Fprintf(w, "  database:     %s\n", targets.database)
+	fmt.Fprintf(w, "  database:     %s (and its -wal, -shm and -journal files)\n", targets.database)
 	fmt.Fprintf(w, "  peasant-sync: %s\n", targets.sync)
 	fmt.Fprintf(w, "  state:        %s\n", targets.state)
 	fmt.Fprint(w, "Reset everything? [y/N]: ")
@@ -277,8 +277,13 @@ func resetAll(cmd *cobra.Command, configPath string) error {
 
 	// 3. Database file.
 	dbPath := string(defaults.ResolveDBFilePathWith(dataDirOverride(cmd)))
-	if err := removeIfExists(dbPath); err != nil {
-		return fmt.Errorf("reset database: %w", err)
+	// Its SQLite sidecars go too: a process killed mid-read (for example
+	// `peasant sessions list | head`) leaves -wal/-shm behind, and a stale WAL
+	// beside the next, fresh database could be replayed into it.
+	for _, path := range []string{dbPath, dbPath + "-wal", dbPath + "-shm", dbPath + "-journal"} {
+		if err := removeIfExists(path); err != nil {
+			return fmt.Errorf("reset database: %w", err)
+		}
 	}
 
 	// 4. Peasant-sync directory (ingested transcripts + metadata).
