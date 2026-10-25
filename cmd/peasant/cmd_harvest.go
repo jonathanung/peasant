@@ -1476,6 +1476,9 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 		statusStr := sr.Status.String()
 		if sr.Error != nil {
 			statusStr = "error"
+			// Name the reason under the row; without it the human output gave
+			// only "ERROR <harness> <id>" and the cause was in --json alone.
+			defer fmt.Fprintf(w, "  %-10s %v\n", "", sr.Error)
 		}
 
 		if verbose {
