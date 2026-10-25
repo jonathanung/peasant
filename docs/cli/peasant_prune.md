@@ -13,9 +13,9 @@ peasant prune [flags]
 ### Options
 
 ```
-      --after string      Prune sessions started after this date (YYYY-MM-DD)
+      --after string      Prune sessions started after this time (Nh, Nd, Nw, Nm (months), Ny, or YYYY-MM-DD)
       --all               Prune all sessions
-      --before string     Prune sessions started before this date (YYYY-MM-DD)
+      --before string     Prune sessions started before this time (Nh, Nd, Nw, Nm (months), Ny, or YYYY-MM-DD)
       --confirm           Skip interactive confirmation (for scripts/CI)
       --dry-run           Show what would be deleted without deleting
       --harness string    Prune sessions by harness (claude-code, gemini-cli, codex, opencode)

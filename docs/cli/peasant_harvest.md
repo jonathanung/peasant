@@ -24,7 +24,7 @@ peasant harvest [flags]
       --output string           Override output base path
       --profile-index           Print INDEX parse/write timing diagnostics
       --session strings         Filter to specific session IDs (repeatable, comma-separated)
-      --since string            Filter to sessions from the last N period (e.g. 2w, 3m, 7d)
+      --since string            Only sessions newer than this (Nh, Nd, Nw, Nm (months), Ny, or YYYY-MM-DD)
       --source-harness string   Override source harness (claude-code, opencode, codex, cursor, strike, pi)
       --source-path string      Override source paths for the harness (replaces config, not additive)
       --verbose                 Show file-level detail
