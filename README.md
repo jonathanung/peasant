@@ -38,14 +38,16 @@ Or download a `peasant_<version>_<os>_<arch>.tar.gz` archive, verify it against
 # Enter the dev shell (provides Go toolchain, gopls, staticcheck, delve)
 nix develop
 
-# Build the binary
+# Build the binary. make build also builds the embedded web dashboard, so it
+# needs pnpm 11.24.0 (web/package.json "packageManager") and runs a full
+# Next.js build. go build ./cmd/peasant builds the CLI alone.
 make build          # outputs peasant
 
 # Run the first-time setup wizard
 peasant kickstart
 
-# Ingest sessions from all configured providers
-peasant ingest
+# Harvest sessions from all configured harnesses
+peasant harvest
 
 # Start the web dashboard (background, auto-opens browser)
 peasant web start
@@ -75,8 +77,8 @@ privacy boundaries, and recovery behavior.
 
 | Command | Description |
 |---------|-------------|
-| `peasant ingest` | Run the data ingestion pipeline |
-| `peasant ingest verify` | Verify database schema integrity |
+| `peasant harvest` | Run the data ingestion pipeline (`peasant ingest` is a hidden alias) |
+| `peasant harvest verify` | Verify database schema integrity |
 | `peasant village push` | Push ingested transcripts + annotations to the Peasant village (incremental — server-manifest skip-gate + retraction; see [flags](#peasant-village-push-flags)) |
 | `peasant village auto` | Publish this repository's sessions on every `git push`, redacted and private, to the collectives you published to last: saves an auto-publish rule in `hooks.yaml` (see [the network reference](docs/NETWORK.md#6-hook-triggered-push)) and installs the pre-push hook here |
 | `peasant login` / `peasant logout` | Authenticate with / disconnect from the village |
@@ -261,7 +263,7 @@ in the bestiary migration; temporary `LegacyHarness*` deprecation shims remain u
 
 ## Ingest pipeline
 
-`peasant ingest` runs a 9-stage pipeline (`internal/ingest/pipeline.go`):
+`peasant harvest` runs a 9-stage pipeline (`internal/ingest/pipeline.go`):
 
 ```
 DISCOVER -> DIFF -> FILTER -> EXTRACT+WRITE -> DB INSERT -> INDEX -> COMPUTE -> CLEANUP -> REPORT
@@ -940,7 +942,7 @@ var migrations = []Migration{
 Run verification after migrations:
 
 ```bash
-./peasant ingest verify
+./peasant harvest verify
 ```
 
 ### Database verification

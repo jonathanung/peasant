@@ -52,7 +52,7 @@ peasant village push [flags]
       --annotation-hash stringArray   Only push annotations with these content hashes (repeatable; default: all).
       --annotation-id stringArray     Only push these annotation IDs (repeatable; default: all). Counterpart to the share wizard's label selection.
       --auto-publish-event string     Require consent for this hook event (post-commit or pre-push)
-      --concurrency int               Number of parallel uploads and HTTP connection-pool size. Must be >= 1. Overrides push.concurrency in config. Default: max(1, NumCPU/2) (tuned for steady-state re-push). For a one-time large COLD push, use ~22 to saturate the peasant online pool toward the <5s target.
+      --concurrency int               Number of parallel uploads and HTTP connection-pool size. Must be >= 1. Overrides push.concurrency in config. Default: max(1, NumCPU/2) (tuned for steady-state re-push). For a one-time large COLD push, raise it to about 2x NumCPU to scale toward peasant online's capacity.
       --dry-run                       Show what would be pushed without uploading
       --force                         Re-push all sessions (including already-pushed ones)
   -h, --help                          help for push
