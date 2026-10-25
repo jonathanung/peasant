@@ -306,8 +306,16 @@ func (s *Server) Listen(ctx context.Context) error {
 			fallback.ServeHTTP(w, r)
 			return
 		}
+		if allow := allowedAPIMethods(mux, r); len(allow) > 0 {
+			w.Header().Set(defaults.HeaderAllow, strings.Join(allow, ", "))
+			writeJSONError(w, http.StatusMethodNotAllowed, fmt.Sprintf("%s does not serve %s; it serves %s", r.URL.Path, r.Method, strings.Join(allow, ", ")))
+			return
+		}
 		writeJSONError(w, http.StatusNotFound, fmt.Sprintf("no API route serves %s %s; check the path against the routes this server version exposes", r.Method, r.URL.Path))
 	})
+	// A bare /api keeps the dashboard page, as before the /api/ handler
+	// existed, instead of the mux's redirect to /api/.
+	mux.Handle("/api", fallback)
 
 	s.server = &http.Server{
 		Handler: requestLogger(localRequestGuard(mux)),
@@ -981,4 +989,22 @@ func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		return hj.Hijack()
 	}
 	return nil, nil, fmt.Errorf("underlying ResponseWriter does not implement http.Hijacker")
+}
+
+// apiRouteMethods are the methods allowedAPIMethods probes.
+var apiRouteMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete}
+
+// allowedAPIMethods lists the methods a registered API route serves for the
+// request's path, or none when only the /api/ catch-all matches it. The
+// catch-all wins over the mux's own 405 because it matches every method.
+func allowedAPIMethods(mux *http.ServeMux, r *http.Request) []string {
+	var allow []string
+	for _, method := range apiRouteMethods {
+		probe := r.Clone(r.Context())
+		probe.Method = method
+		if _, pattern := mux.Handler(probe); pattern != "/api/" && pattern != "/" && pattern != "" {
+			allow = append(allow, method)
+		}
+	}
+	return allow
 }
