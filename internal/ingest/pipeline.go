@@ -113,7 +113,7 @@ type PipelineSummary struct {
 	Unchanged            int
 	// ExcludedBySelection counts sessions the saved selection left out. They
 	// are not "unchanged": nothing has stored them.
-	ExcludedBySelection int `json:"excluded_by_selection,omitempty"`
+	ExcludedBySelection int
 	Active              int
 	Errors              int
 	Indexed             int                           // sessions successfully indexed into session_entries
@@ -4549,12 +4549,14 @@ func (p *Pipeline) indexComputeAndFinalize(
 	if p.logger != nil {
 		finishedAt := time.Now().UnixMilli()
 		logEntry := IngestLogEntry{
-			Outcomes:          p.runOutcomes(sessionResults, finishedAt),
-			StartedAt:         start.UnixMilli(),
-			FinishedAt:        &finishedAt,
-			SessionsNew:       pipelineResult.Summary.New,
-			SessionsUpdated:   pipelineResult.Summary.Updated,
-			SessionsUnchanged: pipelineResult.Summary.Unchanged,
+			Outcomes:        p.runOutcomes(sessionResults, finishedAt),
+			StartedAt:       start.UnixMilli(),
+			FinishedAt:      &finishedAt,
+			SessionsNew:     pipelineResult.Summary.New,
+			SessionsUpdated: pipelineResult.Summary.Updated,
+			// The stored log keeps its meaning: excluded sessions stay in
+			// unchanged so a run's stored counts add up to its session total.
+			SessionsUnchanged: pipelineResult.Summary.Unchanged + pipelineResult.Summary.ExcludedBySelection,
 			SessionsError:     pipelineResult.Summary.Errors,
 			IndexedCount:      pipelineResult.Summary.Indexed,
 			ComputedCount:     pipelineResult.Summary.Computed,

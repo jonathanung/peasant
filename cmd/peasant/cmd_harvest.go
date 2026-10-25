@@ -1286,6 +1286,9 @@ type jsonSessionResult struct {
 	Status     string           `json:"status"`
 	OutputPath string           `json:"outputPath,omitempty"`
 	Error      string           `json:"error,omitempty"`
+	// ExcludedBySelection marks a session the saved selection left out; its
+	// status stays "unchanged" for existing consumers.
+	ExcludedBySelection bool `json:"excludedBySelection"`
 }
 
 // printJSON outputs the pipeline result as JSON.
@@ -1300,10 +1303,11 @@ func printJSON(w io.Writer, result *ingest.PipelineResult) error {
 	}
 	for _, sr := range result.Sessions {
 		js := jsonSessionResult{
-			SessionID:  sr.SessionID,
-			Provider:   sr.Harness,
-			Status:     sr.Status.String(),
-			OutputPath: sr.OutputPath,
+			SessionID:           sr.SessionID,
+			Provider:            sr.Harness,
+			Status:              sr.Status.String(),
+			ExcludedBySelection: sr.ExcludedBySelection,
+			OutputPath:          sr.OutputPath,
 		}
 		if sr.Error != nil {
 			js.Error = sr.Error.Error()
