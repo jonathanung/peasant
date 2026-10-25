@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -16,6 +17,9 @@ import (
 // discovery name a directory they could not read instead of silently
 // reporting fewer sessions.
 func TestDiscoveryReportsUnreadableSourceDirectories(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 000 does not deny directory access on Windows")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("root can read a mode-000 directory")
 	}
