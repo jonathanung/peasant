@@ -54,9 +54,10 @@ func (s *Store) QueryPrunableSessions(ctx context.Context, filter ingest.PruneFi
 			}
 			conditions = append(conditions, "s.session_id IN ("+strings.Join(placeholders, ",")+")") //nolint:gocritic
 		}
-		if filter.ProjectHash != nil {
-			conditions = append(conditions, "s.project_hash = ?")
-			args = append(args, *filter.ProjectHash)
+		if filter.Project != nil {
+			cond, condArgs := pruneProjectMatch(*filter.Project)
+			conditions = append(conditions, cond)
+			args = append(args, condArgs...)
 		}
 		if filter.Harness != nil {
 			conditions = append(conditions, "s.model_harness = ?")
@@ -255,4 +256,23 @@ func (s *Store) PruneSessions(ctx context.Context, sessionIDs []ingest.SessionID
 	}
 
 	return ingest.PruneResult{Deleted: deleted}, nil
+}
+
+// pruneProjectMatch matches a project the way a person names it: its hash, its
+// path, its directory name, or its git remote (host/owner/repo, owner/repo,
+// repo, or any clone URL form). Unlike sessions list --project it never
+// matches a substring, because prune deletes what matches: "test" must not
+// select "contest". Names compare case-insensitively.
+func pruneProjectMatch(id string) (string, []any) {
+	remote := ingest.NormalizeRemoteForMatch(id)
+	if remote == "" {
+		remote = id
+	}
+	slashID := "/" + strings.TrimSuffix(strings.TrimSuffix(id, "/"), ".git")
+	return "(s.project_hash = ?" +
+			" OR p.canonical_cwd = ?" +
+			" OR LOWER(SUBSTR(p.canonical_cwd, LENGTH(p.canonical_cwd) - LENGTH(?) + 1)) = LOWER(?)" +
+			" OR LOWER(p.canonical_remote) = LOWER(?)" +
+			" OR LOWER(SUBSTR(p.canonical_remote, LENGTH(p.canonical_remote) - LENGTH(?) + 1)) = LOWER(?))",
+		[]any{id, id, slashID, slashID, remote, slashID, slashID}
 }
