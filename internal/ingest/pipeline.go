@@ -111,13 +111,16 @@ type PipelineSummary struct {
 	New                  int
 	Updated              int
 	Unchanged            int
-	Active               int
-	Errors               int
-	Indexed              int                           // sessions successfully indexed into session_entries
-	Computed             int                           // sessions whose metrics were (re)computed
-	StoreError           error                         // non-nil if DB insert failed; pipeline continued normally
-	HarvesterVersions    map[Harness]HarvesterVersions // current targets, not successful per-session producer stamps
-	MetadataVersion      int                           // CurrentSchemaVersion used this run
+	// ExcludedBySelection counts sessions the saved selection left out. They
+	// are not "unchanged": nothing has stored them.
+	ExcludedBySelection int `json:"excluded_by_selection,omitempty"`
+	Active              int
+	Errors              int
+	Indexed             int                           // sessions successfully indexed into session_entries
+	Computed            int                           // sessions whose metrics were (re)computed
+	StoreError          error                         // non-nil if DB insert failed; pipeline continued normally
+	HarvesterVersions   map[Harness]HarvesterVersions // current targets, not successful per-session producer stamps
+	MetadataVersion     int                           // CurrentSchemaVersion used this run
 	// ReminedEvidenceRecords is how many cached discovery evidence records this
 	// run had to mine again. It is greater than zero on the first run after an
 	// upgrade that added a field the cached records do not carry, and zero on
@@ -155,6 +158,9 @@ type SessionResult struct {
 	Status     DiffStatus // Classified status from diff phase; does NOT change on processing error.
 	OutputPath string     // Final output directory (empty for dry-run, skipped, or error).
 	Error      error      // non-nil if processing failed; check Error before trusting Status.
+	// ExcludedBySelection marks a session the saved selection left out. Its
+	// Status stays DiffUnchanged for callers that only skip it.
+	ExcludedBySelection bool
 	// Prevent the same invocation's stale-index sweep from bypassing a failed
 	// reconciliation. This is execution state, not a serialized success marker.
 	mirrorPending bool
@@ -851,6 +857,20 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 			Status:     status,
 		})
 	}
+	excludeBySelection := func(entry DiffEntry) {
+		excluded := SessionResult{
+			SessionID:           entry.Session.SessionID,
+			Harness:             entry.Session.Harness,
+			ParentUUID:          entry.Session.ParentUUID,
+			Status:              DiffUnchanged,
+			ExcludedBySelection: true,
+		}
+		if p.config.DryRun {
+			dryRunSessions = append(dryRunSessions, excluded)
+		}
+		sessionResults = append(sessionResults, excluded)
+		emitAdvance(prog, StageFilter, 1, len(diffResult.Sessions))
+	}
 
 	// Track which root sessions passed the selection filter so subagents
 	// can inherit their parent's fate (rejected parent → rejected children).
@@ -876,14 +896,7 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 		// Exact child denials take precedence over inherited parent admission.
 		// The callback is lookup-only over the cohort prepared after discovery.
 		if p.config.SessionExclusionFilter != nil && p.config.SessionExclusionFilter(entry.Session) {
-			recordDryRun(entry, DiffUnchanged)
-			sessionResults = append(sessionResults, SessionResult{
-				SessionID:  entry.Session.SessionID,
-				Harness:    entry.Session.Harness,
-				ParentUUID: entry.Session.ParentUUID,
-				Status:     DiffUnchanged,
-			})
-			advanceFilter()
+			excludeBySelection(entry)
 			continue
 		}
 
@@ -898,38 +911,17 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 		if p.config.SessionFilter != nil {
 			if IndependentAdmissionHarness(entry.Session.Harness) {
 				if !p.config.SessionFilter(entry.Session) {
-					recordDryRun(entry, DiffUnchanged)
-					sessionResults = append(sessionResults, SessionResult{
-						SessionID:  entry.Session.SessionID,
-						Harness:    entry.Session.Harness,
-						ParentUUID: entry.Session.ParentUUID,
-						Status:     DiffUnchanged,
-					})
-					advanceFilter()
+					excludeBySelection(entry)
 					continue
 				}
 			} else if entry.Session.ParentUUID == nil {
 				if !p.config.SessionFilter(entry.Session) {
-					recordDryRun(entry, DiffUnchanged)
-					sessionResults = append(sessionResults, SessionResult{
-						SessionID:  entry.Session.SessionID,
-						Harness:    entry.Session.Harness,
-						ParentUUID: entry.Session.ParentUUID,
-						Status:     DiffUnchanged,
-					})
-					advanceFilter()
+					excludeBySelection(entry)
 					continue
 				}
 				filterPassedParents[entry.Session.SessionID] = true
 			} else if !filterPassedParents[*entry.Session.ParentUUID] {
-				recordDryRun(entry, DiffUnchanged)
-				sessionResults = append(sessionResults, SessionResult{
-					SessionID:  entry.Session.SessionID,
-					Harness:    entry.Session.Harness,
-					ParentUUID: entry.Session.ParentUUID,
-					Status:     DiffUnchanged,
-				})
-				advanceFilter()
+				excludeBySelection(entry)
 				continue
 			}
 		}
@@ -1054,6 +1046,10 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 		result.Summary.OriginResolve = p.originResolve
 		result.Summary.OriginResolveError = p.originResolveErr
 		for _, session := range dryRunSessions {
+			if session.ExcludedBySelection {
+				result.Summary.ExcludedBySelection++
+				continue
+			}
 			switch session.Status {
 			case DiffNew:
 				result.Summary.New++
@@ -4527,6 +4523,10 @@ func (p *Pipeline) indexComputeAndFinalize(
 	for _, sr := range sessionResults {
 		if sr.Error != nil {
 			pipelineResult.Summary.Errors++
+			continue
+		}
+		if sr.ExcludedBySelection {
+			pipelineResult.Summary.ExcludedBySelection++
 			continue
 		}
 		switch sr.Status {

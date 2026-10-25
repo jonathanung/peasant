@@ -1363,7 +1363,7 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 	fmt.Fprintln(w)
 
 	s := result.Summary
-	total := s.New + s.Updated + s.Unchanged + s.Active + s.Errors
+	total := s.New + s.Updated + s.Unchanged + s.ExcludedBySelection + s.Active + s.Errors
 
 	// Distinguish debounced active sessions from explicitly included ones.
 	activeLabel := "(debounced)"
@@ -1374,6 +1374,9 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 	fmt.Fprintf(w, "   - %-5d new\n", s.New)
 	fmt.Fprintf(w, "   - %-5d updated\n", s.Updated)
 	fmt.Fprintf(w, "   - %-5d unchanged\n", s.Unchanged)
+	if s.ExcludedBySelection > 0 {
+		fmt.Fprintf(w, "   - %-5d excluded by selection (run `peasant config` to choose which projects to ingest)\n", s.ExcludedBySelection)
+	}
 	fmt.Fprintf(w, "   - %-5d errors\n", s.Errors)
 	fmt.Fprintf(w, "   - %-5d active %s\n", s.Active, activeLabel)
 	fmt.Fprintf(w, "duration: %s\n", result.Duration.Round(100*time.Millisecond))
