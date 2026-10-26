@@ -58,3 +58,49 @@ func TestPruneProjectAcceptsSessionsListIdentifiers(t *testing.T) {
 		}
 	}
 }
+
+// TestPruneProjectRefusesAnAmbiguousName proves a --project name that two
+// projects share is refused with both candidates listed, instead of pruning
+// both, and that path matches are case-sensitive.
+func TestPruneProjectRefusesAnAmbiguousName(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	seedPruneTestSessions(t, dir)
+	const other = "2222222222222222222222222222222222222222222222222222222222222222"
+	db, err := openPreparedStore(t, string(defaults.ResolveDBFilePathWith(dir)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := db.Pool().Take(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = sqlitex.ExecuteScript(conn, `
+CREATE TEMP TABLE copy AS SELECT * FROM projects WHERE project_hash = '`+pruneTestProject+`';
+UPDATE copy SET project_hash = '`+other+`', canonical_cwd = '/home/qb/app';
+INSERT INTO projects SELECT * FROM copy;
+UPDATE projects SET canonical_cwd = '/home/qa/app' WHERE project_hash = '`+pruneTestProject+`';
+UPDATE sessions SET project_hash = '`+other+`' WHERE session_id = '`+pruneTestSessionB+`';
+`, nil)
+	db.Pool().Put(conn)
+	db.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	out, _, err := executePruneCmd(t, dir, []string{"--project", "app", "--dry-run"})
+	if err == nil || !strings.Contains(err.Error(), "/home/qa/app") || !strings.Contains(err.Error(), "/home/qb/app") {
+		t.Fatalf("prune --project app over two projects named app: err = %v, want a refusal listing both; out:\n%s", err, out)
+	}
+	if strings.Contains(out, "session(s) would be deleted") {
+		t.Fatalf("an ambiguous --project still selected sessions:\n%s", out)
+	}
+	out, _, err = executePruneCmd(t, dir, []string{"--project", "qa/app", "--dry-run"})
+	if err != nil || !strings.Contains(out, "1 session(s) would be deleted") {
+		t.Fatalf("prune --project qa/app: err %v, want exactly the one project's session:\n%s", err, out)
+	}
+	out, _, err = executePruneCmd(t, dir, []string{"--project", "qa/APP", "--dry-run"})
+	if err != nil || strings.Contains(out, "session(s) would be deleted") {
+		t.Fatalf("prune --project qa/APP matched /home/qa/app case-insensitively: err %v:\n%s", err, out)
+	}
+}

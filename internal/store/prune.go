@@ -55,6 +55,9 @@ func (s *Store) QueryPrunableSessions(ctx context.Context, filter ingest.PruneFi
 			conditions = append(conditions, "s.session_id IN ("+strings.Join(placeholders, ",")+")") //nolint:gocritic
 		}
 		if filter.Project != nil {
+			if err := refuseAmbiguousPruneProject(conn, *filter.Project); err != nil {
+				return nil, err
+			}
 			cond, condArgs := pruneProjectMatch(*filter.Project)
 			conditions = append(conditions, cond)
 			args = append(args, condArgs...)
@@ -271,8 +274,36 @@ func pruneProjectMatch(id string) (string, []any) {
 	slashID := "/" + strings.TrimSuffix(strings.TrimSuffix(id, "/"), ".git")
 	return "(s.project_hash = ?" +
 			" OR p.canonical_cwd = ?" +
-			" OR LOWER(SUBSTR(p.canonical_cwd, LENGTH(p.canonical_cwd) - LENGTH(?) + 1)) = LOWER(?)" +
+			" OR SUBSTR(p.canonical_cwd, LENGTH(p.canonical_cwd) - LENGTH(?) + 1) = ?" +
 			" OR LOWER(p.canonical_remote) = LOWER(?)" +
 			" OR LOWER(SUBSTR(p.canonical_remote, LENGTH(p.canonical_remote) - LENGTH(?) + 1)) = LOWER(?))",
 		[]any{id, id, slashID, slashID, remote, slashID, slashID}
+}
+
+// refuseAmbiguousPruneProject fails when a --project identifier names more
+// than one stored project, listing them: a name or a path or remote suffix
+// that two projects share would otherwise prune both.
+func refuseAmbiguousPruneProject(conn *sqlite.Conn, id string) error {
+	cond, args := pruneProjectMatch(id)
+	cond = strings.ReplaceAll(cond, "s.project_hash", "p.project_hash")
+	var candidates []string
+	err := sqlitex.Execute(conn, "SELECT p.project_hash, COALESCE(p.canonical_cwd, ''), COALESCE(p.canonical_remote, '') FROM projects p WHERE "+cond+" ORDER BY 2, 1", &sqlitex.ExecOptions{
+		Args: args,
+		ResultFunc: func(stmt *sqlite.Stmt) error {
+			label := stmt.ColumnText(1)
+			if r := stmt.ColumnText(2); r != "" {
+				label += " (" + r + ")"
+			}
+			candidates = append(candidates, fmt.Sprintf("%s  %s", stmt.ColumnText(0), label))
+			return nil
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("store.QueryPrunableSessions: resolve --project %q: %w", id, err)
+	}
+	if len(candidates) > 1 {
+		return fmt.Errorf("--project %q matches %d projects; nothing was selected or deleted; pass one project's full path or hash:\n  %s",
+			id, len(candidates), strings.Join(candidates, "\n  "))
+	}
+	return nil
 }
