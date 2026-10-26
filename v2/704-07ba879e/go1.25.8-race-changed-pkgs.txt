@@ -1,0 +1,1 @@
+ok  	github.com/peasant-labs/peasant/internal/ingest	958.138s
