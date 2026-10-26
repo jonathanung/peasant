@@ -1,0 +1,2 @@
+ok  	github.com/peasant-labs/peasant/cmd/peasant	192.509s
+ok  	github.com/peasant-labs/peasant/internal/ingest	1065.089s
