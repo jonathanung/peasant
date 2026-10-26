@@ -1,0 +1,1 @@
+ok  	github.com/peasant-labs/peasant/cmd/peasant	230.282s
