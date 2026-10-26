@@ -371,6 +371,13 @@ type Pipeline struct {
 	diagnostics          []DiagnosticEntry
 	diagnosticSessions   map[sessionDiagnostic]struct{}
 	diagnosticSet        map[DiagnosticEntry]struct{}
+	// unavailableSettledThisRun names sessions whose source-unavailability
+	// transition was recorded during this harvest. A later lane in the same
+	// run still owes its own report; a later harvest sees the stored row and
+	// owes nothing. It is not a selection signal: a recorded failure never
+	// decides whether a stored pair is indexed.
+	unavailableSettledMu      sync.Mutex
+	unavailableSettledThisRun map[SessionID]struct{}
 
 	// v2 analytics stages (all optional; nil = skip stage).
 	redactor               TextRedactor                  // REDACT stage: applied before writing metadata to disk
@@ -686,6 +693,7 @@ func (p *Pipeline) storedParentSet(ctx context.Context, entries []DiffEntry) map
 //  9. AUDIT: Write ingest_log entry (best-effort)
 func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) {
 	p.resetDiagnostics()
+	p.resetUnavailableSettledThisRun()
 	p.locationCache = nil
 	p.seqCursorCache = nil
 	defer func() {
@@ -1664,7 +1672,7 @@ func (p *Pipeline) indexLoop(
 		go func() {
 			defer parserWG.Done()
 			for work := range indexCh {
-				result := p.parseIndexMeta(ctx, work.meta, &activeParses, &maxActiveParses, logPrefix)
+				result := p.parseIndexMeta(ctx, work.meta, &activeParses, &maxActiveParses, logPrefix, writeLane)
 				result = p.admitNativeResult(ctx, result, gate)
 				if batch, complete := work.batch.completeWorkItem(); complete {
 					indexDoneCh <- batch
@@ -1960,7 +1968,7 @@ func (p *Pipeline) indexBatch(ctx context.Context, metas []indexedMeta, outcome 
 		go func() {
 			defer parsers.Done()
 			for im := range work {
-				result := p.parseIndexMeta(ctx, im, &activeParses, &maxActiveParses, logPrefix)
+				result := p.parseIndexMeta(ctx, im, &activeParses, &maxActiveParses, logPrefix, nil)
 				parsed <- p.admitNativeResult(ctx, result, gate)
 			}
 		}()
@@ -1983,7 +1991,7 @@ func (p *Pipeline) indexBatch(ctx context.Context, metas []indexedMeta, outcome 
 	return indexed, logs, refused
 }
 
-func (p *Pipeline) parseIndexMeta(ctx context.Context, im indexedMeta, activeParses *atomic.Int64, maxActiveParses *atomic.Int64, logPrefix string) (result indexParseResult) {
+func (p *Pipeline) parseIndexMeta(ctx context.Context, im indexedMeta, activeParses *atomic.Int64, maxActiveParses *atomic.Int64, logPrefix string, writeLane *storeWriteLane) (result indexParseResult) {
 	result = indexParseResult{im: im, startedAt: time.Now().UnixMilli(), bytes: p.indexProfileBytes(im)}
 	defer func() {
 		result.im.transcriptData = nil
@@ -2215,7 +2223,12 @@ func (p *Pipeline) parseIndexMeta(ctx context.Context, im indexedMeta, activePar
 			return result
 		}
 		slog.Warn(logPrefix+": index transcript", "session_id", im.session.SessionID, "error", err)
-		p.reportIndexRefusal(im.session.SessionID, err)
+		// A refusal about the source bytes is reported once. The audit row still
+		// records every attempt, and the parse still runs every harvest, so a
+		// repaired source is seen; only the user-facing repeat settles.
+		if !sourceRecordUnusable(err) || p.settleUnavailableSource(ctx, im.session.SessionID, writeLane) {
+			p.reportIndexRefusal(im.session.SessionID, err)
+		}
 		errMsg := err.Error()
 		result.logEntry = p.makeIndexLogEntry(im, IndexOutcomeError, 0, result.startedAt, nil, &errMsg)
 		return result
