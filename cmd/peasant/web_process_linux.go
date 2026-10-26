@@ -32,5 +32,5 @@ func isPeasantWebServer(pid, port int) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("%w %d: %v", errProcessProbe, pid, err)
 	}
-	return sameExecutable(exe), nil
+	return sameExecutablePath(exe), nil
 }

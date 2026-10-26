@@ -58,3 +58,23 @@ func sameExecutable(path string) bool {
 	}
 	return strings.EqualFold(filepath.Base(path), filepath.Base(self))
 }
+
+// sameExecutablePath reports whether path is exactly the executable this
+// process runs, after resolving symlinks. It is for probes that read the
+// exact path (/proc/<pid>/exe): there a file-name match is not enough, since
+// another program copied under the same name would pass. An upgrade replaces
+// the file in place, so Linux's " (deleted)" suffix still names the same path.
+func sameExecutablePath(path string) bool {
+	self, err := os.Executable()
+	path = strings.TrimSuffix(path, " (deleted)")
+	if err != nil || !filepath.IsAbs(path) {
+		return false
+	}
+	if resolved, err := filepath.EvalSymlinks(self); err == nil {
+		self = resolved
+	}
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
+	return path == self
+}
