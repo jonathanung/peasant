@@ -19,7 +19,11 @@ func harvestFixtureDetail(t *testing.T, harness, fixture, sourceSubdir, id strin
 	t.Helper()
 	dir := t.TempDir()
 	src := filepath.Join(t.TempDir(), "src")
-	if err := os.CopyFS(src, os.DirFS(filepath.Join("..", "..", "internal", "e2e", "testdata", fixture))); err != nil {
+	root := fixture
+	if !filepath.IsAbs(root) {
+		root = filepath.Join("..", "..", "internal", "e2e", "testdata", fixture)
+	}
+	if err := os.CopyFS(src, os.DirFS(root)); err != nil {
 		t.Fatal(err)
 	}
 	sources := ""
@@ -41,10 +45,7 @@ func harvestFixtureDetail(t *testing.T, harness, fixture, sourceSubdir, id strin
 	if err != nil {
 		t.Fatal(err)
 	}
-	policy, err := sessionvisibility.New(cfg.Selection)
-	if err != nil {
-		t.Fatal(err)
-	}
+	policy := sessionvisibility.New(cfg.Selection)
 	options, err := generationStoreOptions(filepath.Join(dir, "out"))
 	if err != nil {
 		t.Fatal(err)
