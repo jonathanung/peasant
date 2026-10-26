@@ -18,6 +18,7 @@ upgrades via the dpkg database.
 
 ```bash
 VERSION=$(curl -fsSL https://api.github.com/repos/peasant-labs/peasant/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')   # latest release; pin one with e.g. VERSION=0.12.0
+: "${VERSION:?could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand}"
 ARCH=$(dpkg --print-architecture)   # amd64 or arm64
 
 # Download the package and the checksums
@@ -57,6 +58,7 @@ No package database entry; you manage the binary yourself.
 
 ```bash
 VERSION=$(curl -fsSL https://api.github.com/repos/peasant-labs/peasant/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')   # latest release; pin one with e.g. VERSION=0.12.0
+: "${VERSION:?could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand}"
 ARCH=amd64    # or arm64
 
 curl -fLO "https://github.com/peasant-labs/peasant/releases/download/v${VERSION}/peasant_${VERSION}_linux_${ARCH}.tar.gz"

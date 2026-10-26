@@ -17,6 +17,7 @@ Run these in PowerShell:
 
 ```powershell
 $Version = (Invoke-RestMethod https://api.github.com/repos/peasant-labs/peasant/releases/latest).tag_name.TrimStart('v')   # latest release; pin one with e.g. '0.12.0'
+if (-not $Version) { throw 'could not read the latest release (GitHub API rate limit?); set $Version = ''0.12.0'' by hand' }
 $Zip     = "peasant_${Version}_windows_amd64.zip"
 $Base    = "https://github.com/peasant-labs/peasant/releases/download/v$Version"
 
@@ -48,6 +49,7 @@ have a reason not to:
 
 ```powershell
 $Version = (Invoke-RestMethod https://api.github.com/repos/peasant-labs/peasant/releases/latest).tag_name.TrimStart('v')   # latest release; pin one with e.g. '0.12.0'
+if (-not $Version) { throw 'could not read the latest release (GitHub API rate limit?); set $Version = ''0.12.0'' by hand' }
 $Base    = "https://github.com/peasant-labs/peasant/releases/download/v$Version"
 
 Invoke-WebRequest -Uri "$Base/peasant_${Version}_windows_amd64.exe" -OutFile peasant.exe
