@@ -30,12 +30,19 @@ func WithRunLock(path string) PipelineOption {
 	return func(p *Pipeline) { p.runLockPath = path }
 }
 
+// RunLockWaitNotice is the reason a waiting run reports through its
+// ProgressState, so a full-screen view such as kickstart can say why it is
+// not moving. It fits an 80-column terminal with the view's indent.
+const RunLockWaitNotice = "waiting: another harvest is running on this data dir; ctrl+c cancels"
+
 // ErrHarvestRunning is Run's error when WithRunLockNoWait is set and another
 // harvest holds the data dir's lock.
 var ErrHarvestRunning = errors.New("another harvest is running on this data dir")
 
-// WithRunLockNoWait makes Run fail at once with ErrHarvestRunning instead of
-// waiting when the WithRunLock lock is held. The web server uses it: a
+// WithRunLockNoWait makes Run fail with ErrHarvestRunning instead of waiting
+// for a held WithRunLock lock. It does not fail instantly: Run makes one lock
+// attempt, which polls for up to runLockPoll (250ms), and fails when the lock
+// is still held after it. The web server uses it: a
 // request cannot show a waiting state or be cancelled while it waits, and a
 // wedged CLI harvest would block it indefinitely.
 func WithRunLockNoWait() PipelineOption {
@@ -53,6 +60,13 @@ func (p *Pipeline) lockRun(ctx context.Context) (func(), error) {
 		return nil, fmt.Errorf("pipeline start: create the data directory for the harvest lock: %w", err)
 	}
 	waiting := false
+	if prog := p.config.Progress; prog != nil {
+		defer func() {
+			if waiting {
+				prog.SetWaiting("")
+			}
+		}()
+	}
 	for {
 		release, err := filelock.Acquire(path, time.Now().Add(runLockPoll))
 		if err == nil {
@@ -69,6 +83,9 @@ func (p *Pipeline) lockRun(ctx context.Context) (func(), error) {
 		}
 		if !waiting {
 			waiting = true
+			if p.config.Progress != nil {
+				p.config.Progress.SetWaiting(RunLockWaitNotice)
+			}
 			slog.Warn("harvest: another harvest is running on this data dir; waiting for it to finish")
 		}
 	}

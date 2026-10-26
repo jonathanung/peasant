@@ -279,7 +279,7 @@ type indexedMeta struct {
 // It is the concrete implementation of Discoverer, DiffResolver, and OrphanCleaner.
 type Pipeline struct {
 	// runLockPath is the WithRunLock lock file; empty takes no lock.
-	// runLockNoWait fails a held lock at once (WithRunLockNoWait).
+	// runLockNoWait fails a held lock after one runLockPoll attempt (WithRunLockNoWait).
 	runLockPath   string
 	runLockNoWait bool
 

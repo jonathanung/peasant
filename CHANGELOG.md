@@ -7,6 +7,21 @@ Release, which holds the signed artifacts and checksums.
 
 ## [Unreleased]
 
+### Fixed
+- Only one writing harvest runs at a time per data directory. Two harvests
+  started together on one data dir used to race each other's index
+  replacement. Now `peasant harvest`, `harvest logs`, `harvest index` and
+  kickstart's import take a lock file (`harvest.lock` in the data
+  directory). A second one waits for the first to finish: the CLI logs
+  "another harvest is running on this data dir; waiting for it to finish",
+  kickstart shows the same reason on its progress screen, and Ctrl+C stops
+  the wait. The web server does not wait: after one 250ms attempt, its
+  ingest and re-index routes refuse with "another harvest is running"
+  (HTTP 409 `ingest_running` for re-indexing one session). A dry run takes
+  no lock. Other commands that write the data directory, such as `prune`,
+  `redact` and `kickstart --reset`, do not take this lock; do not run them
+  during a harvest.
+
 ## [0.13.4] - 2026-10-28
 
 ### Changed
@@ -105,7 +120,6 @@ Release, which holds the signed artifacts and checksums.
   is actually left.
 - An intact pair whose source refuses is settled once instead of repeating on
   every ingest, and an unrepairable stored pair is settled rather than retried.
-
 ## [0.12.0] - 2026-10-24
 
 ### Changed
