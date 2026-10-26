@@ -1,0 +1,4 @@
+ok  	github.com/peasant-labs/peasant/cmd/peasant	208.035s
+ok  	github.com/peasant-labs/peasant/internal/api	331.800s
+ok  	github.com/peasant-labs/peasant/internal/ingest	932.335s
+ok  	github.com/peasant-labs/peasant/internal/tui/ftue	3.203s
