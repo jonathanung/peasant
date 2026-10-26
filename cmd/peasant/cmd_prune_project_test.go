@@ -113,7 +113,7 @@ func TestPruneRefusesAllCombinedWithAFilter(t *testing.T) {
 	t.Parallel()
 	for _, extra := range [][]string{
 		{"--project", "app"},
-		{"--harness", "claude"},
+		{"--harness", defaults.HarnessClaudeCode.String()},
 		{"--before", "2030-01-01"},
 		{"--after", "2000-01-01"},
 		{"--session", pruneTestSessionA},
