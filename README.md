@@ -200,7 +200,8 @@ peasant service uninstall
 - The units are `peasant-harvest.service` (`Type=oneshot`) and `peasant-harvest.timer`. They
   are written to `$XDG_CONFIG_HOME/systemd/user` (default `~/.config/systemd/user`).
 - `install` resolves the data, config, and state directories and writes them into `ExecStart`.
-  It also writes `--config` when you pass it. The timer then uses the same store as the
+  It also writes `--config` when you pass it, and sets the same directories as `XDG_*` in the
+  unit's environment. The timer then uses the same store and `peasant-sync` output as the
   `install` command, whatever environment the user manager has.
 - Re-running `install` replaces the units. `install` and `uninstall` touch only files that
   start with peasant's marker comment. A unit you wrote by hand under the same name is never

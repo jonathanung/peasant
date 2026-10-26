@@ -197,16 +197,32 @@ func newServiceSchedule(flags serviceInstallFlags, intervalSet bool) (serviceSch
 	return serviceSchedule{interval: flags.interval, randomizedDelay: flags.randomizedDelay}, nil
 }
 
-// renderServiceUnits renders the unit pair for execArgs (the harvest command
-// line, binary first) and schedule. It is pure so the YAML fixture can pin it.
-func renderServiceUnits(execArgs []string, schedule serviceSchedule) serviceUnits {
+// serviceEnv is one Environment= assignment in the service unit.
+type serviceEnv struct {
+	Name  string `yaml:"name"`
+	Value string `yaml:"value"`
+}
+
+// serviceInvocation is what the service runs: the harvest command line
+// (binary first) and the environment it runs with.
+type serviceInvocation struct {
+	args []string
+	env  []serviceEnv
+}
+
+// renderServiceUnits renders the unit pair for the invocation and schedule.
+// It is pure so the YAML fixture can pin it.
+func renderServiceUnits(invocation serviceInvocation, schedule serviceSchedule) serviceUnits {
 	var svc strings.Builder
 	svc.WriteString(serviceUnitMarker + "\n")
 	svc.WriteString("[Unit]\n")
 	svc.WriteString("Description=Peasant: harvest AI coding agent transcripts into the local store\n\n")
 	svc.WriteString("[Service]\n")
 	svc.WriteString("Type=oneshot\n")
-	svc.WriteString("ExecStart=" + systemdExecLine(execArgs) + "\n")
+	for _, env := range invocation.env {
+		svc.WriteString("Environment=" + systemdQuote(env.Name+"="+env.Value, false) + "\n")
+	}
+	svc.WriteString("ExecStart=" + systemdExecLine(invocation.args) + "\n")
 	svc.WriteString("Nice=10\n")
 	svc.WriteString("IOSchedulingClass=idle\n")
 
@@ -259,79 +275,102 @@ func systemdTimespan(d time.Duration) string {
 func systemdExecLine(args []string) string {
 	quoted := make([]string, len(args))
 	for i, arg := range args {
-		var b strings.Builder
-		b.WriteByte('"')
-		for _, r := range arg {
-			switch r {
-			case '\\', '"':
-				b.WriteByte('\\')
-				b.WriteRune(r)
-			case '%':
-				b.WriteString("%%")
-			case '$':
-				b.WriteString("$$")
-			default:
-				b.WriteRune(r)
-			}
-		}
-		b.WriteByte('"')
-		quoted[i] = b.String()
+		quoted[i] = systemdQuote(arg, true)
 	}
 	return strings.Join(quoted, " ")
 }
 
-// serviceHarvestArgs is the command line the service runs: the binary, then
+// systemdQuote double-quotes one word. Every setting expands % specifiers;
+// only ExecStart= expands $ variables, so only it doubles $.
+func systemdQuote(word string, execLine bool) string {
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range word {
+		switch {
+		case r == '\\' || r == '"':
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		case r == '%':
+			b.WriteString("%%")
+		case r == '$' && execLine:
+			b.WriteString("$$")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	b.WriteByte('"')
+	return b.String()
+}
+
+// serviceHarvestInvocation is what the service runs: the binary, then
 // `harvest` with every directory resolved to an absolute path now, because
 // the user manager inherits neither the shell's XDG_* variables nor this
-// invocation's flags.
-func serviceHarvestArgs(cmd *cobra.Command, deps serviceDeps, flags serviceInstallFlags) ([]string, error) {
+// invocation's flags. The same homes are also set as XDG_* in the unit's
+// environment, so every path harvest derives from the environment rather
+// than a flag (the default peasant-sync output under the data home, the
+// redaction rules' XDG paths) resolves to what this command resolved.
+func serviceHarvestInvocation(cmd *cobra.Command, deps serviceDeps, flags serviceInstallFlags) (serviceInvocation, error) {
+	args, homes, err := serviceHarvestArgs(cmd, deps, flags)
+	if err != nil {
+		return serviceInvocation{}, err
+	}
+	return serviceInvocation{args: args, env: []serviceEnv{
+		{Name: defaults.EnvXDGDataHome.String(), Value: homes.data},
+		{Name: defaults.EnvXDGConfigHome.String(), Value: homes.config},
+		{Name: defaults.EnvXDGStateHome.String(), Value: homes.state},
+	}}, nil
+}
+
+type serviceHomes struct{ data, config, state string }
+
+func serviceHarvestArgs(cmd *cobra.Command, deps serviceDeps, flags serviceInstallFlags) ([]string, serviceHomes, error) {
 	exe, err := deps.executable()
 	if err != nil {
-		return nil, fmt.Errorf("resolve the peasant binary: %w", err)
+		return nil, serviceHomes{}, fmt.Errorf("resolve the peasant binary: %w", err)
 	}
 	exe, err = filepath.Abs(exe)
 	if err != nil {
-		return nil, fmt.Errorf("resolve the peasant binary: %w", err)
+		return nil, serviceHomes{}, fmt.Errorf("resolve the peasant binary: %w", err)
 	}
 	abs := func(p string) (string, error) { return filepath.Abs(filepath.Dir(p)) }
 	dataHome, err := abs(string(defaults.ResolveDataDirPathWith(dataDirOverride(cmd))))
 	if err != nil {
-		return nil, fmt.Errorf("resolve the data directory: %w", err)
+		return nil, serviceHomes{}, fmt.Errorf("resolve the data directory: %w", err)
 	}
 	configHome, err := abs(string(defaults.ResolveConfigDirPathWith(configDirOverride(cmd))))
 	if err != nil {
-		return nil, fmt.Errorf("resolve the config directory: %w", err)
+		return nil, serviceHomes{}, fmt.Errorf("resolve the config directory: %w", err)
 	}
 	stateHome, err := abs(string(defaults.ResolveStateDirPathWith(stateDirOverride(cmd))))
 	if err != nil {
-		return nil, fmt.Errorf("resolve the state directory: %w", err)
+		return nil, serviceHomes{}, fmt.Errorf("resolve the state directory: %w", err)
 	}
 	args := []string{exe, "harvest", "--data-dir", dataHome, "--config-dir", configHome, "--state-dir", stateHome}
 	if f := commandFlag(cmd, "config"); f != nil && f.Changed {
 		configPath, err := filepath.Abs(f.Value.String())
 		if err != nil {
-			return nil, fmt.Errorf("resolve --config: %w", err)
+			return nil, serviceHomes{}, fmt.Errorf("resolve --config: %w", err)
 		}
 		args = append(args, "--config", configPath)
 	}
 	if flags.sourceHarness != "" || flags.sourcePath != "" {
 		if flags.sourceHarness == "" {
-			return nil, errors.New("--source-path requires --source-harness")
+			return nil, serviceHomes{}, errors.New("--source-path requires --source-harness")
 		}
 		if flags.sourcePath == "" {
-			return nil, errors.New("--source-harness requires --source-path")
+			return nil, serviceHomes{}, errors.New("--source-harness requires --source-path")
 		}
 		harness, err := resolveHarnessFlag(flags.sourceHarness)
 		if err != nil {
-			return nil, err
+			return nil, serviceHomes{}, err
 		}
 		resolved, err := ingest.NewResolvedPath(flags.sourcePath)
 		if err != nil {
-			return nil, fmt.Errorf("resolve --source-path: %w", err)
+			return nil, serviceHomes{}, fmt.Errorf("resolve --source-path: %w", err)
 		}
 		args = append(args, "--source-harness", string(harness), "--source-path", string(resolved))
 	}
-	return args, nil
+	return args, serviceHomes{data: dataHome, config: configHome, state: stateHome}, nil
 }
 
 func requireSystemdHost(deps serviceDeps) error {
@@ -407,7 +446,7 @@ func runServiceInstall(cmd *cobra.Command, deps serviceDeps, flags serviceInstal
 	if err != nil {
 		return err
 	}
-	execArgs, err := serviceHarvestArgs(cmd, deps, flags)
+	invocation, err := serviceHarvestInvocation(cmd, deps, flags)
 	if err != nil {
 		return err
 	}
@@ -425,7 +464,7 @@ func runServiceInstall(cmd *cobra.Command, deps serviceDeps, flags serviceInstal
 	if err != nil {
 		return err
 	}
-	units := renderServiceUnits(execArgs, schedule)
+	units := renderServiceUnits(invocation, schedule)
 	files := []struct{ name, text string }{{serviceUnitName, units.Service}, {timerUnitName, units.Timer}}
 
 	if flags.dryRun {

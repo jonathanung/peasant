@@ -17,13 +17,15 @@ import (
 )
 
 type serviceUnitCase struct {
-	Name            string   `yaml:"name"`
-	Args            []string `yaml:"args"`
-	Interval        string   `yaml:"interval"`
-	OnCalendar      string   `yaml:"on_calendar"`
-	RandomizedDelay string   `yaml:"randomized_delay"`
-	ExecStart       string   `yaml:"exec_start"`
-	Timer           []string `yaml:"timer"`
+	Name            string       `yaml:"name"`
+	Args            []string     `yaml:"args"`
+	Interval        string       `yaml:"interval"`
+	OnCalendar      string       `yaml:"on_calendar"`
+	RandomizedDelay string       `yaml:"randomized_delay"`
+	Environment     []serviceEnv `yaml:"environment"`
+	EnvironmentOut  []string     `yaml:"environment_lines"`
+	ExecStart       string       `yaml:"exec_start"`
+	Timer           []string     `yaml:"timer"`
 }
 
 func loadServiceUnitCases(t *testing.T) []serviceUnitCase {
@@ -125,7 +127,16 @@ func TestServiceUnitsRenderFixture(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 			schedule := serviceSchedule{interval: mustDuration(t, tc.Interval), calendar: tc.OnCalendar, randomizedDelay: mustDuration(t, tc.RandomizedDelay)}
-			units := renderServiceUnits(tc.Args, schedule)
+			units := renderServiceUnits(serviceInvocation{args: tc.Args, env: tc.Environment}, schedule)
+			var envLines []string
+			for _, line := range unitSection(units.Service, "Service") {
+				if strings.HasPrefix(line, "Environment=") {
+					envLines = append(envLines, line)
+				}
+			}
+			if strings.Join(envLines, "\n") != strings.Join(tc.EnvironmentOut, "\n") {
+				t.Errorf("Environment\n got: %q\nwant: %q", envLines, tc.EnvironmentOut)
+			}
 			for name, text := range map[string]string{"service": units.Service, "timer": units.Timer} {
 				if !strings.HasPrefix(text, serviceUnitMarker+"\n") {
 					t.Errorf("%s unit does not start with the marker:\n%s", name, text)
@@ -249,6 +260,12 @@ func TestServiceInstallDryRunMatchesWrittenUnits(t *testing.T) {
 	wantArgs := []string{h.exe, "harvest", "--data-dir", h.dir, "--config-dir", h.dir, "--state-dir", h.dir}
 	if strings.Join(words, "\x00") != strings.Join(wantArgs, "\x00") {
 		t.Errorf("ExecStart args = %q, want %q", words, wantArgs)
+	}
+	for _, name := range []string{"XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME"} {
+		want := "Environment=" + systemdQuote(name+"="+h.dir, false) + "\n"
+		if !strings.Contains(h.read(t, serviceUnitName), want) {
+			t.Errorf("service unit lacks %q", want)
+		}
 	}
 	entries, _ := os.ReadDir(h.unitDir)
 	if len(entries) != 2 {

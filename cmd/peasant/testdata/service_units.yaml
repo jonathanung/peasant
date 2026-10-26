@@ -8,6 +8,8 @@
 #   cases[].interval          Go duration (omit with on_calendar)
 #   cases[].on_calendar       systemd calendar expression
 #   cases[].randomized_delay  Go duration ("0s" omits the line)
+#   cases[].environment       Environment= assignments (name, value)
+#   cases[].environment_lines expected Environment= lines
 #   cases[].exec_start        expected ExecStart= value
 #   cases[].timer             expected [Timer] section lines
 cases:
@@ -41,3 +43,12 @@ cases:
     randomized_delay: 0s
     exec_start: '"/home/u/My Tools/peasant" "harvest" "--data-dir" "/d/it''s \"q\" 100%% $$HOME \\x"'
     timer: ["OnStartupSec=2min", "OnUnitActiveSec=15min"]
+  - name: environment keeps dollar literal and doubles percent
+    args: ["/p", "harvest"]
+    environment:
+      - { name: XDG_DATA_HOME, value: "/d/100% $x \"q\"" }
+    interval: 1h
+    randomized_delay: 0s
+    environment_lines: ['Environment="XDG_DATA_HOME=/d/100%% $x \"q\""']
+    exec_start: '"/p" "harvest"'
+    timer: ["OnStartupSec=2min", "OnUnitActiveSec=1h"]
