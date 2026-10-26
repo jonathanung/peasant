@@ -1,0 +1,16 @@
+# --data-dir and peasant-sync (after)   [peasant dev, #705 head 7d8d2c45]
+$ peasant --data-dir $HOME/../dd harvest 2>&1 | grep "Output:"
+Output:  /tmp/qa/dd/peasant/peasant-sync
+[exit 0]
+$ ls $HOME/../dd/peasant; ls ~/.local/share/peasant 2>&1 | head -3
+peasant-sync
+peasant.db
+ls: cannot access '~/.local/share/peasant': No such file or directory
+[exit 0]
+$ peasant --data-dir $HOME/../dd kickstart --reset --confirm </dev/null 2>&1 | head -2; ls -A $HOME/../dd/peasant; ls ~/.local/share/peasant/peasant-sync 2>&1 | head -2
+Error: unknown flag: --confirm
+Usage:
+peasant-sync
+peasant.db
+ls: cannot access '~/.local/share/peasant/peasant-sync': No such file or directory
+[exit 0]

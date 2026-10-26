@@ -1,0 +1,17 @@
+# harvest after kickstart saved an empty selection (before)   [peasant dev, develop a509104c]
+$ grep -A1 "^selection" ~/.config/peasant/config.yaml
+selection:
+    mode: selected
+[exit 0]
+$ peasant harvest 2>&1 | sed -n "/^peasant harvest:/,/^duration/p"
+peasant harvest: 10 sessions
+   - 0     new
+   - 0     updated
+   - 10    unchanged
+   - 0     errors
+   - 0     active (included)
+duration: 100ms
+[exit 0]
+$ peasant sessions list 2>&1 | head -3
+no sessions found
+[exit 0]

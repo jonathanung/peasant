@@ -1,0 +1,15 @@
+# --data-dir and peasant-sync (before)   [peasant dev, develop a509104c]
+$ peasant --data-dir $HOME/../dd harvest 2>&1 | grep "Output:"
+Output:  ~/.local/share/peasant/peasant-sync
+[exit 0]
+$ ls $HOME/../dd/peasant; ls ~/.local/share/peasant 2>&1 | head -3
+peasant.db
+peasant-sync
+[exit 0]
+$ peasant --data-dir $HOME/../dd kickstart --reset --confirm </dev/null 2>&1 | head -2; ls -A $HOME/../dd/peasant; ls ~/.local/share/peasant/peasant-sync 2>&1 | head -2
+Error: unknown flag: --confirm
+Usage:
+peasant.db
+__peasant-untracked__--9e0db933--gamma
+github.com--example--alpha
+[exit 0]

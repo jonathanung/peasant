@@ -1,0 +1,22 @@
+# kickstart --reset without a terminal (after)   [peasant dev, #703 head aa024d3a]
+$ ls ~/.local/share/peasant
+peasant-sync
+peasant.db
+[exit 0]
+$ peasant kickstart --reset </dev/null 2>&1 | grep -v "^ \|^$\|^Usage\|^Flags\|^Global"; echo "peasant exit=${PIPESTATUS[0]}"
+Error: non-interactive terminal: `peasant kickstart --reset` refused to prompt for consent because its standard input is not a terminal; nothing was removed; re-run with --confirm to reset without a prompt, or run the command from an interactive shell
+Aliases:
+peasant exit=1
+[exit 0]
+$ ls ~/.local/share/peasant; peasant sessions list | head -3
+peasant-sync
+peasant.db
+ID                                    Date        Project                   Turns   Tokens  Preview
+------------------------------------------------------------------------------------------------------
+ses_a557d7d03ec248c29c241fc1d0        2026-10-14  github.com:example/alpha      2       15  question ü
+[exit 0]
+$ peasant kickstart --reset --confirm </dev/null 2>&1 | grep -E "^(Reset|Error)"; echo "peasant exit=${PIPESTATUS[0]}"; ls -A ~/.local/share/peasant
+Reset: cleaned config, credentials, database, peasant-sync, and state.
+Error: setup flow failed: bubbletea: error opening TTY: bubbletea: could not open TTY: open /dev/tty: no such device or address
+peasant exit=1
+[exit 0]

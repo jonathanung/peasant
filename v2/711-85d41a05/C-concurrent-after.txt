@@ -1,0 +1,9 @@
+# two harvests started 0.3 s apart on a fresh data dir (after)   [peasant dev, #711 head 85d41a05]
+$ peasant harvest > /tmp/conc-a.txt 2>&1 & sleep 0.3; peasant harvest > /tmp/conc-b.txt 2>&1; wait; for r in a b; do echo "run $r: refused=$(grep -c refused /tmp/conc-$r.txt) waiting=$(grep -c "waiting for it to finish" /tmp/conc-$r.txt) $(grep -E "^peasant harvest:|  new|errors" /tmp/conc-$r.txt | tr -s " " | tr "\n" " ")"; done
+run a: refused=0 waiting=0 peasant harvest: 10 sessions  - 0 new  - 0 errors 
+run b: refused=0 waiting=1 peasant harvest: 10 sessions  - 0 new  - 0 errors 
+[exit 0]
+$ peasant harvest verify --content 2>&1 | tail -2
+search size: 495616 bytes over 954367 bytes of text (13639 documents), fresh estimate 372203 bytes, ratio 1.33 (ok)
+Status: PASSED
+[exit 0]

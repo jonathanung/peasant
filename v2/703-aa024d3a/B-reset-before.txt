@@ -1,0 +1,14 @@
+# kickstart --reset without a terminal (before)   [peasant dev, develop a509104c]
+$ ls ~/.local/share/peasant
+peasant-sync
+peasant.db
+[exit 0]
+$ peasant kickstart --reset </dev/null 2>&1 | grep -v "^ \|^$\|^Usage\|^Flags\|^Global"; echo "peasant exit=${PIPESTATUS[0]}"
+Reset: cleaned config, credentials, database, peasant-sync, and state.
+Error: setup flow failed: bubbletea: error opening TTY: bubbletea: could not open TTY: open /dev/tty: no such device or address
+Aliases:
+peasant exit=1
+[exit 0]
+$ ls ~/.local/share/peasant; peasant sessions list | head -3
+no sessions found
+[exit 0]

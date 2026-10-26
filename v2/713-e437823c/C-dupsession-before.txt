@@ -1,0 +1,13 @@
+# one Claude sessionId in two project dirs (before)   [peasant dev, develop a509104c]
+$ F=$(ls ~/.claude/projects/*/*.jsonl | head -1); mkdir -p ~/.claude/projects/-copied-project; cp "$F" ~/.claude/projects/-copied-project/; ls ~/.claude/projects/*/$(basename "$F")
+~/.claude/projects/-copied-project/6513270e-269e-4d37-b2a7-4de452e6b438.jsonl
+~/.claude/projects/-tmp-peasant-qa-C-dupsession-before-home-code-alpha/6513270e-269e-4d37-b2a7-4de452e6b438.jsonl
+[exit 0]
+$ peasant harvest 2>&1 | grep -E "warning|^peasant harvest:|error"; echo "exit=${PIPESTATUS[0]}"
+2026/10/25 21:25:01 WARN pipeline: index transcript session_id=6513270e-269e-4d37-b2a7-4de452e6b438 error="capture index input for session 6513270e-269e-4d37-b2a7-4de452e6b438: the saved pair does not match the stored artifact identity; no parser ran or entries changed; run harvest to save the session again before retrying indexing"
+2026/10/25 21:25:08 WARN pipeline: annotate session session_id=27445dfb-5e93-4766-904f-095cc2157f48 error="classify session 27445dfb-5e93-4766-904f-095cc2157f48: metrics do not prove the captured input current; prior annotations were preserved; refresh metrics before retrying" what="classifier failed to annotate session entries" why="classifier error, missing session_entries rows, or annotation persistence failure" user_impact="session annotations may be incomplete or recomputed on the next index run" how_to_fix="re-run peasant harvest index --force --session 27445dfb-5e93-4766-904f-095cc2157f48"
+warning: 6513270e-269e-4d37-b2a7-4de452e6b438: index session 6513270e-269e-4d37-b2a7-4de452e6b438: capture index input for session 6513270e-269e-4d37-b2a7-4de452e6b438: the saved pair does not match the stored artifact identity; no parser ran or entries changed; run harvest to save the session again before retrying indexing; this attempt preserved the last successful index
+peasant harvest: 11 sessions
+   - 0     errors
+exit=0
+[exit 0]

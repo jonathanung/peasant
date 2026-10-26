@@ -1,0 +1,12 @@
+# one Claude sessionId in two project dirs (after)   [peasant dev, #713 head e437823c]
+$ F=$(ls ~/.claude/projects/*/*.jsonl | head -1); mkdir -p ~/.claude/projects/-copied-project; cp "$F" ~/.claude/projects/-copied-project/; ls ~/.claude/projects/*/$(basename "$F")
+~/.claude/projects/-copied-project/6513270e-269e-4d37-b2a7-4de452e6b438.jsonl
+~/.claude/projects/-tmp-peasant-qa-C-dupsession-after-home-code-alpha/6513270e-269e-4d37-b2a7-4de452e6b438.jsonl
+[exit 0]
+$ peasant harvest 2>&1 | grep -E "warning|^peasant harvest:|error"; echo "exit=${PIPESTATUS[0]}"
+2026/10/25 21:25:17 WARN pipeline: annotate session session_id=49644ca7-4638-4ddb-b037-8bfef36ab696 error="classify session 49644ca7-4638-4ddb-b037-8bfef36ab696: metrics do not prove the captured input current; prior annotations were preserved; refresh metrics before retrying" what="classifier failed to annotate session entries" why="classifier error, missing session_entries rows, or annotation persistence failure" user_impact="session annotations may be incomplete or recomputed on the next index run" how_to_fix="re-run peasant harvest index --force --session 49644ca7-4638-4ddb-b037-8bfef36ab696"
+warning: claude-code 6513270e-269e-4d37-b2a7-4de452e6b438: same session id in 2 source files (~/.claude/projects/-copied-project/6513270e-269e-4d37-b2a7-4de452e6b438.jsonl, ~/.claude/projects/-tmp-peasant-qa-C-dupsession-after-home-code-alpha/6513270e-269e-4d37-b2a7-4de452e6b438.jsonl; newer: ~/.claude/projects/-copied-project/6513270e-269e-4d37-b2a7-4de452e6b438.jsonl; larger: ~/.claude/projects/-copied-project/6513270e-269e-4d37-b2a7-4de452e6b438.jsonl); none was ingested this run, so no stored row mixes them; move the one you do not want out of the harness directory (do not delete it: it may be the only copy of that transcript) and rerun harvest
+peasant harvest: 10 sessions
+   - 1     errors
+exit=1
+[exit 0]
