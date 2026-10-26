@@ -126,7 +126,7 @@ func basePathOf(c *config.Config) string {
 // peasant-sync copies under the default data home. The database row is
 // current, so the first plain harvest classifies the session unchanged and
 // writes no copy under <data-dir>/peasant/peasant-sync: classification does
-// not stat the managed tree for unchanged sessions (tracked as a follow-up).
+// not stat the managed tree for unchanged sessions (follow-up: #757).
 // The CHANGELOG remedy, one `harvest --force`, must copy it.
 func TestHarvestDataDirUpgradeNeedsForceToCopy(t *testing.T) {
 	xdgData := t.TempDir()
