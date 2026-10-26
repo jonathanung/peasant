@@ -190,7 +190,14 @@ On Linux with systemd, `peasant service install` writes a user timer. Each run i
 - Redact then redacts the transcript copies at your configured redaction level. These are in
   `peasant-sync`, or in `output.basePath` when your config sets one. Redact skips sessions
   that are already current. It runs even when harvest fails, for example because one session
-  could not be read. The run is then still reported as failed.
+  could not be read.
+- The run is reported as failed when harvest fails, when redact fails, or both. When both
+  fail, `systemctl --user status` shows only harvest's failure (systemd keeps the first one);
+  redact's error and exit status are only in `journalctl --user -u peasant-harvest`.
+- The unit sets `TimeoutStopSec=30min`, which caps the redact step only (harvest has no time
+  limit). A redact stopped at the limit leaves whole files, the run is reported as failed
+  (`Result=timeout`, unless harvest already failed), and the next run continues where it
+  stopped.
 - As after a manual harvest, the local database index keeps transcript content as recorded.
 - `--no-redact` runs harvest only.
 - The timer never publishes to the Village.

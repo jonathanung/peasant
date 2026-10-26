@@ -241,10 +241,12 @@ func renderServiceUnits(invocation serviceInvocation, schedule serviceSchedule) 
 	if invocation.redact != nil {
 		// ExecStopPost= runs after ExecStart= whether it succeeded or not,
 		// so one failing session (harvest exits 1) cannot keep the copies
-		// harvest did write unredacted; the unit still reports harvest's
-		// failure.
+		// harvest did write unredacted. The unit fails when either step
+		// fails; systemd keeps the first failure, so when both fail only
+		// the journal shows redact's.
 		svc.WriteString("ExecStopPost=" + systemdExecLine(invocation.redact) + "\n")
-		// ExecStopPost= is bounded by TimeoutStopSec= (90s by default), too
+		// TimeoutStopSec= bounds only the stop-post phase, that is redact
+		// (a oneshot's ExecStart= has no default limit). 90s by default, too
 		// short for a first redact over a large store. A run killed at the
 		// limit leaves whole files (redact writes by rename) and the next
 		// run continues where it stopped.

@@ -18,9 +18,39 @@ type unitRun struct {
 	output      string
 }
 
-// failed is the unit's result: systemd reports a oneshot failed when its
-// ExecStart= failed, whatever ExecStopPost= returned.
-func (r unitRun) failed() bool { return r.harvestExit != 0 }
+// failed reports whether systemd would leave the unit failed. A oneshot
+// fails when ExecStart= fails or when an ExecStopPost= without a "-" prefix
+// fails (systemd v257 src/core/service.c: service_sigchld_event in
+// SERVICE_STOP_POST passes the control process result to
+// service_enter_signal, which records it when the result is still success).
+func (r unitRun) failed() bool { return r.result() != "success" }
+
+// result is the unit's Result= property. systemd keeps the first failure:
+// service_enter_signal and service_enter_dead only overwrite a success, so
+// when harvest and redact both fail the unit records harvest's failure and
+// redact's exit status reaches only the journal.
+func (r unitRun) result() string {
+	if r.firstFailure() == "" {
+		return "success"
+	}
+	return "exit-code"
+}
+
+// firstFailure names the step whose failure the unit result records: the
+// first one that failed, or "" when none did.
+func (r unitRun) firstFailure() string {
+	switch {
+	case r.harvestExit != 0:
+		return "harvest"
+	case r.redactRan && r.redactExit != 0:
+		return "redact"
+	}
+	return ""
+}
+
+// ExecMainStatus is always ExecStart='s exit code, even when only
+// ExecStopPost= failed.
+func (r unitRun) execMainStatus() int { return r.harvestExit }
 
 // systemdEnvValue unquotes one Environment= value: C escapes \\ and \"
 // inside double quotes and %% for a literal %.
@@ -53,6 +83,13 @@ func systemdEnvValue(t *testing.T, quoted string) string {
 // The unit names the real peasant binary, so this is the production path.
 func runServiceUnit(t *testing.T, unitText, home string) unitRun {
 	t.Helper()
+	return runServiceUnitWith(t, unitText, home, nil)
+}
+
+// runServiceUnitWith is runServiceUnit with afterHarvest called between
+// ExecStart= and ExecStopPost=, so a test can make only redact fail.
+func runServiceUnitWith(t *testing.T, unitText, home string, afterHarvest func()) unitRun {
+	t.Helper()
 	env := []string{"HOME=" + home, "PATH=/usr/bin:/bin"}
 	for _, value := range unitDirectiveValues(unitText, "Environment=") {
 		env = append(env, systemdEnvValue(t, value))
@@ -79,6 +116,9 @@ func runServiceUnit(t *testing.T, unitText, home string) unitRun {
 		t.Fatalf("unit has %d ExecStart= lines, want 1", len(starts))
 	}
 	run := unitRun{harvestExit: exec1(starts[0])}
+	if afterHarvest != nil {
+		afterHarvest()
+	}
 	for _, line := range unitDirectiveValues(unitText, "ExecStopPost=") {
 		run.redactRan = true
 		run.redactExit = exec1(line)
@@ -148,6 +188,73 @@ func TestServiceUnitRedactsWhenHarvestFails(t *testing.T) {
 		t.Error("the unit reported success after harvest failed")
 	}
 	assertCopiesRedacted(t, filepath.Join(home, "peasant", "peasant-sync"))
+}
+
+// lockCopyDirs makes every session directory holding a peasant-sync copy
+// read-only, so redact's temp-file write fails, and restores it on cleanup.
+func lockCopyDirs(t *testing.T, root string) {
+	t.Helper()
+	copies := transcriptCopies(t, root)
+	if len(copies) == 0 {
+		t.Fatal("harvest wrote no copies to lock")
+	}
+	for _, c := range copies {
+		dir := filepath.Dir(c)
+		if err := os.Chmod(dir, 0o500); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+	}
+}
+
+// TestServiceUnitFailsWhenRedactFails: harvest succeeds, then redact cannot
+// write the copy. systemd marks the unit failed (Result=exit-code) while
+// ExecMainStatus stays harvest's 0.
+func TestServiceUnitFailsWhenRedactFails(t *testing.T) {
+	t.Parallel()
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores the read-only directory this test relies on")
+	}
+	h, home, _ := installServiceForE2E(t, "")
+	sync := filepath.Join(home, "peasant", "peasant-sync")
+	run := runServiceUnitWith(t, h.read(t, serviceUnitName), home, func() { lockCopyDirs(t, sync) })
+	if run.harvestExit != 0 {
+		t.Fatalf("harvest failed; the test needs it to succeed:\n%s", run.output)
+	}
+	if !run.redactRan || run.redactExit == 0 {
+		t.Fatalf("redact into a read-only directory: ran=%v exit=%d\n%s", run.redactRan, run.redactExit, run.output)
+	}
+	if !run.failed() || run.result() != "exit-code" || run.firstFailure() != "redact" {
+		t.Errorf("unit after a failed redact: failed=%v Result=%s first=%q, want failed, exit-code, redact",
+			run.failed(), run.result(), run.firstFailure())
+	}
+	if run.execMainStatus() != 0 {
+		t.Errorf("ExecMainStatus = %d, want harvest's 0", run.execMainStatus())
+	}
+}
+
+// TestServiceUnitBothFailRecordsHarvest: harvest fails on a corrupt session
+// and redact fails too. The unit result records harvest's failure only.
+func TestServiceUnitBothFailRecordsHarvest(t *testing.T) {
+	t.Parallel()
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores the read-only directory this test relies on")
+	}
+	h, home, src := installServiceForE2E(t, "")
+	bad := filepath.Join(src, "-svc-demo", "22222222-2222-4222-8222-222222222222.jsonl")
+	if err := os.WriteFile(bad, []byte("{not json\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sync := filepath.Join(home, "peasant", "peasant-sync")
+	run := runServiceUnitWith(t, h.read(t, serviceUnitName), home, func() { lockCopyDirs(t, sync) })
+	if run.harvestExit == 0 || !run.redactRan || run.redactExit == 0 {
+		t.Fatalf("want both steps to fail: harvest %d, redact ran=%v exit %d\n%s",
+			run.harvestExit, run.redactRan, run.redactExit, run.output)
+	}
+	if run.result() != "exit-code" || run.firstFailure() != "harvest" || run.execMainStatus() != run.harvestExit {
+		t.Errorf("Result=%s first=%q ExecMainStatus=%d, want exit-code, harvest, %d",
+			run.result(), run.firstFailure(), run.execMainStatus(), run.harvestExit)
+	}
 }
 
 // TestServiceUnitHarvestAndRedactAgreeThroughUnitEnv: no --output anywhere.
