@@ -13,7 +13,14 @@ Release, which holds the signed artifacts and checksums.
   schedule (`--interval`, default 1h, or `--on-calendar`; `--randomized-delay`;
   `--no-redact` for harvest only). Scheduled runs are local and never publish.
   `--dry-run` prints the units. `uninstall` removes only the units peasant
-  wrote.
+  wrote. Redact runs as `ExecStopPost=`, so it runs after a failed harvest too.
+
+### Fixed
+- `peasant redact` now reads and redacts the transcript copies in
+  `output.basePath` when the config sets one. Before, it reported those
+  sessions "not ingested" and left the copies as recorded. Redact now writes
+  the redacted transcript and metadata by rename, so an interrupted run never
+  leaves a truncated file.
 
 ## [0.12.0] - 2026-10-24
 

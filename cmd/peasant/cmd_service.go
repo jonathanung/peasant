@@ -49,14 +49,17 @@ type systemctlRunner func(ctx context.Context, args ...string) (string, error)
 type serviceDeps struct {
 	goos       string
 	executable func() (string, error)
-	unitDir    func() (string, error)
-	systemctl  systemctlRunner
+	// lookPath resolves a command name on PATH (exec.LookPath).
+	lookPath  func(string) (string, error)
+	unitDir   func() (string, error)
+	systemctl systemctlRunner
 }
 
 func productionServiceDeps() serviceDeps {
 	return serviceDeps{
 		goos:       runtime.GOOS,
 		executable: os.Executable,
+		lookPath:   exec.LookPath,
 		unitDir:    defaultSystemdUserUnitDir,
 		systemctl:  runSystemctlUser,
 	}
@@ -214,8 +217,8 @@ type serviceEnv struct {
 // production ingest redacts content). The second step is the existing
 // `peasant redact --all`, which redacts the peasant-sync copies in place at
 // the configured level with the peasant-labs/redact rules and skips the
-// sessions already current, so a scheduled run leaves no new copy
-// unredacted. A redact == nil invocation renders harvest only.
+// sessions already current. It runs as ExecStopPost=, so it runs after a
+// failed harvest too. A redact == nil invocation renders harvest only.
 type serviceInvocation struct {
 	harvest []string
 	redact  []string
@@ -228,18 +231,24 @@ func renderServiceUnits(invocation serviceInvocation, schedule serviceSchedule) 
 	var svc strings.Builder
 	svc.WriteString(serviceUnitMarker + "\n")
 	svc.WriteString("[Unit]\n")
-	svc.WriteString("Description=Peasant: harvest AI coding agent transcripts into the local store\n\n")
+	svc.WriteString("Description=Peasant: harvest AI coding agent transcripts, then redact the local copies\n\n")
 	svc.WriteString("[Service]\n")
 	svc.WriteString("Type=oneshot\n")
 	for _, env := range invocation.env {
 		svc.WriteString("Environment=" + systemdQuote(env.Name+"="+env.Value, false) + "\n")
 	}
-	// A oneshot runs its ExecStart= lines in order and stops at the first
-	// failure, so a failed harvest is the unit's failure and redact runs on
-	// the next scheduled run.
 	svc.WriteString("ExecStart=" + systemdExecLine(invocation.harvest) + "\n")
 	if invocation.redact != nil {
-		svc.WriteString("ExecStart=" + systemdExecLine(invocation.redact) + "\n")
+		// ExecStopPost= runs after ExecStart= whether it succeeded or not,
+		// so one failing session (harvest exits 1) cannot keep the copies
+		// harvest did write unredacted; the unit still reports harvest's
+		// failure.
+		svc.WriteString("ExecStopPost=" + systemdExecLine(invocation.redact) + "\n")
+		// ExecStopPost= is bounded by TimeoutStopSec= (90s by default), too
+		// short for a first redact over a large store. A run killed at the
+		// limit leaves whole files (redact writes by rename) and the next
+		// run continues where it stopped.
+		svc.WriteString("TimeoutStopSec=30min\n")
 	}
 	svc.WriteString("Nice=10\n")
 	svc.WriteString("IOSchedulingClass=idle\n")
@@ -364,17 +373,50 @@ func serviceHarvestInvocation(cmd *cobra.Command, deps serviceDeps, flags servic
 
 type serviceHomes struct{ data, config, state string }
 
+// serviceExecutable is the binary path the unit runs. os.Executable is the
+// resolved file (/proc/self/exe), which for a package-manager install is a
+// versioned path (/nix/store/<hash>-peasant-…/bin/peasant, a Homebrew Cellar
+// version directory) that an upgrade and garbage collection remove. When
+// `peasant` on PATH is a link to this same file, the unit runs that PATH
+// entry instead, which the package manager repoints on upgrade.
+func serviceExecutable(deps serviceDeps) (string, error) {
+	exe, err := deps.executable()
+	if err != nil {
+		return "", err
+	}
+	if exe, err = filepath.Abs(exe); err != nil {
+		return "", err
+	}
+	if deps.lookPath == nil {
+		return exe, nil
+	}
+	onPath, err := deps.lookPath(string(defaults.AppName))
+	if err != nil {
+		return exe, nil
+	}
+	onPath, err = filepath.Abs(onPath)
+	if err != nil {
+		return exe, nil
+	}
+	resolved, err := filepath.EvalSymlinks(onPath)
+	if err != nil {
+		return exe, nil
+	}
+	exeResolved, err := filepath.EvalSymlinks(exe)
+	if err != nil || resolved != exeResolved {
+		return exe, nil
+	}
+	return onPath, nil
+}
+
 // serviceGlobalArgs resolves the binary and the root directory flags every
 // step of the unit passes.
 func serviceGlobalArgs(cmd *cobra.Command, deps serviceDeps) (string, []string, serviceHomes, error) {
 	fail := func(what string, err error) (string, []string, serviceHomes, error) {
 		return "", nil, serviceHomes{}, fmt.Errorf("resolve %s: %w", what, err)
 	}
-	exe, err := deps.executable()
+	exe, err := serviceExecutable(deps)
 	if err != nil {
-		return fail("the peasant binary", err)
-	}
-	if exe, err = filepath.Abs(exe); err != nil {
 		return fail("the peasant binary", err)
 	}
 	home := func(p string) (string, error) { return filepath.Abs(filepath.Dir(p)) }
@@ -397,6 +439,27 @@ func serviceGlobalArgs(cmd *cobra.Command, deps serviceDeps) (string, []string, 
 		global = append(global, "--config", configPath)
 	}
 	return exe, global, homes, nil
+}
+
+// validateUnitWords refuses what systemd cannot run or what would change the
+// unit's structure: a control character (a newline would start a new
+// directive) in any word, and in the executable path the characters systemd
+// rejects there however they are quoted (", \, ') or does not unescape ($).
+func validateUnitWords(invocation serviceInvocation) error {
+	isControl := func(r rune) bool { return r < 0x20 || r == 0x7f }
+	words := append(append([]string{}, invocation.harvest...), invocation.redact...)
+	for _, env := range invocation.env {
+		words = append(words, env.Value)
+	}
+	for _, word := range words {
+		if strings.ContainsFunc(word, isControl) {
+			return fmt.Errorf("cannot write a systemd unit for the path %q: it contains a control character (such as a newline); use a path without one", word)
+		}
+	}
+	if exe := invocation.harvest[0]; strings.ContainsAny(exe, "\"\\'$") {
+		return fmt.Errorf("cannot write a systemd unit for the peasant binary %q: systemd cannot run an executable whose path contains \", \\, ' or $; install or link peasant at a path without them and run that one", exe)
+	}
+	return nil
 }
 
 func requireSystemdHost(deps serviceDeps) error {
@@ -476,6 +539,9 @@ func runServiceInstall(cmd *cobra.Command, deps serviceDeps, flags serviceInstal
 	if err != nil {
 		return err
 	}
+	if err := validateUnitWords(invocation); err != nil {
+		return err
+	}
 	// Refuse now what every scheduled run would refuse: a stored redaction
 	// level this version will not ingest at.
 	configPath := resolveConfigPath(cmd)
@@ -498,7 +564,8 @@ func runServiceInstall(cmd *cobra.Command, deps serviceDeps, flags serviceInstal
 			fmt.Fprintf(out, "# %s\n%s\n", filepath.Join(unitDir, f.name), f.text)
 		}
 		fmt.Fprintln(out, "# would run: systemctl --user daemon-reload")
-		fmt.Fprintf(out, "# would run: systemctl --user enable --now %s\n", timerUnitName)
+		fmt.Fprintf(out, "# would run: systemctl --user enable %s\n", timerUnitName)
+		fmt.Fprintf(out, "# would run: systemctl --user restart %s\n", timerUnitName)
 		return nil
 	}
 	if err := requireUserManager(ctx, deps); err != nil {
@@ -527,7 +594,12 @@ func runServiceInstall(cmd *cobra.Command, deps serviceDeps, flags serviceInstal
 	if err := systemctlStep(ctx, deps, out, "daemon-reload"); err != nil {
 		return err
 	}
-	if err := systemctlStep(ctx, deps, out, "enable", "--now", timerUnitName); err != nil {
+	// enable arms the timer at boot; restart applies a changed schedule to a
+	// timer that is already running (enable --now leaves it as it was).
+	if err := systemctlStep(ctx, deps, out, "enable", timerUnitName); err != nil {
+		return err
+	}
+	if err := systemctlStep(ctx, deps, out, "restart", timerUnitName); err != nil {
 		return err
 	}
 	fmt.Fprintf(out, "enabled %s (%s)\n", timerUnitName, describeSchedule(schedule))

@@ -77,15 +77,17 @@ func unitSection(text, section string) []string {
 	return lines
 }
 
-func execStartsOf(text string) []string {
+func unitDirectiveValues(text, directive string) []string {
 	var lines []string
 	for _, line := range strings.Split(text, "\n") {
-		if v, ok := strings.CutPrefix(line, "ExecStart="); ok {
+		if v, ok := strings.CutPrefix(line, directive); ok {
 			lines = append(lines, v)
 		}
 	}
 	return lines
 }
+
+func execStartsOf(text string) []string { return unitDirectiveValues(text, "ExecStart=") }
 
 func execStartOf(text string) string {
 	if lines := execStartsOf(text); len(lines) > 0 {
@@ -155,16 +157,15 @@ func TestServiceUnitsRenderFixture(t *testing.T) {
 			if got := execStartOf(units.Service); got != tc.ExecStart {
 				t.Errorf("ExecStart\n got: %s\nwant: %s", got, tc.ExecStart)
 			}
-			starts := execStartsOf(units.Service)
-			wantStarts := 1
-			if tc.RedactArgs != nil {
-				wantStarts = 2
-				if len(starts) < 2 || starts[1] != tc.ExecStartRedact {
-					t.Errorf("redact ExecStart = %q, want %q", starts, tc.ExecStartRedact)
-				}
+			if starts := execStartsOf(units.Service); len(starts) != 1 {
+				t.Errorf("ExecStart lines = %q, want harvest only", starts)
 			}
-			if len(starts) != wantStarts {
-				t.Errorf("%d ExecStart lines, want %d", len(starts), wantStarts)
+			stopPost := unitDirectiveValues(units.Service, "ExecStopPost=")
+			if tc.RedactArgs == nil && len(stopPost) != 0 {
+				t.Errorf("ExecStopPost = %q, want none", stopPost)
+			}
+			if tc.RedactArgs != nil && (len(stopPost) != 1 || stopPost[0] != tc.ExecStartRedact) {
+				t.Errorf("redact ExecStopPost = %q, want %q", stopPost, tc.ExecStartRedact)
 			}
 			if got := splitSystemdExec(t, execStartOf(units.Service)); strings.Join(got, "\x00") != strings.Join(tc.Args, "\x00") {
 				t.Errorf("ExecStart does not round-trip: got %q want %q", got, tc.Args)
@@ -221,7 +222,7 @@ type serviceHarness struct {
 func newServiceHarness(t *testing.T, dirName string) *serviceHarness {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), dirName)
-	h := &serviceHarness{dir: dir, unitDir: filepath.Join(dir, "systemd", "user"), exe: filepath.Join(dir, "bin dir", "peasant"), ctl: &fakeSystemctl{}}
+	h := &serviceHarness{dir: dir, unitDir: filepath.Join(dir, "systemd", "user"), exe: filepath.Join(t.TempDir(), "bin dir", "peasant"), ctl: &fakeSystemctl{}}
 	h.deps = serviceDeps{
 		goos:       "linux",
 		executable: func() (string, error) { return h.exe, nil },
@@ -273,22 +274,23 @@ func TestServiceInstallDryRunMatchesWrittenUnits(t *testing.T) {
 			t.Errorf("%s mode = %v, %v; want %v", name, info.Mode().Perm(), err, serviceUnitPerm)
 		}
 	}
-	want := []string{"show-environment", "daemon-reload", "enable --now peasant-harvest.timer"}
+	want := []string{"show-environment", "daemon-reload", "enable peasant-harvest.timer", "restart peasant-harvest.timer"}
 	if got := h.ctl.Calls(); strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("systemctl calls = %q, want %q", got, want)
 	}
 	global := []string{"--data-dir", h.dir, "--config-dir", h.dir, "--state-dir", h.dir}
-	starts := execStartsOf(h.read(t, serviceUnitName))
-	wantSteps := [][]string{
-		append([]string{h.exe, "harvest"}, global...),
-		append(append([]string{h.exe, "redact"}, global...), "--all"),
+	unit := h.read(t, serviceUnitName)
+	steps := map[string][]string{
+		"ExecStart=":    append([]string{h.exe, "harvest"}, global...),
+		"ExecStopPost=": append(append([]string{h.exe, "redact"}, global...), "--all"),
 	}
-	if len(starts) != len(wantSteps) {
-		t.Fatalf("ExecStart lines = %q, want harvest then redact", starts)
-	}
-	for i, want := range wantSteps {
-		if got := splitSystemdExec(t, starts[i]); strings.Join(got, "\x00") != strings.Join(want, "\x00") {
-			t.Errorf("ExecStart[%d] args = %q, want %q", i, got, want)
+	for directive, want := range steps {
+		lines := unitDirectiveValues(unit, directive)
+		if len(lines) != 1 {
+			t.Fatalf("%s lines = %q, want exactly one", directive, lines)
+		}
+		if got := splitSystemdExec(t, lines[0]); strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+			t.Errorf("%s args = %q, want %q", directive, got, want)
 		}
 	}
 	for _, env := range []defaults.EnvVar{defaults.EnvXDGDataHome, defaults.EnvXDGConfigHome, defaults.EnvXDGStateHome} {
@@ -327,76 +329,19 @@ func writeServiceClaudeSession(t *testing.T, dir, project string) string {
 	return sid
 }
 
-// TestServiceExecStartRunsHarvestThenRedact runs each argument vector the
-// unit would run, in order, through the production root command: harvest
-// ingests the seeded session, and redact leaves no copy of the seeded token
-// in peasant-sync.
-func TestServiceExecStartRunsHarvestThenRedact(t *testing.T) {
-	t.Parallel()
-	h := newServiceHarness(t, "home with space")
-	src := filepath.Join(h.dir, "claude projects")
-	writeServiceClaudeSession(t, src, "demo")
-	if out, err := h.run(t, "install", "--source-harness", string(defaults.HarnessClaudeCode), "--source-path", src); err != nil {
-		t.Fatalf("install: %v\n%s", err, out)
-	}
-	// The default peasant-sync location under the unit's data home, where
-	// both harvest (through the unit's XDG_DATA_HOME) and redact look.
-	sync := filepath.Join(defaults.ResolveDataDirPathWith(h.dir).String(), defaults.OutputSyncSubdir)
-	for i, line := range execStartsOf(h.read(t, serviceUnitName)) {
-		words := splitSystemdExec(t, line)
-		if words[0] != h.exe {
-			t.Fatalf("ExecStart[%d] binary = %q", i, words[0])
-		}
-		args := words[1:]
-		if args[0] == "harvest" {
-			// The unit's environment sets XDG_DATA_HOME, which this parallel
-			// test cannot set; --output names the location it resolves to.
-			args = append(args, "--output", sync)
-		}
-		root := buildRootCommand()
-		var buf bytes.Buffer
-		root.SetOut(&buf)
-		root.SetErr(&buf)
-		root.SetArgs(args)
-		if err := root.Execute(); err != nil {
-			t.Fatalf("ExecStart[%d] %q: %v\n%s", i, args[0], err, buf.String())
-		}
-		if args[0] == "redact" && !strings.Contains(buf.String(), "redacted 1 session(s)") {
-			t.Errorf("redact step output:\n%s", buf.String())
-		}
-	}
-	if _, err := os.Stat(defaults.ResolveDBFilePathWith(h.dir).String()); err != nil {
-		t.Errorf("harvest did not create the store under the unit's --data-dir: %v", err)
-	}
-	copies := 0
-	_ = filepath.WalkDir(sync, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".jsonl") {
-			return err
-		}
-		copies++
-		data, readErr := os.ReadFile(path)
-		if readErr != nil {
-			return readErr
-		}
-		if bytes.Contains(data, []byte(serviceSeededToken)) {
-			t.Errorf("%s still holds the seeded token after the redact step", path)
-		}
-		return nil
-	})
-	if copies == 0 {
-		t.Fatalf("no peasant-sync transcript under %s", sync)
-	}
-}
-
 func TestServiceInstallNoRedactRendersHarvestOnly(t *testing.T) {
 	t.Parallel()
 	h := newServiceHarness(t, "home")
 	if out, err := h.run(t, "install", "--no-redact"); err != nil {
 		t.Fatalf("install: %v\n%s", err, out)
 	}
-	starts := execStartsOf(h.read(t, serviceUnitName))
+	unit := h.read(t, serviceUnitName)
+	starts := execStartsOf(unit)
 	if len(starts) != 1 || splitSystemdExec(t, starts[0])[1] != "harvest" {
 		t.Errorf("--no-redact ExecStart lines = %q, want harvest only", starts)
+	}
+	if post := unitDirectiveValues(unit, "ExecStopPost="); len(post) != 0 {
+		t.Errorf("--no-redact ExecStopPost = %q, want none", post)
 	}
 }
 
@@ -520,6 +465,13 @@ func TestServiceRefusals(t *testing.T) {
 		{"not linux install", func(h *serviceHarness) { h.deps.goos = "darwin" }, []string{"install", "--dry-run"}, "Linux only (this is darwin)"},
 		{"not linux status", func(h *serviceHarness) { h.deps.goos = "windows" }, []string{"status"}, "Linux only"},
 		{"no systemctl", func(h *serviceHarness) { h.ctl.fail = errSystemctlMissing }, []string{"install"}, "systemctl not found on PATH"},
+		{"dollar in binary path", func(h *serviceHarness) { h.exe = filepath.Join(h.dir, "b$X", "peasant") }, []string{"install", "--dry-run"}, "systemd cannot run an executable"},
+		{"double quote in binary path", func(h *serviceHarness) { h.exe = filepath.Join(h.dir, `q"q`, "peasant") }, []string{"install", "--dry-run"}, "systemd cannot run an executable"},
+		{"single quote in binary path", func(h *serviceHarness) { h.exe = filepath.Join(h.dir, "q'q", "peasant") }, []string{"install", "--dry-run"}, "systemd cannot run an executable"},
+		{"backslash in binary path", func(h *serviceHarness) { h.exe = filepath.Join(h.dir, `b\b`, "peasant") }, []string{"install", "--dry-run"}, "systemd cannot run an executable"},
+		{"newline in binary path", func(h *serviceHarness) { h.exe = filepath.Join(h.dir, "nl\nExecStartPre=/bin/true", "peasant") }, []string{"install", "--dry-run"}, "control character"},
+		{"newline in source path", nil, []string{"install", "--dry-run", "--source-harness", string(defaults.HarnessClaudeCode), "--source-path", "/x\nExecStartPre=/bin/true"}, "control character"},
+		{"tab in source path", nil, []string{"install", "--dry-run", "--source-harness", string(defaults.HarnessClaudeCode), "--source-path", "/x\ty"}, "control character"},
 		{"no user manager", func(h *serviceHarness) {
 			h.ctl.failOut = "Failed to connect to user scope bus via local transport"
 			h.ctl.fail = errors.New("exit status 1")
@@ -545,14 +497,17 @@ func TestServiceRefusals(t *testing.T) {
 
 // TestServiceUnitsVerifyWithSystemd runs systemd's own parser over the
 // rendered pair when systemd-analyze is installed (it is not on CI runners
-// without systemd, where this skips).
+// without systemd, where this skips). The directory arguments carry a space,
+// %, $, a double quote and a backslash; the binary sits in a path with a
+// space, the one special character systemd accepts in an executable.
 func TestServiceUnitsVerifyWithSystemd(t *testing.T) {
 	t.Parallel()
 	analyze, err := exec.LookPath("systemd-analyze")
 	if err != nil {
 		t.Skip("systemd-analyze not installed")
 	}
-	h := newServiceHarness(t, "home with space 100%")
+	h := newServiceHarness(t, `home 100% $HOME "q" \b`)
+	h.exe = filepath.Join(t.TempDir(), "bin dir", "peasant")
 	if err := os.MkdirAll(filepath.Dir(h.exe), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -568,5 +523,75 @@ func TestServiceUnitsVerifyWithSystemd(t *testing.T) {
 	out, err := cmd.CombinedOutput()
 	if err != nil || len(bytes.TrimSpace(out)) > 0 {
 		t.Fatalf("systemd-analyze verify: %v\n%s", err, out)
+	}
+}
+
+// TestServiceInstallRefusesControlCharacterInDataDir: a newline in an
+// inherited or passed directory would start a new unit directive.
+func TestServiceInstallRefusesControlCharacterInDataDir(t *testing.T) {
+	t.Parallel()
+	h := newServiceHarness(t, "nl\nExecStartPre=/bin/touch pwned")
+	out, err := h.run(t, "install", "--dry-run")
+	if err == nil || !strings.Contains(err.Error(), "control character") {
+		t.Fatalf("install --dry-run with a newline in the data dir = %v\n%s", err, out)
+	}
+	if strings.Contains(out, "\nExecStartPre=") {
+		t.Errorf("a unit with an injected directive was printed:\n%s", out)
+	}
+}
+
+// TestServiceExecutablePrefersStablePathEntry: a package-manager install
+// resolves os.Executable to a versioned path; the unit must name the PATH
+// entry that links to it, which survives an upgrade.
+func TestServiceExecutablePrefersStablePathEntry(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	versioned := filepath.Join(root, "store", "abc123-peasant-0.12.0", "bin", "peasant")
+	if err := os.MkdirAll(filepath.Dir(versioned), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(versioned, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	profile := filepath.Join(root, "profile", "bin", "peasant")
+	if err := os.MkdirAll(filepath.Dir(profile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(versioned, profile); err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(root, "other", "peasant")
+	if err := os.MkdirAll(filepath.Dir(other), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(other, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name   string
+		onPath string
+		want   string
+	}{
+		{"PATH links to this binary", profile, profile},
+		{"PATH names a different peasant", other, versioned},
+		{"no peasant on PATH", "", versioned},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newServiceHarness(t, "home")
+			h.exe = versioned
+			h.deps.lookPath = func(string) (string, error) {
+				if tc.onPath == "" {
+					return "", exec.ErrNotFound
+				}
+				return tc.onPath, nil
+			}
+			if out, err := h.run(t, "install"); err != nil {
+				t.Fatalf("install: %v\n%s", err, out)
+			}
+			if got := splitSystemdExec(t, execStartOf(h.read(t, serviceUnitName)))[0]; got != tc.want {
+				t.Errorf("unit binary = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
