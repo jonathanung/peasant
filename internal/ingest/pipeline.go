@@ -872,6 +872,12 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 	var indexSessions []indexedMeta // sessions to index after write
 	var toProcessEntries []DiffEntry
 	dryRunSessions := make([]SessionResult, 0, len(diffResult.Sessions))
+	// A duplicate-id refusal never reaches DIFF, so the dry-run forecast has
+	// to carry the same failed result the real run counts. Otherwise the
+	// summary reports 0 errors and the command exits 0.
+	if p.config.DryRun {
+		dryRunSessions = append(dryRunSessions, duplicateResults...)
+	}
 	recordDryRun := func(entry DiffEntry, status DiffStatus) {
 		if !p.config.DryRun {
 			return
@@ -1068,8 +1074,9 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 	toProcessEntries = ApplySchedulingParents(toProcessEntries, p.storedParentSet(ctx, toProcessEntries))
 
 	// Dry-run uses the same allowed-session, time, positive-selection, exact-
-	// denial, and parent-inheritance decisions as a real run. It stops only after
-	// that shared FILTER pass and performs no extraction, write, or store action.
+	// denial, parent-inheritance, and duplicate-id decisions as a real run.
+	// It stops only after that shared FILTER pass and performs no extraction,
+	// write, or store action. A refusal counts as one error, matching REPORT.
 	if p.config.DryRun {
 		result := &PipelineResult{
 			Duration:             time.Since(start),
@@ -1082,6 +1089,10 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 		result.Summary.OriginResolve = p.originResolve
 		result.Summary.OriginResolveError = p.originResolveErr
 		for _, session := range dryRunSessions {
+			if session.Error != nil {
+				result.Summary.Errors++
+				continue
+			}
 			switch session.Status {
 			case DiffNew:
 				result.Summary.New++

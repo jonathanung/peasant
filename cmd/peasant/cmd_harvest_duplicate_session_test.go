@@ -11,11 +11,15 @@ import (
 	"testing"
 )
 
-// TestHarvestRefusesOneSessionIDInTwoSourceFiles proves two source files that
-// claim one session id fail that session with a reason naming both files,
-// instead of storing a row mixed from both and reporting 0 errors.
-func TestHarvestRefusesOneSessionIDInTwoSourceFiles(t *testing.T) {
-	t.Parallel()
+// duplicateSessionHarvestFixture is two source files that claim one session id.
+type duplicateSessionHarvestFixture struct {
+	dir        string
+	configPath string
+	sessionID  string
+}
+
+func writeDuplicateSessionHarvestFixture(t *testing.T) duplicateSessionHarvestFixture {
+	t.Helper()
 	dir := t.TempDir()
 	src := filepath.Join(t.TempDir(), "projects")
 	sid := "ffffffff-0000-4000-8000-000000000001"
@@ -42,13 +46,27 @@ func TestHarvestRefusesOneSessionIDInTwoSourceFiles(t *testing.T) {
 	if err := os.WriteFile(configPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	return duplicateSessionHarvestFixture{dir: dir, configPath: configPath, sessionID: sid}
+}
+
+func harvestReportsDuplicateSession(output string) bool {
+	return strings.Contains(output, "   - 1     errors") && strings.Contains(output, "same session id") &&
+		strings.Contains(output, "-tmp-qa-one") && strings.Contains(output, "-tmp-qa-two") &&
+		strings.Contains(output, "do not delete")
+}
+
+// TestHarvestRefusesOneSessionIDInTwoSourceFiles proves two source files that
+// claim one session id fail that session with a reason naming both files,
+// instead of storing a row mixed from both and reporting 0 errors.
+func TestHarvestRefusesOneSessionIDInTwoSourceFiles(t *testing.T) {
+	t.Parallel()
+	fixture := writeDuplicateSessionHarvestFixture(t)
+	dir, configPath, sid := fixture.dir, fixture.configPath, fixture.sessionID
 	output, err := executeHarvestCmd(t, dir, []string{"--config=" + configPath})
 	if err == nil {
 		t.Fatalf("harvest succeeded although two source files claim session %s:\n%s", sid, output)
 	}
-	if !strings.Contains(output, "   - 1     errors") || !strings.Contains(output, "same session id") ||
-		!strings.Contains(output, "-tmp-qa-one") || !strings.Contains(output, "-tmp-qa-two") ||
-		!strings.Contains(output, "do not delete") {
+	if !harvestReportsDuplicateSession(output) {
 		t.Fatalf("harvest does not report the duplicate id as one failed session naming both files:\n%s", output)
 	}
 	// The run's audit outcomes must record the refusal; an unlisted reason
@@ -70,5 +88,20 @@ func TestHarvestRefusesOneSessionIDInTwoSourceFiles(t *testing.T) {
 	}
 	if len(reasons) == 0 {
 		t.Fatalf("no audit outcome was recorded for the refused session %s", sid)
+	}
+}
+
+// TestHarvestDryRunCountsOneSessionIDInTwoSourceFilesAsOneError proves
+// `harvest --dry-run` counts a duplicate session id the same way a real run
+// does: one error, and the command fails.
+func TestHarvestDryRunCountsOneSessionIDInTwoSourceFilesAsOneError(t *testing.T) {
+	t.Parallel()
+	fixture := writeDuplicateSessionHarvestFixture(t)
+	output, err := executeHarvestCmd(t, fixture.dir, []string{"--dry-run", "--config=" + fixture.configPath})
+	if err == nil || !strings.Contains(err.Error(), "1 session(s) failed") {
+		t.Fatalf("dry-run exit = %v, want 1 session failed:\n%s", err, output)
+	}
+	if !harvestReportsDuplicateSession(output) {
+		t.Fatalf("dry-run does not report the duplicate id as one failed session naming both files:\n%s", output)
 	}
 }
