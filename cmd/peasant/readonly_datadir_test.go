@@ -66,6 +66,9 @@ func TestReadOnlyDataDirServesReadOnlyCommands(t *testing.T) {
 		{"harvest verify", func() (string, error) {
 			return executeWithDataDir(t, BuildHarvestCommand(), dir, []string{"verify"})
 		}, "Peasant Database Verification"},
+		{"harvest verify --content", func() (string, error) {
+			return executeWithDataDir(t, BuildHarvestCommand(), dir, []string{"verify", "--content"})
+		}, "Content verification"},
 		{"metrics compute --dry-run", func() (string, error) {
 			return executeWithDataDir(t, BuildMetricsCommand(), dir, []string{"compute", "--dry-run"})
 		}, ""},

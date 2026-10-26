@@ -332,6 +332,10 @@ type openOptions struct {
 // to read, and fails with "attempt to write a readonly database". The open is
 // refused while a non-empty -wal file exists, because immutable reads would
 // skip the committed frames in it.
+// immutable=1 also tells SQLite no other process writes the file while it is
+// open; on a directory this process cannot write that is normally true, but a
+// writer with more permissions changing the file meanwhile would not be seen
+// and could make reads inconsistent.
 func WithImmutableReadOnly() OpenOption {
 	return func(o *openOptions) { o.immutable = true }
 }
