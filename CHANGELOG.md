@@ -9,9 +9,10 @@ Release, which holds the signed artifacts and checksums.
 
 ### Changed
 - `harvest --since`, `sessions list --since/--until` and `prune --before/--after`
-  now share one time grammar: `Nh`, `Nd`, `Nw`, `Nm` (months), `Ny`, or a
+  now share one time grammar: `Nh`, `Nd`, `Nw`, `Nmo` (months), `Ny`, or a
   `YYYY-MM-DD`/RFC3339 date. **`sessions list --since 30m` now means 30
-  months, not 30 minutes**; use `1h` for the last hour. `prune` accepts
+  months, not 30 minutes**; use `1h` for the last hour. `prune` refuses a bare
+  `Nm` and asks for `Nmo`. `prune` accepts
   relative values and `harvest --since` accepts dates for the first time.
 
 ## [0.13.4] - 2026-10-28

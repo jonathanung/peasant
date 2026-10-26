@@ -167,7 +167,7 @@ are replayed once through the ordinary push candidate path.
 | `--force` | Re-ingest all sessions (respects staleness) |
 | `--include-active` | Also ingest sessions still being written |
 | `--session <ids>` | Filter to specific session IDs (repeatable, comma-separated). Overrides the selection index. |
-| `--since <time>` | Only sessions newer than this: `Nh`, `Nd`, `Nw`, `Nm` (months), `Ny`, or `YYYY-MM-DD`. `sessions list --since/--until` and `prune --before/--after` take the same values. |
+| `--since <time>` | Only sessions newer than this: `Nh`, `Nd`, `Nw`, `Nmo` (months), `Ny`, or `YYYY-MM-DD`. `sessions list --since/--until` and `prune --before/--after` take the same values, except that `prune` refuses a bare `Nm` (write `Nmo`). |
 | `--source-harness <h>` | Override source harness (`claude-code`, `opencode`, `codex`, `cursor`, `strike`) |
 | `--source-path <path>` | Override source path for the provider (replaces config, not additive) |
 | `--output <path>` | Override output base path |
