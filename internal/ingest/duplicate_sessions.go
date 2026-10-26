@@ -56,6 +56,12 @@ func refuseDuplicateSessionIDs(fsys FileSystem, sessions []DiscoveredSession, se
 	reported := map[key]bool{}
 	for _, s := range sessions {
 		k := key{s.Harness, s.SessionID}
+		// A subagent of a refused parent is left out with it: storing its
+		// files without the parent only repeats "parent is not stored" on
+		// every harvest.
+		if s.ParentUUID != nil && len(paths[key{s.Harness, *s.ParentUUID}]) >= 2 {
+			continue
+		}
 		if len(paths[k]) < 2 {
 			kept = append(kept, s)
 			continue

@@ -61,3 +61,20 @@ func TestRefuseDuplicateSessionIDsScope(t *testing.T) {
 		})
 	}
 }
+
+// TestRefuseDuplicateSessionIDsLeavesOutChildrenOfARefusedParent proves a
+// subagent of a refused session is not kept to be stored on its own.
+func TestRefuseDuplicateSessionIDsLeavesOutChildrenOfARefusedParent(t *testing.T) {
+	t.Parallel()
+	parent := SessionID("s1")
+	sessions := []DiscoveredSession{
+		{Harness: HarnessClaudeCode, SessionID: parent, SourcePath: "/a/s1.jsonl"},
+		{Harness: HarnessClaudeCode, SessionID: parent, SourcePath: "/b/s1.jsonl"},
+		{Harness: HarnessClaudeCode, SessionID: "child", ParentUUID: &parent, SourcePath: "/a/s1/subagents/agent-child.jsonl"},
+		{Harness: HarnessClaudeCode, SessionID: "other", SourcePath: "/a/other.jsonl"},
+	}
+	kept, refused := refuseDuplicateSessionIDs(nil, sessions, nil)
+	if len(refused) != 1 || len(kept) != 1 || kept[0].SessionID != "other" {
+		t.Fatalf("kept %+v refused %d, want only the unrelated session kept and one refusal", kept, len(refused))
+	}
+}
