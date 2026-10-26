@@ -5,6 +5,7 @@ Write and enable the peasant-harvest systemd user timer
 ### Synopsis
 
 Write peasant-harvest.service and peasant-harvest.timer, reload the user manager, and enable the timer.
+Each run is 'peasant harvest', then 'peasant redact --all', which redacts the new and changed peasant-sync copies at the configured level (the database index keeps transcript content as recorded, as after a manual harvest). --no-redact runs harvest only.
 The data, config, and state directories (and --config when given) are resolved now and written into the unit, so the timer harvests into the same store this command sees. Re-running install replaces the units.
 
 ```
@@ -17,6 +18,7 @@ peasant service install [flags]
       --dry-run                     Print the unit files and systemctl commands without changing anything
   -h, --help                        help for install
       --interval duration           Time between harvest runs (minimum 1m) (default 1h0m0s)
+      --no-redact                   Do not run 'peasant redact --all' after each harvest
       --on-calendar string          Run on a systemd calendar expression instead of an interval (e.g. 'hourly', '*-*-* 09:00')
       --randomized-delay duration   Random delay added to each run (0 disables) (default 5m0s)
       --source-harness string       Pass --source-harness to harvest (requires --source-path)

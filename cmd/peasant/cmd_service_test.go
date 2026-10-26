@@ -19,6 +19,8 @@ import (
 type serviceUnitCase struct {
 	Name            string       `yaml:"name"`
 	Args            []string     `yaml:"args"`
+	RedactArgs      []string     `yaml:"redact_args"`
+	ExecStartRedact string       `yaml:"exec_start_redact"`
 	Interval        string       `yaml:"interval"`
 	OnCalendar      string       `yaml:"on_calendar"`
 	RandomizedDelay string       `yaml:"randomized_delay"`
@@ -75,11 +77,19 @@ func unitSection(text, section string) []string {
 	return lines
 }
 
-func execStartOf(text string) string {
+func execStartsOf(text string) []string {
+	var lines []string
 	for _, line := range strings.Split(text, "\n") {
 		if v, ok := strings.CutPrefix(line, "ExecStart="); ok {
-			return v
+			lines = append(lines, v)
 		}
+	}
+	return lines
+}
+
+func execStartOf(text string) string {
+	if lines := execStartsOf(text); len(lines) > 0 {
+		return lines[0]
 	}
 	return ""
 }
@@ -127,7 +137,7 @@ func TestServiceUnitsRenderFixture(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			t.Parallel()
 			schedule := serviceSchedule{interval: mustDuration(t, tc.Interval), calendar: tc.OnCalendar, randomizedDelay: mustDuration(t, tc.RandomizedDelay)}
-			units := renderServiceUnits(serviceInvocation{args: tc.Args, env: tc.Environment}, schedule)
+			units := renderServiceUnits(serviceInvocation{harvest: tc.Args, redact: tc.RedactArgs, env: tc.Environment}, schedule)
 			var envLines []string
 			for _, line := range unitSection(units.Service, "Service") {
 				if strings.HasPrefix(line, "Environment=") {
@@ -144,6 +154,17 @@ func TestServiceUnitsRenderFixture(t *testing.T) {
 			}
 			if got := execStartOf(units.Service); got != tc.ExecStart {
 				t.Errorf("ExecStart\n got: %s\nwant: %s", got, tc.ExecStart)
+			}
+			starts := execStartsOf(units.Service)
+			wantStarts := 1
+			if tc.RedactArgs != nil {
+				wantStarts = 2
+				if len(starts) < 2 || starts[1] != tc.ExecStartRedact {
+					t.Errorf("redact ExecStart = %q, want %q", starts, tc.ExecStartRedact)
+				}
+			}
+			if len(starts) != wantStarts {
+				t.Errorf("%d ExecStart lines, want %d", len(starts), wantStarts)
 			}
 			if got := splitSystemdExec(t, execStartOf(units.Service)); strings.Join(got, "\x00") != strings.Join(tc.Args, "\x00") {
 				t.Errorf("ExecStart does not round-trip: got %q want %q", got, tc.Args)
@@ -256,12 +277,22 @@ func TestServiceInstallDryRunMatchesWrittenUnits(t *testing.T) {
 	if got := h.ctl.Calls(); strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Errorf("systemctl calls = %q, want %q", got, want)
 	}
-	words := splitSystemdExec(t, execStartOf(h.read(t, serviceUnitName)))
-	wantArgs := []string{h.exe, "harvest", "--data-dir", h.dir, "--config-dir", h.dir, "--state-dir", h.dir}
-	if strings.Join(words, "\x00") != strings.Join(wantArgs, "\x00") {
-		t.Errorf("ExecStart args = %q, want %q", words, wantArgs)
+	global := []string{"--data-dir", h.dir, "--config-dir", h.dir, "--state-dir", h.dir}
+	starts := execStartsOf(h.read(t, serviceUnitName))
+	wantSteps := [][]string{
+		append([]string{h.exe, "harvest"}, global...),
+		append(append([]string{h.exe, "redact"}, global...), "--all"),
 	}
-	for _, name := range []string{"XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME"} {
+	if len(starts) != len(wantSteps) {
+		t.Fatalf("ExecStart lines = %q, want harvest then redact", starts)
+	}
+	for i, want := range wantSteps {
+		if got := splitSystemdExec(t, starts[i]); strings.Join(got, "\x00") != strings.Join(want, "\x00") {
+			t.Errorf("ExecStart[%d] args = %q, want %q", i, got, want)
+		}
+	}
+	for _, env := range []defaults.EnvVar{defaults.EnvXDGDataHome, defaults.EnvXDGConfigHome, defaults.EnvXDGStateHome} {
+		name := env.String()
 		want := "Environment=" + systemdQuote(name+"="+h.dir, false) + "\n"
 		if !strings.Contains(h.read(t, serviceUnitName), want) {
 			t.Errorf("service unit lacks %q", want)
@@ -273,32 +304,99 @@ func TestServiceInstallDryRunMatchesWrittenUnits(t *testing.T) {
 	}
 }
 
-// TestServiceExecStartRunsHarvest runs the exact argument vector the unit
-// would run, through the production root command, on an empty source dir.
-func TestServiceExecStartRunsHarvest(t *testing.T) {
+// serviceSeededToken is a fake GitHub token the redact rules catch.
+const serviceSeededToken = "ghp_R7xQ2mLk9VtB4nW8zHc3JpF6sD1aYe5uK0oT"
+
+// writeServiceClaudeSession writes a minimal Claude Code transcript whose
+// user turn carries serviceSeededToken.
+func writeServiceClaudeSession(t *testing.T, dir, project string) string {
+	t.Helper()
+	sid := "11111111-1111-4111-8111-111111111111"
+	projectDir := filepath.Join(dir, "-svc-"+project)
+	if err := os.MkdirAll(projectDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	base := `"cwd":"/work/` + project + `","sessionId":"` + sid + `","isSidechain":false,"userType":"external","version":"2.1.0","gitBranch":"main"`
+	lines := []string{
+		`{` + base + `,"type":"user","uuid":"aaaaaaaa-0000-4000-8000-000000000001","timestamp":"2026-10-25T10:00:00.000Z","message":{"role":"user","content":"deploy with ` + serviceSeededToken + `"}}`,
+		`{` + base + `,"type":"assistant","uuid":"aaaaaaaa-0000-4000-8000-000000000002","parentUuid":"aaaaaaaa-0000-4000-8000-000000000001","timestamp":"2026-10-25T10:00:01.000Z","message":{"id":"msg_1","type":"message","role":"assistant","model":"claude-sonnet-4-5","content":[{"type":"text","text":"done"}],"usage":{"input_tokens":1,"output_tokens":1}}}`,
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, sid+".jsonl"), []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return sid
+}
+
+// TestServiceExecStartRunsHarvestThenRedact runs each argument vector the
+// unit would run, in order, through the production root command: harvest
+// ingests the seeded session, and redact leaves no copy of the seeded token
+// in peasant-sync.
+func TestServiceExecStartRunsHarvestThenRedact(t *testing.T) {
 	t.Parallel()
 	h := newServiceHarness(t, "home with space")
 	src := filepath.Join(h.dir, "claude projects")
-	if err := os.MkdirAll(src, 0o700); err != nil {
-		t.Fatal(err)
-	}
+	writeServiceClaudeSession(t, src, "demo")
 	if out, err := h.run(t, "install", "--source-harness", string(defaults.HarnessClaudeCode), "--source-path", src); err != nil {
 		t.Fatalf("install: %v\n%s", err, out)
 	}
-	words := splitSystemdExec(t, execStartOf(h.read(t, serviceUnitName)))
-	if words[0] != h.exe || words[1] != "harvest" {
-		t.Fatalf("ExecStart = %q", words)
-	}
-	root := buildRootCommand()
-	var buf bytes.Buffer
-	root.SetOut(&buf)
-	root.SetErr(&buf)
-	root.SetArgs(append(words[1:], "--output", filepath.Join(h.dir, "sync")))
-	if err := root.Execute(); err != nil {
-		t.Fatalf("harvest from ExecStart: %v\n%s", err, buf.String())
+	// The default peasant-sync location under the unit's data home, where
+	// both harvest (through the unit's XDG_DATA_HOME) and redact look.
+	sync := filepath.Join(defaults.ResolveDataDirPathWith(h.dir).String(), defaults.OutputSyncSubdir)
+	for i, line := range execStartsOf(h.read(t, serviceUnitName)) {
+		words := splitSystemdExec(t, line)
+		if words[0] != h.exe {
+			t.Fatalf("ExecStart[%d] binary = %q", i, words[0])
+		}
+		args := words[1:]
+		if args[0] == "harvest" {
+			// The unit's environment sets XDG_DATA_HOME, which this parallel
+			// test cannot set; --output names the location it resolves to.
+			args = append(args, "--output", sync)
+		}
+		root := buildRootCommand()
+		var buf bytes.Buffer
+		root.SetOut(&buf)
+		root.SetErr(&buf)
+		root.SetArgs(args)
+		if err := root.Execute(); err != nil {
+			t.Fatalf("ExecStart[%d] %q: %v\n%s", i, args[0], err, buf.String())
+		}
+		if args[0] == "redact" && !strings.Contains(buf.String(), "redacted 1 session(s)") {
+			t.Errorf("redact step output:\n%s", buf.String())
+		}
 	}
 	if _, err := os.Stat(defaults.ResolveDBFilePathWith(h.dir).String()); err != nil {
-		t.Errorf("harvest did not create the store under the unit's --data-dir: %v\n%s", err, buf.String())
+		t.Errorf("harvest did not create the store under the unit's --data-dir: %v", err)
+	}
+	copies := 0
+	_ = filepath.WalkDir(sync, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".jsonl") {
+			return err
+		}
+		copies++
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		if bytes.Contains(data, []byte(serviceSeededToken)) {
+			t.Errorf("%s still holds the seeded token after the redact step", path)
+		}
+		return nil
+	})
+	if copies == 0 {
+		t.Fatalf("no peasant-sync transcript under %s", sync)
+	}
+}
+
+func TestServiceInstallNoRedactRendersHarvestOnly(t *testing.T) {
+	t.Parallel()
+	h := newServiceHarness(t, "home")
+	if out, err := h.run(t, "install", "--no-redact"); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	starts := execStartsOf(h.read(t, serviceUnitName))
+	if len(starts) != 1 || splitSystemdExec(t, starts[0])[1] != "harvest" {
+		t.Errorf("--no-redact ExecStart lines = %q, want harvest only", starts)
 	}
 }
 

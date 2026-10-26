@@ -5,7 +5,7 @@ Run harvest on a schedule with a systemd user timer (Linux)
 ### Synopsis
 
 Install, inspect, or remove a systemd user timer that runs 'peasant harvest' on a schedule.
-The timer runs the normal harvest: sessions are redacted at the configured level and stored locally. It never publishes to the Village.
+Each run is the normal 'peasant harvest' followed by 'peasant redact --all' on the local copies. It never publishes to the Village.
 Units are written to $XDG_CONFIG_HOME/systemd/user (default ~/.config/systemd/user). To keep the timer running while you are logged out, run 'loginctl enable-linger'.
 
 ```

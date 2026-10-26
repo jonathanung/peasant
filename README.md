@@ -183,10 +183,15 @@ the selected projects, branches, and sessions. The `--session` flag overrides th
 
 ### Scheduled harvest (`peasant service`)
 
-On Linux with systemd, `peasant service install` writes a user timer that runs the normal
-`peasant harvest` on a schedule. The scheduled run stores and redacts sessions in the same way
-as a manual harvest, at your configured redaction level and with your kickstart selection. It
-never publishes to the Village.
+On Linux with systemd, `peasant service install` writes a user timer. Each run is
+`peasant harvest` followed by `peasant redact --all`, the same commands you would run by hand.
+
+- Harvest imports new and changed sessions with your kickstart selection.
+- Redact then redacts the `peasant-sync` copies at your configured redaction level. It skips
+  sessions that are already current.
+- As after a manual harvest, the local database index keeps transcript content as recorded.
+- `--no-redact` runs harvest only.
+- The timer never publishes to the Village.
 
 ```bash
 peasant service install --dry-run           # print both unit files; change nothing
@@ -206,7 +211,8 @@ peasant service uninstall
 - Re-running `install` replaces the units. `install` and `uninstall` touch only files that
   start with peasant's marker comment. A unit you wrote by hand under the same name is never
   overwritten or removed.
-- systemd starts at most one run of the service at a time.
+- systemd starts at most one run of the service at a time. A failed harvest fails the run,
+  and redact runs again on the next scheduled run.
 - The timer runs only while your user manager runs. For it to run while you are logged out,
   run `loginctl enable-linger`.
 - After you move the `peasant` binary, re-run `install`.

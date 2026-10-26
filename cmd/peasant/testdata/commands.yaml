@@ -284,6 +284,7 @@ commands:
           - { name: randomized-delay, type: duration, default: "5m0s" }
           - { name: source-harness, type: string, default: "" }
           - { name: source-path, type: string, default: "" }
+          - { name: no-redact, type: bool, default: "false" }
           - { name: dry-run, type: bool, default: "false" }
       - use: status
       - use: uninstall
