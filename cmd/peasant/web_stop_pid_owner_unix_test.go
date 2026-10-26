@@ -60,7 +60,10 @@ func waitForCommandLine(t *testing.T, pid, port int) {
 	t.Helper()
 	deadline := time.Now().Add(10 * time.Second)
 	for {
-		if ok, err := isPeasantWebServer(pid, port); err == nil && ok {
+		// Read the process table directly rather than through the code under
+		// test, so this file also builds against develop and its tests fail
+		// there at runtime instead of at compile time.
+		if commandLineShows(pid, "web start --foreground --port "+strconv.Itoa(port)) {
 			return
 		}
 		if time.Now().After(deadline) {
