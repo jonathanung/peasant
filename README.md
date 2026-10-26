@@ -269,7 +269,7 @@ in the bestiary migration; temporary `LegacyHarness*` deprecation shims remain u
 
 ## Ingest pipeline
 
-`peasant ingest` runs a 9-stage pipeline (`internal/ingest/pipeline.go`):
+`peasant harvest` runs a 9-stage pipeline (`internal/ingest/pipeline.go`):
 
 ```
 DISCOVER -> DIFF -> FILTER -> EXTRACT+WRITE -> DB INSERT -> INDEX -> COMPUTE -> CLEANUP -> REPORT
@@ -948,7 +948,7 @@ var migrations = []Migration{
 Run verification after migrations:
 
 ```bash
-./peasant ingest verify
+./peasant harvest verify
 ```
 
 ### Database verification
