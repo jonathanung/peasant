@@ -13,7 +13,9 @@ Release, which holds the signed artifacts and checksums.
   migrate, kickstart, web and tui), as its help text says. Earlier
   versions wrote those copies under the default data home instead.
   **If you used `--data-dir` before**, the old copies stay where they
-  were. Run `peasant --data-dir <dir> harvest --force` once to copy every
+  were. A plain harvest after the upgrade reports those sessions as
+  unchanged and does not copy them, because their database rows are
+  current. Run `peasant --data-dir <dir> harvest --force` once to copy every
   session into `<dir>/peasant/peasant-sync`, then delete the old copies
   under the default data home if no default-location install uses them.
 

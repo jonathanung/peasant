@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/peasant-labs/peasant/internal/config"
 	"github.com/peasant-labs/peasant/internal/defaults"
@@ -118,4 +119,77 @@ func basePathOf(c *config.Config) string {
 		return ""
 	}
 	return c.Output.BasePath
+}
+
+// TestHarvestDataDirUpgradeNeedsForceToCopy pins the documented upgrade
+// path from a build that kept the database under --data-dir but wrote the
+// peasant-sync copies under the default data home. The database row is
+// current, so the first plain harvest classifies the session unchanged and
+// writes no copy under <data-dir>/peasant/peasant-sync: classification does
+// not stat the managed tree for unchanged sessions (tracked as a follow-up).
+// The CHANGELOG remedy, one `harvest --force`, must copy it.
+func TestHarvestDataDirUpgradeNeedsForceToCopy(t *testing.T) {
+	xdgData := t.TempDir()
+	t.Setenv(defaults.EnvXDGDataHome.String(), xdgData)
+	dir := t.TempDir()
+	src := filepath.Join(t.TempDir(), "projects")
+	sid := "aaaaaaaa-0000-4000-8000-000000000002"
+	transcript := `{"type":"user","sessionId":"` + sid + `","uuid":"u1","cwd":"/tmp/qa-proj","timestamp":"2026-10-01T10:00:00Z","message":{"role":"user","content":"hello"}}
+{"type":"assistant","sessionId":"` + sid + `","uuid":"a1","parentUuid":"u1","cwd":"/tmp/qa-proj","timestamp":"2026-10-01T10:00:05Z","message":{"role":"assistant","model":"claude-sonnet-4-5","content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":3,"output_tokens":2}}}
+`
+	if err := os.MkdirAll(filepath.Join(src, "-tmp-qa-proj"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(src, "-tmp-qa-proj", sid+".jsonl"), []byte(transcript), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	base := "version: 1\nsources:\n  claude-code:\n    enabled: false\n  opencode:\n    enabled: false\n  cursor:\n    enabled: false\n  pi:\n    enabled: false\n"
+	oldSync := filepath.Join(xdgData, "peasant", "peasant-sync")
+	harvest := func(name, cfg string, extra ...string) string {
+		t.Helper()
+		configPath := filepath.Join(dir, "config.yaml")
+		if err := os.WriteFile(configPath, []byte(cfg), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		root := newTestRoot()
+		root.AddCommand(BuildHarvestCommand())
+		var out strings.Builder
+		root.SetOut(&out)
+		root.SetErr(&out)
+		root.SetArgs(append([]string{"--data-dir", dir, "--config-dir", dir, "--config", configPath, "harvest", "--source-harness", "claude-code", "--source-path", src}, extra...))
+		if err := root.Execute(); err != nil {
+			t.Fatalf("%s harvest: %v\n%s", name, err, out.String())
+		}
+		return out.String()
+	}
+	// Old enough that neither harvest treats the session as active.
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(filepath.Join(src, "-tmp-qa-proj", sid+".jsonl"), old, old); err != nil {
+		t.Fatal(err)
+	}
+	// The trailing separator keeps this build's override from moving the
+	// pre-upgrade run, so it writes where the old builds wrote.
+	pre := harvest("pre-upgrade", base+"output:\n  basePath: "+oldSync+string(filepath.Separator)+"\n")
+	if entries, _ := os.ReadDir(oldSync); len(entries) == 0 {
+		t.Fatalf("setup: the pre-upgrade harvest wrote no copies under %s:\n%s", oldSync, pre)
+	}
+	want := filepath.Join(string(defaults.ResolveDataDirPathWith(dir)), "peasant-sync")
+	copies := func() int {
+		n := 0
+		_ = filepath.WalkDir(want, func(p string, d os.DirEntry, err error) error {
+			if err == nil && !d.IsDir() && strings.Contains(p, sid) {
+				n++
+			}
+			return nil
+		})
+		return n
+	}
+	out := harvest("post-upgrade", base)
+	if !strings.Contains(out, "1     unchanged") || copies() != 0 {
+		t.Errorf("first harvest after the upgrade: want the session unchanged and no copy under %s (the documented limit); got %d copies:\n%s", want, copies(), out)
+	}
+	out = harvest("post-upgrade --force", base, "--force")
+	if copies() == 0 {
+		t.Errorf("harvest --force after the upgrade left no copy of %s under %s:\n%s", sid, want, out)
+	}
 }
