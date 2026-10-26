@@ -660,6 +660,8 @@ func buildFTUEIngestRunnerWithProgress(cmd *cobra.Command, configPath string) (f
 			Write:              cfg.Write,
 			Progress:           progState,
 			AllowedSessionIDs:  allowedIDs,
+			// The wizard's allowlist is the user's selection.
+			AllowedSessionIDsIsSelection: true,
 		}
 
 		// Open DB and wire analytics stages.

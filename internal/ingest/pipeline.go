@@ -204,6 +204,11 @@ type PipelineConfig struct {
 	// Non-nil means only sessions in the map are processed.
 	// An empty non-nil map means NO sessions pass.
 	AllowedSessionIDs map[SessionID]bool
+	// AllowedSessionIDsIsSelection reports the sessions AllowedSessionIDs
+	// leaves out as excluded by selection rather than unchanged. Kickstart
+	// sets it, because its allowlist is the user's selection; a --session or
+	// single-session reindex scope is not, and keeps reporting unchanged.
+	AllowedSessionIDsIsSelection bool
 	// Since filters sessions by age: only sessions with ModTime (or CreatedAt)
 	// at or after this time are processed.
 	// nil means no time-based filter (backward compatible).
@@ -882,6 +887,10 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 		}
 		// AllowedSessionIDs filter: skip sessions not in the allowed set.
 		if p.config.AllowedSessionIDs != nil && !p.config.AllowedSessionIDs[entry.Session.SessionID] {
+			if p.config.AllowedSessionIDsIsSelection {
+				excludeBySelection(entry)
+				continue
+			}
 			recordDryRun(entry, DiffUnchanged)
 			sessionResults = append(sessionResults, SessionResult{
 				SessionID:  entry.Session.SessionID,
