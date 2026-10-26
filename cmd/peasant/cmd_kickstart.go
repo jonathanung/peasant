@@ -249,7 +249,8 @@ func confirmKickstartReset(cmd *cobra.Command, configPath string) (bool, error) 
 }
 
 // promptKickstartReset prints the targets and reads one answer. Only "y" or
-// "Y" consents; anything else, an empty line or EOF keeps everything.
+// "yes" (any case, blanks trimmed) consents; anything else, including "y" with
+// more words, an empty line or EOF, keeps everything.
 func promptKickstartReset(w io.Writer, r io.Reader, targets kickstartResetTargetList) bool {
 	fmt.Fprintln(w, "kickstart --reset permanently removes:")
 	fmt.Fprintf(w, "  config:       %s\n", targets.config)
@@ -258,9 +259,7 @@ func promptKickstartReset(w io.Writer, r io.Reader, targets kickstartResetTarget
 	fmt.Fprintf(w, "  peasant-sync: %s\n", targets.sync)
 	fmt.Fprintf(w, "  state:        %s\n", targets.state)
 	fmt.Fprint(w, "Reset everything? [y/N]: ")
-	var response string
-	fmt.Fscanln(r, &response)
-	return response == "y" || response == "Y"
+	return readConsent(r)
 }
 
 // resetAll removes the config file, credentials, database, peasant-sync directory, and state directory.

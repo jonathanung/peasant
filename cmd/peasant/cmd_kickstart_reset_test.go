@@ -112,7 +112,11 @@ func TestKickstartResetPromptAnswers(t *testing.T) {
 		{"N", "N\n", false},
 		{"empty line", "\n", false},
 		{"EOF", "", false},
-		{"yes spelled out", "yes\n", false},
+		{"yes spelled out", "yes\n", true},
+		{"YES with spaces", "  YES \n", true},
+		{"y with trailing words", "y extra\n", false},
+		{"yes with trailing words", "yes please\n", false},
+		{"y then junk", "yx\n", false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
