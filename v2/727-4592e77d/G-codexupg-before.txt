@@ -1,0 +1,9 @@
+# Codex fixture harvested by develop, then an ordinary harvest by this build (before)   [peasant dev, develop a509104c]
+$ peasant harvest 2>&1 | grep -iE "unchanged|indexed|updated" | head -3
+   - 0     updated
+   - 2     unchanged
+[exit 0]
+$ curl -s localhost:18791/api/v1/sessions/019e7724-38f5-7660-b2d7-2eda237d4a7d | python3 -c 'import json,sys;d=json.load(sys.stdin);d=d.get("session",d);[print(" ",t["index"],t["role"],t["timestamp"]) for t in d["turns"]]'
+  0 user 0001-01-01T00:00:00Z
+  1 assistant 0001-01-01T00:00:00Z
+[exit 0]

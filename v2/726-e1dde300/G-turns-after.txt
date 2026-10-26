@@ -1,0 +1,8 @@
+# 5-exchange Claude session: list vs export vs detail turns (after)   [peasant dev, #726 head e1dde300]
+$ peasant sessions list 2>&1 | grep -E "^(ID|aaaa)" | cut -c1-80
+ID                                    Date        Project  Turns   Tokens  Previ
+aaaaaaaa-0000-4000-8000-000000000695  2026-10-01  tc          10      350  hello
+[exit 0]
+$ peasant export sessions --session aaaaaaaa-0000-4000-8000-000000000695 --output-dir $HOME/ex 2>&1 | sed "s|$HOME|~|" | tail -1
+exported aaaaaaaa-0000-4000-8000-000000000695 -> ~/ex/aaaaaaaa-0000-4000-8000-000000000695.json (15 turns)
+[exit 0]

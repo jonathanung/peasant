@@ -1,0 +1,22 @@
+# read-only data dir (chmod -R a-w): read commands vs a write (before)   [peasant dev, develop a509104c]
+$ peasant sessions list 2>&1 | grep -E "^Error|^ID" | cut -c1-110; echo exit=${PIPESTATUS[0]}
+Error: open analytics store: store: read user_version: sqlite: step: attempt to write a readonly database
+exit=1
+[exit 0]
+$ peasant harvest verify 2>&1 | grep -E "^Error|Verification" | cut -c1-110; echo exit=${PIPESTATUS[0]}
+Error: open database: store: read user_version: sqlite: step: attempt to write a readonly database
+exit=1
+[exit 0]
+$ peasant prune --all --dry-run 2>&1 | grep -E "^Error|would" | cut -c1-110; echo exit=${PIPESTATUS[0]}
+Error: open analytics store: store: read user_version: sqlite: step: attempt to write a readonly database
+      --dry-run           Show what would be deleted without deleting
+exit=1
+[exit 0]
+$ peasant metrics compute --dry-run 2>&1 | grep -vE "^ |^$|Usage|Flags" | head -2 | cut -c1-110; echo exit=${PIPESTATUS[0]}
+Error: open analytics store: store: read user_version: sqlite: step: attempt to write a readonly database
+exit=1
+[exit 0]
+$ peasant metrics compute 2>&1 | grep -E "^Error" | sed "s#$HOME#\$HOME#" | cut -c1-110; echo exit=${PIPESTATUS[0]}
+Error: open analytics store: store: read user_version: sqlite: step: attempt to write a readonly database
+exit=1
+[exit 0]

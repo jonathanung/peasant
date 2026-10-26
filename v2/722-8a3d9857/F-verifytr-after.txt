@@ -1,0 +1,12 @@
+# verify --content with a truncated and a deleted saved transcript (after)   [peasant dev, #722 head 8a3d9857]
+$ set -- $(find ~/.local/share/peasant/peasant-sync -name "*--transcript.jsonl" | sort | head -2); truncate -s 40 $1; rm $2; echo truncated ${1##*/}; echo deleted ${2##*/}
+truncated 36f675cc-81e7-4ef5-a8e2-5d940ed90475--transcript.jsonl
+deleted 8413b49f-ad93-4a44-b168-928c7bbb9160--transcript.jsonl
+[exit 0]
+$ peasant harvest verify --content 2>&1 | grep -E "saved transcript|Status|Error" | cut -c1-150; echo exit=${PIPESTATUS[0]}
+saved transcripts damaged or missing: 2
+  - 36f675cc-81e7-4ef5-a8e2-5d940ed90475: the saved transcript is unreadable or no longer matches its metadata checksum; run peasant harvest --force -
+  - 8413b49f-ad93-4a44-b168-928c7bbb9160: the saved transcript is missing; run peasant harvest --force --session 8413b49f-ad93-4a44-b168-928c7bbb9160 
+Error: content verification failed: 2 saved transcript(s) damaged or missing
+exit=1
+[exit 0]

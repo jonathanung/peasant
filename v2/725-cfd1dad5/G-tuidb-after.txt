@@ -1,0 +1,8 @@
+# peasant tui with a corrupt database (after)   [peasant dev, #725 head cfd1dad5]
+$ head -c 50000 /dev/urandom > ~/.local/share/peasant/peasant.db; rm -f ~/.local/share/peasant/peasant.db-*; echo corrupted peasant.db
+corrupted peasant.db
+[exit 0]
+$ peasant tui </dev/null 2>&1 | grep -v "^Command \"tui\" is deprecated" | head -4 | cut -c1-170; echo exit=${PIPESTATUS[0]}
+Error: tui startup: open the analytics database ~/.local/share/peasant/peasant.db: store: read user_version: sqlite: step: file is not a 
+exit=1
+[exit 0]

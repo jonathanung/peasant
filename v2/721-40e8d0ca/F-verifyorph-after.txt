@@ -1,0 +1,12 @@
+# verify --content after deleting a sessions row (after)   [peasant dev, #721 head 40e8d0ca]
+$ S=$(DBQ "select session_id from sessions order by session_id limit 1"); DBQ "delete from sessions where session_id=(select session_id from sessions order by session_id limit 1)"; echo deleted sessions row $S
+deleted sessions row 1f68a954-83c4-4187-b417-43584a49617b
+[exit 0]
+$ peasant harvest verify --content 2>&1 | grep -E "orphan content|no sessions row|row is missing|Status|Error" | cut -c1-150; echo exit=${PIPESTATUS[0]}
+orphan content: 10 bodies, 0 blobs, 488 database payload bytes
+sessions with content but no sessions row: 1
+  (their bodies are also counted in the orphan content totals above)
+  - 1f68a954-83c4-4187-b417-43584a49617b: its sessions row is missing; run peasant harvest --force --session 1f68a954-83c4-4187-b417-43584a49617b to r
+Error: content verification failed: 1 session(s) have content but no sessions row
+exit=1
+[exit 0]

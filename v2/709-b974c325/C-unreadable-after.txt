@@ -1,0 +1,11 @@
+# harvest with unreadable source directories (after)   [peasant dev, #709 head b974c325]
+$ chmod 000 ~/.codex/sessions "$(ls -d ~/.claude/projects/* | head -1)"; echo locked
+locked
+[exit 0]
+$ peasant harvest 2>&1 | grep -E "warning|^peasant harvest:|errors"; echo "exit=${PIPESTATUS[0]}"
+warning: codex discovery skipped ~/.codex/sessions: unreadable source directory
+warning: claude-code discovery skipped ~/.claude/projects/-tmp-peasant-qa-C-unreadable-after-home-code-alpha: unreadable source directory
+peasant harvest: 6 sessions
+   - 0     errors
+exit=0
+[exit 0]

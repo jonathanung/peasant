@@ -1,0 +1,9 @@
+# verify --content with a truncated and a deleted saved transcript (before)   [peasant dev, develop a509104c]
+$ set -- $(find ~/.local/share/peasant/peasant-sync -name "*--transcript.jsonl" | sort | head -2); truncate -s 40 $1; rm $2; echo truncated ${1##*/}; echo deleted ${2##*/}
+truncated 36f675cc-81e7-4ef5-a8e2-5d940ed90475--transcript.jsonl
+deleted ca18be6c-351b-4ca2-af9c-37cf602c94c7--transcript.jsonl
+[exit 0]
+$ peasant harvest verify --content 2>&1 | grep -E "saved transcript|Status|Error" | cut -c1-150; echo exit=${PIPESTATUS[0]}
+Status: PASSED
+exit=0
+[exit 0]

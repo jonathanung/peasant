@@ -1,0 +1,9 @@
+# verify --content after deleting a sessions row (before)   [peasant dev, develop a509104c]
+$ S=$(DBQ "select session_id from sessions order by session_id limit 1"); DBQ "delete from sessions where session_id=(select session_id from sessions order by session_id limit 1)"; echo deleted sessions row $S
+deleted sessions row 0ac42378-8aac-4cfd-8707-16f03b3aa10c
+[exit 0]
+$ peasant harvest verify --content 2>&1 | grep -E "orphan content|no sessions row|row is missing|Status|Error" | cut -c1-150; echo exit=${PIPESTATUS[0]}
+orphan content: 0 bodies, 0 blobs, 0 database payload bytes
+Status: PASSED
+exit=0
+[exit 0]

@@ -1,0 +1,11 @@
+# JSON error bodies and their Content-Type (after)   [peasant dev, #717 head 358750ba]
+$ curl -s -o /tmp/qa-body -w "%{http_code} %{content_type}\n" "localhost:18791/api/v1/sessions/nonexistent"; head -c 160 /tmp/qa-body; echo
+400 application/json
+{"error":"invalid session ID"}
+
+[exit 0]
+$ curl -s -o /tmp/qa-body -w "%{http_code} %{content_type}\n" "localhost:18791/api/v1/annotations"; head -c 160 /tmp/qa-body; echo
+400 application/json
+{"error":"missing required query param: session_id"}
+
+[exit 0]

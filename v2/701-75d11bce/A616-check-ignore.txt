@@ -1,0 +1,11 @@
+# #616 .gitignore scope at #701 head 75d11bce
+$ mkdir -p .agents.local/testgate/x .agents.local/other && touch .agents.local/testgate/x/r.json .agents.local/other/f
+[exit 0]
+$ git check-ignore -v .agents.local/testgate/x/r.json
+.gitignore:54:/.agents.local/testgate/	.agents.local/testgate/x/r.json
+[exit 0]
+$ git check-ignore -v .agents.local/other/f   # not ignored: exit 1
+[exit 1]
+$ git status --porcelain
+?? .agents.local/
+[exit 0]

@@ -1,0 +1,14 @@
+# kickstart / config / tui with no terminal (after)   [peasant dev, #706 head 60604dad]
+$ setsid peasant kickstart </dev/null 2>&1 | cut -c1-140 | head -6; echo "exit=${PIPESTATUS[0]}"
+Error: `peasant kickstart` needs an interactive terminal; run it from a terminal session (to ingest without the wizard, use `peasant harvest
+exit=1
+[exit 0]
+$ setsid peasant config </dev/null 2>&1 | cut -c1-140 | head -6; echo "exit=${PIPESTATUS[0]}"
+Error: `peasant config` needs an interactive terminal; run it from a terminal session (to change settings without it, edit config.yaml; `pea
+exit=1
+[exit 0]
+$ setsid peasant tui </dev/null 2>&1 | cut -c1-140 | head -6; echo "exit=${PIPESTATUS[0]}"
+Command "tui" is deprecated, use `peasant web` for the dashboard, sessions, and trends, and `peasant annotate` for annotations. The command 
+Error: `peasant tui` needs an interactive terminal; run it from a terminal session (for the dashboard, sessions and trends without a termina
+exit=1
+[exit 0]

@@ -1,0 +1,11 @@
+# harvest vs harvest --json exit code with a failing session (before)   [peasant dev, develop a509104c]
+$ mkdir -p ~/.claude/projects/-home-qa-x && printf '%s\n' '{"type":"user","sessionId":"11111111-1111-4111-8111-111111111111","uuid":"u1","cwd":"/home/qa/x","timestamp":"2026-10-01T10:00:00Z","message":{"role":"user","content":"hi"}}' '{"type":"user","broken' '{"type":"user","sessionId":"11111111-1111-4111-8111-111111111111","uuid":"u3","cwd":"/home/qa/x","timestamp":"2026-10-01T10:00:09Z","message":{"role":"user","content":"again"}}' > ~/.claude/projects/-home-qa-x/11111111-1111-4111-8111-111111111111.jsonl; wc -l < ~/.claude/projects/-home-qa-x/11111111-1111-4111-8111-111111111111.jsonl
+3
+[exit 0]
+$ peasant harvest >/dev/null 2>&1; echo "harvest exit=$?"
+harvest exit=1
+[exit 0]
+$ peasant harvest --json 2>/dev/null | grep -m1 "\"Errors\""; echo "harvest --json exit=${PIPESTATUS[0]}"
+    "Errors": 1,
+harvest --json exit=0
+[exit 0]

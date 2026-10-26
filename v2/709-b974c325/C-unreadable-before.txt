@@ -1,0 +1,9 @@
+# harvest with unreadable source directories (before)   [peasant dev, develop a509104c]
+$ chmod 000 ~/.codex/sessions "$(ls -d ~/.claude/projects/* | head -1)"; echo locked
+locked
+[exit 0]
+$ peasant harvest 2>&1 | grep -E "warning|^peasant harvest:|errors"; echo "exit=${PIPESTATUS[0]}"
+peasant harvest: 6 sessions
+   - 0     errors
+exit=0
+[exit 0]

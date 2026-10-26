@@ -1,0 +1,21 @@
+# README harvest flag table vs peasant harvest --help (before)   [peasant dev, develop a509104c]
+$ /tmp/peasant-qa/docs693.sh /tmp/peasant-qa/ffdev-wt-pr-verify-transcripts/README.md
+README section: ### `peasant ingest` flags
+ok       --dry-run
+ok       --force
+ok       --include-active
+ok       --session
+ok       --since
+ok       --source-harness
+ok       --source-path
+ok       --output
+ok       --json
+ok       --verbose
+UNKNOWN  --reindex  (Error: unknown flag: --reindex)
+ok       --detect-commits
+ok       --config
+UNDOCUMENTED --all
+UNDOCUMENTED --profile-index
+source-harness values in README: claude-code opencode codex cursor strike 
+source-harness values in help:   claude-code, opencode, codex, cursor, strike, pi
+[exit 0]

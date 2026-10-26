@@ -1,0 +1,16 @@
+# #615 make fmt-check at #700 head 9ff07d59 (go1.25.8)
+$ make fmt-check   # clean tree
+[exit 0]
+$ printf "package main\nfunc  x( ){}\n" > cmd/peasant/zz_unformatted.go && git add -N cmd/peasant/zz_unformatted.go && make fmt-check
+Go files not gofmt-clean (run make fmt):
+cmd/peasant/zz_unformatted.go
+make: *** [Makefile:81: fmt-check] Error 1
+[exit 2]
+$ printf "package main\nfunc {\n" > cmd/peasant/zz_unformatted.go && make fmt-check   # unparsable
+cmd/peasant/zz_unformatted.go:2:6: expected 'IDENT', found '{'
+cmd/peasant/zz_unformatted.go:2:8: expected '(', found 'EOF'
+cmd/peasant/zz_unformatted.go:2:8: expected ')', found 'EOF'
+cmd/peasant/zz_unformatted.go:2:8: expected ';', found 'EOF'
+gofmt could not read every Go file (see errors above)
+make: *** [Makefile:81: fmt-check] Error 1
+[exit 2]

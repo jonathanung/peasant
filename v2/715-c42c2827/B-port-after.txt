@@ -1,0 +1,16 @@
+# web start --port 0 / -1 / 70000 (after)   [peasant dev, #715 head c42c2827]
+$ peasant web start --no-browser --port 0 2>&1 | grep -v "^ \|^$\|^Usage\|^Flags\|^Global" | cut -c1-150; echo "peasant exit=${PIPESTATUS[0]}"
+Error: invalid argument "0" for "--port" flag: "0" is not a TCP port; use a number from 1-65535
+peasant exit=1
+[exit 0]
+$ peasant web start --no-browser --port -1 2>&1 | grep -v "^ \|^$\|^Usage\|^Flags\|^Global" | cut -c1-150; echo "peasant exit=${PIPESTATUS[0]}"
+Error: invalid argument "-1" for "--port" flag: "-1" is not a TCP port; use a number from 1-65535
+peasant exit=1
+[exit 0]
+$ peasant web start --no-browser --port 70000 2>&1 | grep -v "^ \|^$\|^Usage\|^Flags\|^Global" | cut -c1-150; echo "peasant exit=${PIPESTATUS[0]}"
+Error: invalid argument "70000" for "--port" flag: "70000" is not a TCP port; use a number from 1-65535
+peasant exit=1
+[exit 0]
+$ ls ~/.local/state/peasant/ 2>&1; for f in ~/.local/state/peasant/web-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; true
+ls: cannot access '~/.local/state/peasant/': No such file or directory
+[exit 0]

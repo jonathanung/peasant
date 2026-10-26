@@ -1,0 +1,11 @@
+# models sync with no stdin (offline: bundled snapshot) (before)   [peasant dev, develop a509104c]
+$ peasant models sync --dry-run </dev/null 2>&1 | grep -E "Error|synced|Continue|^Usage"; echo exit=${PIPESTATUS[0]}
+Continue? [y/N] Error: read confirmation: EOF
+Usage:
+exit=1
+[exit 0]
+$ peasant models sync --yes </dev/null 2>&1 | grep -E "Error|synced|Continue|^Usage"; echo exit=${PIPESTATUS[0]}
+Error: unknown flag: --yes
+Usage:
+exit=1
+[exit 0]

@@ -1,0 +1,6 @@
+# unknown /api/v1 path (after)   [peasant dev, #718 head 221577cb]
+$ curl -s -o /tmp/qa-body -w "%{http_code} %{content_type}\n" localhost:18791/api/v1/does-not-exist; head -c 160 /tmp/qa-body; echo
+404 application/json
+{"error":"no API route serves GET /api/v1/does-not-exist; check the path against the routes this server version exposes"}
+
+[exit 0]

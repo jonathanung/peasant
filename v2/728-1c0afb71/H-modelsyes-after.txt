@@ -1,0 +1,9 @@
+# models sync with no stdin (offline: bundled snapshot) (after)   [peasant dev, #728 head 1c0afb71]
+$ peasant models sync --dry-run </dev/null 2>&1 | grep -E "Error|synced|Continue|^Usage"; echo exit=${PIPESTATUS[0]}
+peasant models sync: 8939 model(s) would be synced (dry-run)
+exit=0
+[exit 0]
+$ peasant models sync --yes </dev/null 2>&1 | grep -E "Error|synced|Continue|^Usage"; echo exit=${PIPESTATUS[0]}
+peasant models sync: 8939 model(s) synced
+exit=0
+[exit 0]

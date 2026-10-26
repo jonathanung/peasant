@@ -1,0 +1,16 @@
+# docs/install guides: run each download + checksum step (before)   [peasant dev, develop a509104c]
+$ /tmp/peasant-qa/docs694.sh /tmp/peasant-qa/ffdev-wt-pr-verify-transcripts/docs/install
+== arch.md: first VERSION= line → VERSION=0.1.0
+VERSION=0.1.0
+peasant_0.1.0_linux_amd64.tar.gz: OK
+peasant version → peasant 0.1.0
+== ubuntu.md: first VERSION= line → VERSION=0.1.0                       # the release you want, 
+VERSION=0.1.0
+peasant_0.1.0_linux_amd64.tar.gz: OK
+peasant version → peasant 0.1.0
+== macos.md: VERSION=0.1.0
+darwin_arm64 tarball for v0.1.0: HTTP 200
+== windows.md: $Version = '0.1.0'
+pinned to 0.1.0
+windows zip for v0.1.0: HTTP 404
+[exit 0]

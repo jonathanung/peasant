@@ -1,0 +1,16 @@
+# prune --project by name, path and remote (before)   [peasant dev, develop a509104c]
+$ echo "sessions list --project alpha: $(peasant sessions list --project alpha --json 2>/dev/null | grep -c "\"sessionId\"\|\"id\"") row(s)"
+sessions list --project alpha: 5 row(s)
+[exit 0]
+$ peasant prune --project alpha --dry-run 2>&1 | grep -E "Error|would|match"; echo exit=${PIPESTATUS[0]}
+no sessions match the given filters
+exit=0
+[exit 0]
+$ peasant prune --project github.com/example/alpha --dry-run 2>&1 | grep -E "Error|would|match"; echo exit=${PIPESTATUS[0]}
+no sessions match the given filters
+exit=0
+[exit 0]
+$ peasant prune --project alph --dry-run 2>&1 | grep -E "Error|would|match"; echo exit=${PIPESTATUS[0]}
+no sessions match the given filters
+exit=0
+[exit 0]

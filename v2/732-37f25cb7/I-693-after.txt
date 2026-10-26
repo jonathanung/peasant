@@ -1,0 +1,21 @@
+# README harvest flag table vs peasant harvest --help (after)   [peasant dev, #732 head 37f25cb7]
+$ /tmp/peasant-qa/docs693.sh /tmp/peasant-qa/evbuild/README.md
+README section: ### `peasant harvest` flags
+ok       --dry-run
+ok       --force
+ok       --all
+ok       --session
+ok       --since
+ok       --source-harness
+ok       --source-path
+ok       --output
+ok       --json
+ok       --verbose
+ok       --profile-index
+ok       --detect-commits
+ok       --include-active
+ok       --config
+ok       --data-dir
+source-harness values in README: claude-code opencode codex cursor strike pi 
+source-harness values in help:   claude-code, opencode, codex, cursor, strike, pi
+[exit 0]

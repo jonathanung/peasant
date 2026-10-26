@@ -1,0 +1,30 @@
+# web start --port 0 / -1 / 70000 (before)   [peasant dev, develop a509104c]
+$ peasant web start --no-browser --port 0 2>&1 | grep -v "^ \|^$\|^Usage\|^Flags\|^Global" | cut -c1-150; echo "peasant exit=${PIPESTATUS[0]}"
+Warning: server may not be ready (health check timed out)
+Peasant web dashboard running at http://localhost:0
+To stop the server, run:
+If the server becomes unresponsive, the process ID (2923273)
+is saved at ~/.local/state/peasant/web-0.pid
+peasant exit=0
+[exit 0]
+$ peasant web start --no-browser --port -1 2>&1 | grep -v "^ \|^$\|^Usage\|^Flags\|^Global" | cut -c1-150; echo "peasant exit=${PIPESTATUS[0]}"
+Warning: server may not be ready (health check timed out)
+Peasant web dashboard running at http://localhost:-1
+To stop the server, run:
+If the server becomes unresponsive, the process ID (2925172)
+is saved at ~/.local/state/peasant/web--1.pid
+peasant exit=0
+[exit 0]
+$ peasant web start --no-browser --port 70000 2>&1 | grep -v "^ \|^$\|^Usage\|^Flags\|^Global" | cut -c1-150; echo "peasant exit=${PIPESTATUS[0]}"
+Warning: server may not be ready (health check timed out)
+Peasant web dashboard running at http://localhost:70000
+To stop the server, run:
+If the server becomes unresponsive, the process ID (2927146)
+is saved at ~/.local/state/peasant/web-70000.pid
+peasant exit=0
+[exit 0]
+$ ls ~/.local/state/peasant/ 2>&1; for f in ~/.local/state/peasant/web-*.pid; do [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null; done; true
+web--1.pid
+web-0.pid
+web-70000.pid
+[exit 0]

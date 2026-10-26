@@ -1,0 +1,10 @@
+# unknown /api/v1 path (before)   [peasant dev, develop a509104c]
+$ curl -s -o /tmp/qa-body -w "%{http_code} %{content_type}\n" localhost:18791/api/v1/does-not-exist; head -c 160 /tmp/qa-body; echo
+200 text/html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" co
+[exit 0]

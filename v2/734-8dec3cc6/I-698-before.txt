@@ -1,0 +1,17 @@
+# #698 docs claims checked against the tree and binary (before)   [peasant dev, develop a509104c]
+$ /tmp/peasant-qa/docs698.sh /tmp/peasant-qa/ffdev-wt-pr-verify-transcripts
+== README Quick start / Commands mention of harvest vs ingest
+48:peasant ingest
+78:| `peasant ingest` | Run the data ingestion pipeline |
+79:| `peasant ingest verify` | Verify database schema integrity |
+== hidden from peasant --help: tui ingest 
+== village push --concurrency help
+use ~22 to saturate the peasant online pool toward the <5s target
+== make build prerequisite (Makefile, not run: it starts a full Next.js build)
+build: web
+pnpm is not on PATH. web/ is pnpm-only (web/pnpm-lock.yaml is the single lockfile
+README says: (nothing about pnpm in Quick start)
+== go build ./cmd/peasant without the web build
+ok: peasant dev
+== docs/TUI.md mentions the deprecation: 0 line(s)
+[exit 0]

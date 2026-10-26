@@ -1,0 +1,7 @@
+# web stop with a stale PID file naming an unrelated process (after)   [peasant dev, #714 head ffdd1d1f]
+$ mkdir -p ~/.local/state/peasant; sleep 300 & S=$!; echo $S > ~/.local/state/peasant/web-18693.pid; peasant web stop --port 18693 2>&1 | cut -c1-200; echo "peasant exit=${PIPESTATUS[0]}"; sleep 0.3; if kill -0 $S 2>/dev/null; then echo "sleep $S still running"; kill $S; else echo "sleep $S was killed"; fi; ls ~/.local/state/peasant/
+HTTP shutdown failed: Post "http://localhost:18693/api/v1/shutdown": dial tcp [::1]:18693: connect: connection refused, falling back to SIGTERM
+Error: stale PID file ~/.local/state/peasant/web-18693.pid: PID 2906720 is not a peasant web server on port 18693, so nothing was signalled; the file was removed. If
+peasant exit=1
+sleep 2906720 still running
+[exit 0]

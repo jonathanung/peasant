@@ -1,0 +1,15 @@
+# #614 git-resolver tests under a host insteadof rewrite (go1.25.8)
+$ git config -f rewrite.gitconfig url.https://github.com/.insteadof git@github.com:
+--- develop a509104c:
+$ GIT_CONFIG_GLOBAL=rewrite.gitconfig go test -race -count=1 -run "TestExecGitResolver|TestResolveGitRemoteAttribution" ./internal/ingest
+--- FAIL: TestExecGitResolver_RemoteURL (0.03s)
+--- FAIL: TestExecGitResolver_WalkUpRemoteURL_FirstHop (0.02s)
+--- FAIL: TestExecGitResolver_WalkUpRemoteURL_NthHop (0.02s)
+--- FAIL: TestExecGitResolver_WalkUpRemoteURL_StopsAtRepositoryBoundary (0.09s)
+--- FAIL: TestResolveGitRemoteAttribution (0.16s)
+FAIL
+FAIL	github.com/peasant-labs/peasant/internal/ingest	0.673s
+FAIL
+--- #702 head 3d65ab16:
+$ GIT_CONFIG_GLOBAL=rewrite.gitconfig go test -race -count=1 -run "TestExecGitResolver|TestResolveGitRemoteAttribution" ./internal/ingest
+ok  	github.com/peasant-labs/peasant/internal/ingest	1.569s

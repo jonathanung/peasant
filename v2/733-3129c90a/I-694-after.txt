@@ -1,0 +1,16 @@
+# docs/install guides: run each download + checksum step (after)   [peasant dev, #733 head 3129c90a]
+$ /tmp/peasant-qa/docs694.sh /tmp/peasant-qa/evbuild/docs/install
+== arch.md: first VERSION= line → VERSION=$(curl -fsSL https://api.github.com/repos/peasant-la
+VERSION=0.12.0
+peasant_0.12.0_linux_amd64.tar.gz: OK
+peasant version → peasant 0.12.0
+== ubuntu.md: first VERSION= line → VERSION=$(curl -fsSL https://api.github.com/repos/peasant-la
+VERSION=0.12.0
+peasant_0.12.0_linux_amd64.tar.gz: OK
+peasant version → peasant 0.12.0
+== macos.md: VERSION=$(curl -fsSL https://api.github.com/repos/peasant-la
+darwin_arm64 tarball for v0.12.0: HTTP 200
+== windows.md: $Version = (Invoke-RestMethod https://api.github.com/repos/peasant-lab
+Invoke-RestMethod lookup (same API, via curl) → 0.12.0
+windows zip for v0.12.0: HTTP 200
+[exit 0]

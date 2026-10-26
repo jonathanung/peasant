@@ -1,0 +1,14 @@
+# two parents with the same Claude subagent agentId (after)   [peasant dev, #712 head 1e8671fc]
+$ S=$(ls -d ~/.claude/projects/*/*/subagents | head -1); P2=$(ls ~/.claude/projects/*/*.jsonl | grep -v "$(dirname "$S")" | tail -1); D=${P2%.jsonl}; mkdir -p "$D/subagents"; sed "s/$(basename "$(dirname "$S")")/$(basename "$D")/g" "$S/agent-a1b2c3d.jsonl" > "$D/subagents/agent-a1b2c3d.jsonl"; ls ~/.claude/projects/*/*/subagents/ | grep -c agent-a1b2c3d
+3
+[exit 0]
+$ peasant harvest 2>&1 | grep -E "warning|^peasant harvest:|errors"; echo "exit=${PIPESTATUS[0]}"
+warning: claude-code discovery skipped ~/.claude/projects/-tmp-peasant-qa-C-agentid-after-home-code-delta-large/6b0d549b-6f03-475a-9600-a35a099950d8/subagents/agent-a1b2c3d.jsonl: subagent left out: another session's subagent has the same agent id
+warning: claude-code discovery skipped ~/.claude/projects/-tmp-peasant-qa-C-agentid-after-home-code-gamma/36f675cc-81e7-4ef5-a8e2-5d940ed90475/subagents/agent-a1b2c3d.jsonl: subagent left out: another session's subagent has the same agent id
+peasant harvest: 10 sessions
+   - 0     errors
+exit=0
+[exit 0]
+$ python3 ./gen/q.py "select count(*) as agent_rows from sessions where session_id like 'agent-%'"
+(1,)
+[exit 0]

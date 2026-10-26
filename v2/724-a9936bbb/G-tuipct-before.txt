@@ -1,0 +1,12 @@
+# peasant tui dashboard and session detail percentages (before)   [peasant dev, develop a509104c]
+$ tmux capture-pane -p -t qa684 | grep -E -A1 "Signal Density|Spec Score" | sed "s/  */ /g" | head -6
+│ │ Avg Turns ││ Retry Loops ││ Signal Density │ │
+│ │ 506 ││ 0/wk ││ 4444% │ │
+--
+│ │ Revert Rate ││ Spec Score │ │
+│ │ 0.0/session ││ 231 │ │
+[exit 0]
+$ tmux capture-pane -p -t qa684 -S -200 | grep -E "Signal Density:|Spec Score:" | head -2
+  Signal Density:  0%
+  Spec Score:  80 / 100
+[exit 0]

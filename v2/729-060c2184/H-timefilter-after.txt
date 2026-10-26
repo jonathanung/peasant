@@ -1,0 +1,15 @@
+# --since / --before across harvest, sessions list and prune (after)   [peasant dev, #729 head 060c2184]
+$ peasant harvest --since 3w --dry-run 2>&1 | grep -iE "error|would|session" | tail -1; echo exit=${PIPESTATUS[0]}
+   - 0     errors
+exit=0
+[exit 0]
+$ peasant sessions list --since 3w >$HOME/sl.out 2>&1; e=$?; grep -m1 Error $HOME/sl.out; echo "$(grep -c "^[0-9a-f]\{8\}" $HOME/sl.out) session row(s), exit=$e"
+3 session row(s), exit=0
+[exit 0]
+$ peasant sessions list --since 3m >$HOME/sl.out 2>&1; e=$?; grep -m1 Error $HOME/sl.out; echo "$(grep -c "^[0-9a-f]\{8\}" $HOME/sl.out) session row(s), exit=$e"
+7 session row(s), exit=0
+[exit 0]
+$ peasant prune --before 7d --dry-run 2>&1 | grep -E "Error|would|match" | head -2; echo exit=${PIPESTATUS[0]}
+dry run: 10 session(s) would be deleted
+exit=0
+[exit 0]

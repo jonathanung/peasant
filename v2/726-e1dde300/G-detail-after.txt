@@ -1,0 +1,13 @@
+# GET /api/v1/sessions/{id} on the e2e Claude and Codex fixtures (after)   [peasant dev, #726 head e1dde300]
+$ curl -s localhost:18791/api/v1/sessions/6a46bcd8-b365-4608-be7d-5601e2fdd805 | python3 -c 'import json,sys;d=json.load(sys.stdin);d=d.get("session",d);print(d["harness"],"turnCount",d.get("turnCount"),"turns",len(d["turns"]));[print(" ",t["index"],t["role"],"depth",t.get("depth"),t["timestamp"],t["content"][:38].replace(chr(10)," ")) for t in d["turns"]]'
+claude-code turnCount 4 turns 4
+  0 user depth 0 2026-01-01T10:00:00Z Please add a small function that total
+  1 assistant depth 0 2026-01-01T10:00:01Z Here is a compact implementation:  ```
+  3 user depth 0 2026-01-01T10:00:02Z Please include a test for an empty lis
+  4 assistant depth 0 2026-01-01T10:00:03Z The empty-list case should return zero
+[exit 0]
+$ curl -s localhost:18791/api/v1/sessions/019e7724-38f5-7660-b2d7-2eda237d4a7d | python3 -c 'import json,sys;d=json.load(sys.stdin);d=d.get("session",d);print(d["harness"],"turnCount",d.get("turnCount"),"turns",len(d["turns"]));[print(" ",t["index"],t["role"],"depth",t.get("depth"),t["timestamp"],t["content"][:38].replace(chr(10)," ")) for t in d["turns"]]'
+codex turnCount 2 turns 2
+  0 user depth 0 0001-01-01T00:00:00Z What value does the sample counter hav
+  1 assistant depth 0 0001-01-01T00:00:00Z The sample counter has the value 1.
+[exit 0]

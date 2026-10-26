@@ -1,0 +1,9 @@
+# human harvest output for a session with a malformed line (after)   [peasant dev, #710 head a0930fa5]
+$ mkdir -p ~/.claude/projects/-home-qa-x && printf '%s\n' '{"type":"user","sessionId":"11111111-1111-4111-8111-111111111111","uuid":"u1","cwd":"/home/qa/x","timestamp":"2026-10-01T10:00:00Z","message":{"role":"user","content":"hi"}}' '{"type":"user","broken' '{"type":"user","sessionId":"11111111-1111-4111-8111-111111111111","uuid":"u3","cwd":"/home/qa/x","timestamp":"2026-10-01T10:00:09Z","message":{"role":"user","content":"again"}}' > ~/.claude/projects/-home-qa-x/11111111-1111-4111-8111-111111111111.jsonl; wc -l < ~/.claude/projects/-home-qa-x/11111111-1111-4111-8111-111111111111.jsonl
+3
+[exit 0]
+$ peasant harvest --verbose 2>&1 | grep -A1 "ERROR"; echo "exit=${PIPESTATUS[0]}"
+  ERROR      claude-code 11111111-1111-4111-8111-111111111111
+             capture transcript source for 11111111-1111-4111-8111-111111111111: capture JSONL record 2: malformed complete JSON; prior stored snapshot was retained; repair this record and retry ingest; prior stored state remains unchanged; restore source readability and retry
+exit=1
+[exit 0]

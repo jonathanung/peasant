@@ -1,0 +1,28 @@
+# kickstart / config / tui with no terminal (before)   [peasant dev, develop a509104c]
+$ setsid peasant kickstart </dev/null 2>&1 | cut -c1-140 | head -6; echo "exit=${PIPESTATUS[0]}"
+Error: setup flow failed: bubbletea: error opening TTY: bubbletea: could not open TTY: open /dev/tty: no such device or address
+Usage:
+  peasant kickstart [flags]
+
+Aliases:
+  kickstart, ftue
+exit=1
+[exit 0]
+$ setsid peasant config </dev/null 2>&1 | cut -c1-140 | head -6; echo "exit=${PIPESTATUS[0]}"
+Error: run config editor for "~/.config/peasant/config.yaml": bubbletea: error opening TTY: bubbletea: co
+what: the interactive terminal session stopped unexpectedly.
+why: Bubble Tea could not complete the mounted Screen session.
+where: peasant config terminal runner.
+when: while editing buffered settings.
+means: only a save confirmed before this terminal error could have changed a file.
+exit=1
+[exit 0]
+$ setsid peasant tui </dev/null 2>&1 | cut -c1-140 | head -6; echo "exit=${PIPESTATUS[0]}"
+Command "tui" is deprecated, use `peasant web` for the dashboard, sessions, and trends, and `peasant annotate` for annotations. The command 
+Error: failed to run TUI: bubbletea: error opening TTY: bubbletea: could not open TTY: open /dev/tty: no such device or address
+Usage:
+  peasant tui [flags]
+
+Flags:
+exit=1
+[exit 0]

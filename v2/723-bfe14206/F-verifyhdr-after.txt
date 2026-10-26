@@ -1,0 +1,13 @@
+# verify header, then session_generations dropped (after)   [peasant dev, #723 head bfe14206]
+$ peasant harvest verify 2>&1 | grep -E "^(Expected|Found)"
+Expected schema: v68
+Found schema:    v68
+Expected tables: 95
+Found tables:    101
+[exit 0]
+$ DBQ "drop table session_generations"; peasant harvest verify 2>&1 | grep -E "session_generations|^Status" ; echo exit=${PIPESTATUS[0]}
+[FAIL] session_generations - MISSING
+Status: FAILED
+  - session_generations
+exit=1
+[exit 0]
