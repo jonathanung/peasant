@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/peasant-labs/peasant/internal/defaults"
+	"github.com/peasant-labs/peasant/internal/ingest"
 	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite/sqlitex"
 )
 
@@ -102,5 +103,36 @@ UPDATE sessions SET project_hash = '`+other+`' WHERE session_id = '`+pruneTestSe
 	out, _, err = executePruneCmd(t, dir, []string{"--project", "qa/APP", "--dry-run"})
 	if err != nil || strings.Contains(out, "session(s) would be deleted") {
 		t.Fatalf("prune --project qa/APP matched /home/qa/app case-insensitively: err %v:\n%s", err, out)
+	}
+}
+
+// TestPruneRefusesAllCombinedWithAFilter proves --all cannot be combined with a
+// narrowing filter: --all used to skip every filter, so
+// `prune --project X --all --confirm` deleted every session in the store.
+func TestPruneRefusesAllCombinedWithAFilter(t *testing.T) {
+	t.Parallel()
+	for _, extra := range [][]string{
+		{"--project", "app"},
+		{"--harness", "claude"},
+		{"--before", "2030-01-01"},
+		{"--after", "2000-01-01"},
+		{"--session", pruneTestSessionA},
+	} {
+		dir := t.TempDir()
+		seedPruneTestSessions(t, dir)
+		args := append([]string{"--all", "--confirm"}, extra...)
+		out, _, err := executePruneCmd(t, dir, args)
+		if err == nil || !strings.Contains(err.Error(), "--all cannot be combined") {
+			t.Fatalf("prune %v: err = %v, want a refusal; out:\n%s", args, err, out)
+		}
+		db, err := openPreparedStore(t, string(defaults.ResolveDBFilePathWith(dir)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		rows, err := db.QueryPrunableSessions(t.Context(), ingest.PruneFilter{All: true})
+		db.Close()
+		if err != nil || len(rows) != 2 {
+			t.Fatalf("prune %v deleted sessions: %d left, err %v", args, len(rows), err)
+		}
 	}
 }

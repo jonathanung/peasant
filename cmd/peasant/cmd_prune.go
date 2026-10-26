@@ -238,6 +238,9 @@ func unselectedPruneSessions(
 // buildPruneFilter constructs a PruneFilter from CLI flag values.
 func buildPruneFilter(sessionIDStrs []string, project, harness, before, after string, all bool) (ingest.PruneFilter, error) {
 	filter := ingest.PruneFilter{All: all}
+	if all && (len(sessionIDStrs) > 0 || project != "" || harness != "" || before != "" || after != "") {
+		return filter, fmt.Errorf("--all cannot be combined with --session, --project, --harness, --before or --after: --all selects every session and would ignore the filter; nothing was deleted; drop --all to prune only the filtered sessions")
+	}
 
 	for _, raw := range sessionIDStrs {
 		sid, err := ingest.NewSessionID(raw)
