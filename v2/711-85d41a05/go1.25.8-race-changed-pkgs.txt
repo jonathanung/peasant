@@ -1,0 +1,4 @@
+ok  	github.com/peasant-labs/peasant/cmd/peasant	175.502s
+ok  	github.com/peasant-labs/peasant/internal/api	306.896s
+ok  	github.com/peasant-labs/peasant/internal/filelock	2.385s
+ok  	github.com/peasant-labs/peasant/internal/ingest	945.918s
