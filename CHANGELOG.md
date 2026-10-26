@@ -7,6 +7,13 @@ Release, which holds the signed artifacts and checksums.
 
 ## [Unreleased]
 
+### Added
+- `peasant service install|status|uninstall` (Linux) manages a systemd user
+  timer that runs the normal `peasant harvest` on a schedule (`--interval`,
+  default 1h, or `--on-calendar`; `--randomized-delay`). Scheduled runs redact
+  and store sessions locally and never publish. `--dry-run` prints the units.
+  `uninstall` removes only the units peasant wrote.
+
 ## [0.12.0] - 2026-10-24
 
 ### Changed

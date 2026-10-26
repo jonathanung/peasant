@@ -77,6 +77,7 @@ privacy boundaries, and recovery behavior.
 |---------|-------------|
 | `peasant ingest` | Run the data ingestion pipeline |
 | `peasant ingest verify` | Verify database schema integrity |
+| `peasant service install` / `status` / `uninstall` | Run `peasant harvest` on a schedule with a systemd user timer (Linux; see [scheduled harvest](#scheduled-harvest-peasant-service)) |
 | `peasant village push` | Push ingested transcripts + annotations to the Peasant village (incremental — server-manifest skip-gate + retraction; see [flags](#peasant-village-push-flags)) |
 | `peasant village auto` | Publish this repository's sessions on every `git push`, redacted and private, to the collectives you published to last: saves an auto-publish rule in `hooks.yaml` (see [the network reference](docs/NETWORK.md#6-hook-triggered-push)) and installs the pre-push hook here |
 | `peasant login` / `peasant logout` | Authenticate with / disconnect from the village |
@@ -179,6 +180,35 @@ are replayed once through the ordinary push candidate path.
 
 When a selection index is configured (via `peasant kickstart`), ingest automatically filters to only
 the selected projects, branches, and sessions. The `--session` flag overrides this filter.
+
+### Scheduled harvest (`peasant service`)
+
+On Linux with systemd, `peasant service install` writes a user timer that runs the normal
+`peasant harvest` on a schedule. The scheduled run stores and redacts sessions in the same way
+as a manual harvest, at your configured redaction level and with your kickstart selection. It
+never publishes to the Village.
+
+```bash
+peasant service install --dry-run           # print both unit files; change nothing
+peasant service install                     # every 1h (+ up to 5min random delay)
+peasant service install --interval 15m      # or: --on-calendar '*-*-* 09:00'
+peasant service status
+journalctl --user -u peasant-harvest        # each run's harvest summary
+peasant service uninstall
+```
+
+- The units are `peasant-harvest.service` (`Type=oneshot`) and `peasant-harvest.timer`. They
+  are written to `$XDG_CONFIG_HOME/systemd/user` (default `~/.config/systemd/user`).
+- `install` resolves the data, config, and state directories and writes them into `ExecStart`.
+  It also writes `--config` when you pass it. The timer then uses the same store as the
+  `install` command, whatever environment the user manager has.
+- Re-running `install` replaces the units. `install` and `uninstall` touch only files that
+  start with peasant's marker comment. A unit you wrote by hand under the same name is never
+  overwritten or removed.
+- systemd starts at most one run of the service at a time.
+- The timer runs only while your user manager runs. For it to run while you are logged out,
+  run `loginctl enable-linger`.
+- After you move the `peasant` binary, re-run `install`.
 
 ### `peasant web start` flags
 

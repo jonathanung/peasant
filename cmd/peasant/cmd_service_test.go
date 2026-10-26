@@ -1,0 +1,457 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/peasant-labs/peasant/internal/defaults"
+	"gopkg.in/yaml.v3"
+)
+
+type serviceUnitCase struct {
+	Name            string   `yaml:"name"`
+	Args            []string `yaml:"args"`
+	Interval        string   `yaml:"interval"`
+	OnCalendar      string   `yaml:"on_calendar"`
+	RandomizedDelay string   `yaml:"randomized_delay"`
+	ExecStart       string   `yaml:"exec_start"`
+	Timer           []string `yaml:"timer"`
+}
+
+func loadServiceUnitCases(t *testing.T) []serviceUnitCase {
+	t.Helper()
+	data, err := os.ReadFile("testdata/service_units.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var f struct {
+		Cases []serviceUnitCase `yaml:"cases"`
+	}
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(&f); err != nil {
+		t.Fatal(err)
+	}
+	if len(f.Cases) == 0 {
+		t.Fatal("no cases in service_units.yaml")
+	}
+	return f.Cases
+}
+
+func mustDuration(t *testing.T, s string) time.Duration {
+	t.Helper()
+	if s == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+func unitSection(text, section string) []string {
+	var lines []string
+	in := false
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(line, "[") {
+			in = line == "["+section+"]"
+			continue
+		}
+		if in && line != "" && !strings.HasPrefix(line, "Unit=") {
+			lines = append(lines, line)
+		}
+	}
+	return lines
+}
+
+func execStartOf(text string) string {
+	for _, line := range strings.Split(text, "\n") {
+		if v, ok := strings.CutPrefix(line, "ExecStart="); ok {
+			return v
+		}
+	}
+	return ""
+}
+
+// splitSystemdExec is an independent reader of the ExecStart quoting
+// systemd applies: double-quoted words, \\ and \" escapes, %% and $$.
+func splitSystemdExec(t *testing.T, line string) []string {
+	t.Helper()
+	var words []string
+	for line = strings.TrimSpace(line); line != ""; line = strings.TrimSpace(line) {
+		if line[0] != '"' {
+			t.Fatalf("unquoted word in %q", line)
+		}
+		var b strings.Builder
+		i := 1
+		for ; i < len(line) && line[i] != '"'; i++ {
+			switch {
+			case line[i] == '\\':
+				i++
+				b.WriteByte(line[i])
+			case isSystemdDoubledEscape(line, i):
+				b.WriteByte(line[i])
+				i++
+			case line[i] == '%' || line[i] == '$':
+				t.Fatalf("unescaped %c in %q", line[i], line)
+			default:
+				b.WriteByte(line[i])
+			}
+		}
+		words = append(words, b.String())
+		line = line[i+1:]
+	}
+	return words
+}
+
+// isSystemdDoubledEscape reports a %% or $$ pair starting at i.
+func isSystemdDoubledEscape(line string, i int) bool {
+	special := line[i] == '%' || line[i] == '$'
+	return special && i+1 < len(line) && line[i+1] == line[i]
+}
+
+func TestServiceUnitsRenderFixture(t *testing.T) {
+	t.Parallel()
+	for _, tc := range loadServiceUnitCases(t) {
+		t.Run(tc.Name, func(t *testing.T) {
+			t.Parallel()
+			schedule := serviceSchedule{interval: mustDuration(t, tc.Interval), calendar: tc.OnCalendar, randomizedDelay: mustDuration(t, tc.RandomizedDelay)}
+			units := renderServiceUnits(tc.Args, schedule)
+			for name, text := range map[string]string{"service": units.Service, "timer": units.Timer} {
+				if !strings.HasPrefix(text, serviceUnitMarker+"\n") {
+					t.Errorf("%s unit does not start with the marker:\n%s", name, text)
+				}
+			}
+			if got := execStartOf(units.Service); got != tc.ExecStart {
+				t.Errorf("ExecStart\n got: %s\nwant: %s", got, tc.ExecStart)
+			}
+			if got := splitSystemdExec(t, execStartOf(units.Service)); strings.Join(got, "\x00") != strings.Join(tc.Args, "\x00") {
+				t.Errorf("ExecStart does not round-trip: got %q want %q", got, tc.Args)
+			}
+			if got := unitSection(units.Timer, "Timer"); strings.Join(got, "\n") != strings.Join(tc.Timer, "\n") {
+				t.Errorf("[Timer]\n got: %q\nwant: %q", got, tc.Timer)
+			}
+			if !strings.Contains(units.Service, "Type=oneshot\n") || !strings.Contains(units.Timer, "Unit=peasant-harvest.service\n") || !strings.Contains(units.Timer, "WantedBy=timers.target\n") {
+				t.Errorf("unit pair is missing a required directive:\n%s\n%s", units.Service, units.Timer)
+			}
+		})
+	}
+}
+
+// fakeSystemctl records `systemctl --user` calls and answers them.
+type fakeSystemctl struct {
+	mu    sync.Mutex
+	calls []string
+	// fail makes every call return this error with this output.
+	failOut string
+	fail    error
+}
+
+func (f *fakeSystemctl) run(_ context.Context, args ...string) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.calls = append(f.calls, strings.Join(args, " "))
+	if f.fail != nil {
+		return f.failOut, f.fail
+	}
+	switch {
+	case len(args) > 0 && args[0] == "is-enabled":
+		return "enabled\n", nil
+	case len(args) > 0 && args[0] == "is-active":
+		return "active\n", nil
+	}
+	return "", nil
+}
+
+func (f *fakeSystemctl) Calls() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return append([]string(nil), f.calls...)
+}
+
+type serviceHarness struct {
+	dir     string
+	unitDir string
+	exe     string
+	ctl     *fakeSystemctl
+	deps    serviceDeps
+}
+
+func newServiceHarness(t *testing.T, dirName string) *serviceHarness {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), dirName)
+	h := &serviceHarness{dir: dir, unitDir: filepath.Join(dir, "systemd", "user"), exe: filepath.Join(dir, "bin dir", "peasant"), ctl: &fakeSystemctl{}}
+	h.deps = serviceDeps{
+		goos:       "linux",
+		executable: func() (string, error) { return h.exe, nil },
+		unitDir:    func() (string, error) { return h.unitDir, nil },
+		systemctl:  h.ctl.run,
+	}
+	return h
+}
+
+func (h *serviceHarness) run(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	return executeWithDataDir(t, buildServiceCommand(h.deps), h.dir, args)
+}
+
+func (h *serviceHarness) read(t *testing.T, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(h.unitDir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
+func TestServiceInstallDryRunMatchesWrittenUnits(t *testing.T) {
+	t.Parallel()
+	h := newServiceHarness(t, `dir with spaces 'q' "dq" 100% $HOME`)
+	dry, err := h.run(t, "install", "--dry-run", "--interval", "15m")
+	if err != nil {
+		t.Fatalf("dry run: %v\n%s", err, dry)
+	}
+	if calls := h.ctl.Calls(); len(calls) != 0 {
+		t.Fatalf("dry run called systemctl: %q", calls)
+	}
+	if _, err := os.Stat(h.unitDir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("dry run created the unit dir: %v", err)
+	}
+	out, err := h.run(t, "install", "--interval", "15m")
+	if err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	for _, name := range []string{serviceUnitName, timerUnitName} {
+		written := h.read(t, name)
+		block := "# " + filepath.Join(h.unitDir, name) + "\n" + written + "\n"
+		if !strings.Contains(dry, block) {
+			t.Errorf("dry-run output is not byte-identical to the written %s:\n--- written\n%s\n--- dry run\n%s", name, written, dry)
+		}
+		info, err := os.Stat(filepath.Join(h.unitDir, name))
+		if err != nil || info.Mode().Perm() != serviceUnitPerm {
+			t.Errorf("%s mode = %v, %v; want %v", name, info.Mode().Perm(), err, serviceUnitPerm)
+		}
+	}
+	want := []string{"show-environment", "daemon-reload", "enable --now peasant-harvest.timer"}
+	if got := h.ctl.Calls(); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("systemctl calls = %q, want %q", got, want)
+	}
+	words := splitSystemdExec(t, execStartOf(h.read(t, serviceUnitName)))
+	wantArgs := []string{h.exe, "harvest", "--data-dir", h.dir, "--config-dir", h.dir, "--state-dir", h.dir}
+	if strings.Join(words, "\x00") != strings.Join(wantArgs, "\x00") {
+		t.Errorf("ExecStart args = %q, want %q", words, wantArgs)
+	}
+	entries, _ := os.ReadDir(h.unitDir)
+	if len(entries) != 2 {
+		t.Errorf("unit dir holds %d entries, want the 2 units (no temp files left)", len(entries))
+	}
+}
+
+// TestServiceExecStartRunsHarvest runs the exact argument vector the unit
+// would run, through the production root command, on an empty source dir.
+func TestServiceExecStartRunsHarvest(t *testing.T) {
+	t.Parallel()
+	h := newServiceHarness(t, "home with space")
+	src := filepath.Join(h.dir, "claude projects")
+	if err := os.MkdirAll(src, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := h.run(t, "install", "--source-harness", string(defaults.HarnessClaudeCode), "--source-path", src); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	words := splitSystemdExec(t, execStartOf(h.read(t, serviceUnitName)))
+	if words[0] != h.exe || words[1] != "harvest" {
+		t.Fatalf("ExecStart = %q", words)
+	}
+	root := buildRootCommand()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetErr(&buf)
+	root.SetArgs(append(words[1:], "--output", filepath.Join(h.dir, "sync")))
+	if err := root.Execute(); err != nil {
+		t.Fatalf("harvest from ExecStart: %v\n%s", err, buf.String())
+	}
+	if _, err := os.Stat(defaults.ResolveDBFilePathWith(h.dir).String()); err != nil {
+		t.Errorf("harvest did not create the store under the unit's --data-dir: %v\n%s", err, buf.String())
+	}
+}
+
+func TestServiceReinstallConverges(t *testing.T) {
+	t.Parallel()
+	h := newServiceHarness(t, "home")
+	if out, err := h.run(t, "install", "--interval", "15m"); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	if out, err := h.run(t, "install", "--on-calendar", "hourly", "--randomized-delay", "0s"); err != nil {
+		t.Fatalf("reinstall: %v\n%s", err, out)
+	}
+	timer := unitSection(h.read(t, timerUnitName), "Timer")
+	if strings.Join(timer, "\n") != "OnCalendar=hourly\nPersistent=true" {
+		t.Errorf("reinstalled [Timer] = %q", timer)
+	}
+	first := h.read(t, serviceUnitName) + h.read(t, timerUnitName)
+	if out, err := h.run(t, "install", "--on-calendar", "hourly", "--randomized-delay", "0s"); err != nil {
+		t.Fatalf("third install: %v\n%s", err, out)
+	}
+	if again := h.read(t, serviceUnitName) + h.read(t, timerUnitName); again != first {
+		t.Errorf("identical reinstall changed the units")
+	}
+}
+
+func TestServiceUninstallRemovesOnlyItsOwnFiles(t *testing.T) {
+	t.Parallel()
+	h := newServiceHarness(t, "home")
+	if out, err := h.run(t, "install"); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	other := filepath.Join(h.unitDir, "other.service")
+	if err := os.WriteFile(other, []byte("[Service]\nExecStart=/bin/true\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// A hand-written timer under our name must survive and block nothing else.
+	handTimer := "[Timer]\nOnCalendar=daily\n"
+	if err := os.WriteFile(filepath.Join(h.unitDir, timerUnitName), []byte(handTimer), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	out, err := h.run(t, "uninstall")
+	if err != nil {
+		t.Fatalf("uninstall: %v\n%s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(h.unitDir, serviceUnitName)); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("generated service not removed: %v", err)
+	}
+	if h.read(t, timerUnitName) != handTimer {
+		t.Error("uninstall changed a timer peasant did not write")
+	}
+	if _, err := os.Stat(other); err != nil {
+		t.Errorf("uninstall touched an unrelated unit: %v", err)
+	}
+	if strings.Contains(strings.Join(h.ctl.Calls(), "|"), "disable") {
+		t.Errorf("uninstall disabled a timer it did not write: %q", h.ctl.Calls())
+	}
+	again, err := h.run(t, "uninstall")
+	if err != nil || !strings.Contains(again, "nothing to uninstall") {
+		t.Errorf("second uninstall = %v\n%s", err, again)
+	}
+}
+
+func TestServiceInstallRefusesForeignUnit(t *testing.T) {
+	t.Parallel()
+	h := newServiceHarness(t, "home")
+	if err := os.MkdirAll(h.unitDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	hand := "[Service]\nExecStart=/bin/true\n"
+	if err := os.WriteFile(filepath.Join(h.unitDir, serviceUnitName), []byte(hand), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := h.run(t, "install")
+	if err == nil || !strings.Contains(err.Error(), "not written by peasant") {
+		t.Fatalf("install over a hand-written unit = %v", err)
+	}
+	if h.read(t, serviceUnitName) != hand {
+		t.Error("install overwrote a hand-written unit")
+	}
+	if _, err := os.Stat(filepath.Join(h.unitDir, timerUnitName)); !errors.Is(err, os.ErrNotExist) {
+		t.Error("install wrote the timer after refusing the service")
+	}
+}
+
+func TestServiceStatus(t *testing.T) {
+	t.Parallel()
+	h := newServiceHarness(t, "home")
+	out, err := h.run(t, "status")
+	if err != nil || !strings.Contains(out, serviceUnitName+": not installed") {
+		t.Fatalf("status before install = %v\n%s", err, out)
+	}
+	if out, err := h.run(t, "install"); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	out, err = h.run(t, "status")
+	if err != nil {
+		t.Fatalf("status after install: %v\n%s", err, out)
+	}
+	for _, want := range []string{timerUnitName + ": installed", "is-enabled: enabled", "is-active: active"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("status after install lacks %q:\n%s", want, out)
+		}
+	}
+}
+
+func TestServiceRefusals(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		setup   func(h *serviceHarness)
+		args    []string
+		wantErr string
+	}{
+		{"interval below minimum", nil, []string{"install", "--interval", "30s"}, "--interval must be at least 1min"},
+		{"interval not a duration", nil, []string{"install", "--interval", "often"}, "invalid argument"},
+		{"negative delay", nil, []string{"install", "--randomized-delay", "-1m"}, "must not be negative"},
+		{"interval and calendar", nil, []string{"install", "--interval", "1h", "--on-calendar", "daily"}, "mutually exclusive"},
+		{"multi-line calendar", nil, []string{"install", "--on-calendar", "daily\nExecStart=/bin/sh"}, "one line"},
+		{"source path without harness", nil, []string{"install", "--source-path", "/x"}, "--source-path requires --source-harness"},
+		{"unknown harness", nil, []string{"install", "--source-harness", "nope", "--source-path", "/x"}, "nope"},
+		{"not linux install", func(h *serviceHarness) { h.deps.goos = "darwin" }, []string{"install", "--dry-run"}, "Linux only (this is darwin)"},
+		{"not linux status", func(h *serviceHarness) { h.deps.goos = "windows" }, []string{"status"}, "Linux only"},
+		{"no systemctl", func(h *serviceHarness) { h.ctl.fail = errSystemctlMissing }, []string{"install"}, "systemctl not found on PATH"},
+		{"no user manager", func(h *serviceHarness) {
+			h.ctl.failOut = "Failed to connect to user scope bus via local transport"
+			h.ctl.fail = errors.New("exit status 1")
+		}, []string{"install"}, "loginctl enable-linger"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newServiceHarness(t, "home")
+			if tc.setup != nil {
+				tc.setup(h)
+			}
+			out, err := h.run(t, tc.args...)
+			if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("err = %v, want it to contain %q\n%s", err, tc.wantErr, out)
+			}
+			if _, statErr := os.Stat(h.unitDir); !errors.Is(statErr, os.ErrNotExist) {
+				t.Errorf("a refused command created %s", h.unitDir)
+			}
+		})
+	}
+}
+
+// TestServiceUnitsVerifyWithSystemd runs systemd's own parser over the
+// rendered pair when systemd-analyze is installed (it is not on CI runners
+// without systemd, where this skips).
+func TestServiceUnitsVerifyWithSystemd(t *testing.T) {
+	t.Parallel()
+	analyze, err := exec.LookPath("systemd-analyze")
+	if err != nil {
+		t.Skip("systemd-analyze not installed")
+	}
+	h := newServiceHarness(t, "home with space 100%")
+	if err := os.MkdirAll(filepath.Dir(h.exe), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(h.exe, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if out, err := h.run(t, "install"); err != nil {
+		t.Fatalf("install: %v\n%s", err, out)
+	}
+	cmd := exec.Command(analyze, "--user", "verify", "--man=no", filepath.Join(h.unitDir, serviceUnitName), filepath.Join(h.unitDir, timerUnitName))
+	// A private runtime dir: --user verify never reaches a real user manager.
+	cmd.Env = append(os.Environ(), "SYSTEMD_LOG_LEVEL=warning", "XDG_RUNTIME_DIR="+t.TempDir())
+	out, err := cmd.CombinedOutput()
+	if err != nil || len(bytes.TrimSpace(out)) > 0 {
+		t.Fatalf("systemd-analyze verify: %v\n%s", err, out)
+	}
+}
