@@ -305,7 +305,7 @@ func TestServiceInstallDryRunMatchesWrittenUnits(t *testing.T) {
 }
 
 // serviceSeededToken is a fake GitHub token the redact rules catch.
-const serviceSeededToken = "ghp_R7xQ2mLk9VtB4nW8zHc3JpF6sD1aYe5uK0oT"
+const serviceSeededToken = "ghp_0123456789abcdef0123456789abcdef0123"
 
 // writeServiceClaudeSession writes a minimal Claude Code transcript whose
 // user turn carries serviceSeededToken.
