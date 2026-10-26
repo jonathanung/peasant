@@ -1,0 +1,7 @@
+PR #707 head a5745834 go version go1.25.8 linux/amd64
+pkgs: ./internal/tui/kickstart ./internal/tui/ftue
+Mon Oct 26 00:29:43 PDT 2026
+ok  	github.com/peasant-labs/peasant/internal/tui/kickstart	53.074s
+ok  	github.com/peasant-labs/peasant/internal/tui/ftue	3.728s
+rc=0
+Mon Oct 26 00:30:42 PDT 2026
