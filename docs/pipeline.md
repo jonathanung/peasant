@@ -360,6 +360,10 @@ Rules:
   version 3, the first harvest re-reads every Claude transcript once, which
   costs about as much as a first harvest. After that, unchanged files are
   served from the cache again. No manual refresh or cache deletion is needed.
+  The version check is an exact match, not a minimum. Switching back and forth
+  between a build with version 2 and a build with version 3 against the same
+  data directory re-reads every cached Claude transcript on each switch,
+  because each build rewrites the rows with its own version.
 - Discovery deletes the records of transcripts that are gone, but only under the
   source paths that the run walked.
 - The cache is best effort. A missing or failing cache makes discovery mine every
