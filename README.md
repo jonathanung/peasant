@@ -44,8 +44,8 @@ make build          # outputs peasant
 # Run the first-time setup wizard
 peasant kickstart
 
-# Ingest sessions from all configured providers
-peasant ingest
+# Harvest sessions from all configured providers
+peasant harvest
 
 # Start the web dashboard (background, auto-opens browser)
 peasant web start
@@ -75,8 +75,8 @@ privacy boundaries, and recovery behavior.
 
 | Command | Description |
 |---------|-------------|
-| `peasant ingest` | Run the data ingestion pipeline |
-| `peasant ingest verify` | Verify database schema integrity |
+| `peasant harvest` | Run the data ingestion pipeline |
+| `peasant harvest verify` | Verify database schema integrity |
 | `peasant village push` | Push ingested transcripts + annotations to the Peasant village (incremental — server-manifest skip-gate + retraction; see [flags](#peasant-village-push-flags)) |
 | `peasant village auto` | Publish this repository's sessions on every `git push`, redacted and private, to the collectives you published to last: saves an auto-publish rule in `hooks.yaml` (see [the network reference](docs/NETWORK.md#6-hook-triggered-push)) and installs the pre-push hook here |
 | `peasant login` / `peasant logout` | Authenticate with / disconnect from the village |
@@ -183,6 +183,7 @@ are replayed once through the ordinary push candidate path.
 | `--detect-commits` | Detect and store git commits linked to each session (default on; pass `--detect-commits=false` to skip) |
 | `--include-active` | Deprecated and has no effect: active sessions are processed by default |
 | `--config <path>` | Path to config file (global flag) |
+| `--data-dir`, `--config-dir`, `--state-dir` | Override the data, config and state directories (global flags; see [`peasant`](docs/cli/peasant.md)) |
 
 When a selection index is configured (via `peasant kickstart`), harvest automatically filters to only
 the selected projects, branches, and sessions. The `--session` flag overrides this filter.
