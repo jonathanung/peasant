@@ -3,12 +3,13 @@ package main
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
 // timeFilterHelp is the grammar every --since/--until/--before/--after flag
 // accepts, for flag help text.
-const timeFilterHelp = "Nh, Nd, Nw, Nm (months), Ny, or YYYY-MM-DD"
+const timeFilterHelp = "Nh, Nd, Nw, Nmo (months), Ny, or YYYY-MM-DD (UTC); minutes are not supported"
 
 // parseTimeFilter is the one parser behind every --since/--until/--before/
 // --after flag: a date (YYYY-MM-DD or RFC3339) or a relative "N ago" with
@@ -26,6 +27,9 @@ func parseTimeFilter(s string, now time.Time) (time.Time, error) {
 func parseRelativeAgo(s string, now time.Time) (time.Time, error) {
 	if len(s) < 2 {
 		return time.Time{}, fmt.Errorf("invalid duration: %q (expected %s)", s, timeFilterHelp)
+	}
+	if strings.HasSuffix(s, "mo") {
+		s = strings.TrimSuffix(s, "o")
 	}
 	n, err := strconv.Atoi(s[:len(s)-1])
 	if err != nil || n <= 0 {
@@ -45,4 +49,16 @@ func parseRelativeAgo(s string, now time.Time) (time.Time, error) {
 	default:
 		return time.Time{}, fmt.Errorf("invalid duration unit %q in %q (expected %s)", s[len(s)-1:], s, timeFilterHelp)
 	}
+}
+
+// parsePruneTimeFilter is parseTimeFilter for the destructive prune command,
+// where a bare "m" is refused: people read 30m as minutes, the grammar reads
+// it as months, and prune would delete accordingly.
+func parsePruneTimeFilter(s string, now time.Time) (time.Time, error) {
+	if strings.HasSuffix(s, "m") && len(s) > 1 {
+		if _, err := strconv.Atoi(s[:len(s)-1]); err == nil {
+			return time.Time{}, fmt.Errorf("%q is ambiguous for prune: write %so for months (minutes are not supported); nothing was selected", s, s)
+		}
+	}
+	return parseTimeFilter(s, now)
 }

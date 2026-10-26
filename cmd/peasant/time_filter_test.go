@@ -1,13 +1,14 @@
 package main
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
 
 // TestTimeFiltersShareOneGrammar proves harvest --since, sessions list
 // --since and prune --before/--after read the same relative grammar
-// (h/d/w/m/y, m = months) and the same dates, through the functions those
+// (h/d/w/mo/y; bare m = months outside prune) and the same dates, through the functions those
 // commands call.
 func TestTimeFiltersShareOneGrammar(t *testing.T) {
 	t.Parallel()
@@ -18,7 +19,7 @@ func TestTimeFiltersShareOneGrammar(t *testing.T) {
 	}{
 		{"3w", 20, 22},
 		{"7d", 6, 8},
-		{"3m", 88, 93},
+		{"3mo", 88, 93},
 		{"1y", 364, 367},
 	} {
 		h, err := parseSinceDuration(tc.in)
@@ -62,5 +63,27 @@ func TestPruneCmdAcceptsRelativeBefore(t *testing.T) {
 	t.Parallel()
 	if _, _, err := executePruneCmd(t, t.TempDir(), []string{"--before", "7d", "--dry-run"}); err != nil {
 		t.Fatalf("prune --before 7d --dry-run: %v", err)
+	}
+}
+
+// TestPruneRefusesTheAmbiguousMonthUnit proves the destructive prune command
+// refuses a bare "m" (read by people as minutes, by the parser as months)
+// with a hint, and takes the explicit "mo".
+func TestPruneRefusesTheAmbiguousMonthUnit(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	seedPruneTestSessions(t, dir)
+	for _, flag := range []string{"--after", "--before"} {
+		out, _, err := executePruneCmd(t, dir, []string{flag, "30m", "--dry-run"})
+		if err == nil || !strings.Contains(err.Error(), "30mo") || strings.Contains(out, "session(s) would be deleted") {
+			t.Fatalf("prune %s 30m: err %v, want a refusal naming 30mo and no selection:\n%s", flag, err, out)
+		}
+	}
+	// Outside prune a bare m keeps meaning months (a maintainer decision).
+	if s, err := parseDateOrDuration("3m", true); err != nil || time.Since(time.UnixMilli(s)).Hours()/24 < 88 {
+		t.Fatalf("sessions list --since 3m: %v, want about three months ago", err)
+	}
+	if _, _, err := executePruneCmd(t, dir, []string{"--after", "30mo", "--dry-run"}); err != nil {
+		t.Fatalf("prune --after 30mo: %v", err)
 	}
 }
