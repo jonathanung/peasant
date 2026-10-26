@@ -1,0 +1,10 @@
+# after: new tests at head d30582c1, go version go1.25.8 linux/amd64
+$ go test -count=1 -v -run 'TestStrikeLifecycle' ./internal/ingest/ ./cmd/peasant/
+--- PASS: TestStrikeLifecycleEventKindsCaptureComplete (0.00s)
+--- PASS: TestStrikeLifecycleEventKindsFixtureIsComplete (0.00s)
+--- PASS: TestStrikeLifecycleUndeclaredAndMalformedKinds (0.01s)
+PASS
+ok  	github.com/peasant-labs/peasant/internal/ingest	0.075s
+--- PASS: TestStrikeLifecycleSessionExportsAndPublishes (0.09s)
+PASS
+ok  	github.com/peasant-labs/peasant/cmd/peasant	0.160s

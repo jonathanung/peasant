@@ -1,0 +1,31 @@
+$ peasant harvest --source-harness strike --source-path ./src --include-active
+  retained, uninterpreted: strike/record/team.roster: occurrences: 1; affected sessions: 1
+  retained, uninterpreted: strike/record/tool.loop_detected: occurrences: 1; affected sessions: 1
+  retained, uninterpreted: strike/record/tool.retrying: occurrences: 1; affected sessions: 1
+  retained, uninterpreted: strike/record/turn.steered: occurrences: 1; affected sessions: 1
+  retained, uninterpreted: strike/record/verification.completed: occurrences: 1; affected sessions: 1
+  retained, uninterpreted: strike/record/verification.started: occurrences: 1; affected sessions: 1
+  retained, uninterpreted: strike/record/wait.resolved: occurrences: 1; affected sessions: 1
+  retained, uninterpreted: strike/record/wait.started: occurrences: 1; affected sessions: 1
+
+  ACTIVE     strike     EEEEEEEEEEEEEEEEEEEEEEEEEE  ->  ./home/.local/share/peasant/peasant-sync/__peasant-untracked__--c18dcf6f--strike-kinds-fixture/EEEEEEEEEEEEEEEEEEEEEEEEEE
+  ACTIVE     strike     CCCCCCCCCCCCCCCCCCCCCCCCCC  ->  ./home/.local/share/peasant/peasant-sync/__peasant-untracked__--c18dcf6f--strike-kinds-fixture/CCCCCCCCCCCCCCCCCCCCCCCCCC
+  ACTIVE     strike     DDDDDDDDDDDDDDDDDDDDDDDDDD  ->  ./home/.local/share/peasant/peasant-sync/__peasant-untracked__--c18dcf6f--strike-kinds-fixture/DDDDDDDDDDDDDDDDDDDDDDDDDD
+[exit 0]
+
+$ peasant export sessions --session CCCCCCCCCCCCCCCCCCCCCCCCCC --output-dir ./out
+exported CCCCCCCCCCCCCCCCCCCCCCCCCC -> ./out/CCCCCCCCCCCCCCCCCCCCCCCCCC.json (2 turns)
+{"retainedUnknown":49,"retainedKinds":49,"partial":true,"turns":2}
+
+$ peasant export sessions --session DDDDDDDDDDDDDDDDDDDDDDDDDD --output-dir ./out
+exported DDDDDDDDDDDDDDDDDDDDDDDDDD -> ./out/DDDDDDDDDDDDDDDDDDDDDDDDDD.json (2 turns)
+{"retainedUnknown":1,"retainedKinds":1,"partial":true,"turns":2}
+
+$ peasant export sessions --session EEEEEEEEEEEEEEEEEEEEEEEEEE --output-dir ./out
+exported EEEEEEEEEEEEEEEEEEEEEEEEEE -> ./out/EEEEEEEEEEEEEEEEEEEEEEEEEE.json (2 turns)
+{"retainedUnknown":1,"retainedKinds":1,"partial":true,"turns":2}
+
+$ jq '{parentUuid,rootSessionId,relationships,subagents,cache:...}' peasant-sync/*/<id>/<id>--metadata.json
+{"id":"CCCC","parentUuid":null,"rootSessionId":null,"relationships":[],"subagents":[],"cachedRead":null,"cachedWrite":null}
+{"id":"DDDD","parentUuid":null,"rootSessionId":null,"relationships":[],"subagents":[],"cachedRead":null,"cachedWrite":null}
+{"id":"EEEE","parentUuid":null,"rootSessionId":null,"relationships":[],"subagents":[],"cachedRead":null,"cachedWrite":null}

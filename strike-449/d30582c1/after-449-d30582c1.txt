@@ -1,0 +1,31 @@
+$ peasant harvest --source-harness strike --source-path ./src --include-active
+
+index: 3 indexed, 3 computed (metadata_version=12)
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=2 indexer_version=18 index_version=1
+
+  ACTIVE     strike     CCCCCCCCCCCCCCCCCCCCCCCCCC  ->  ./home/.local/share/peasant/peasant-sync/__peasant-untracked__--ccf2a3ee--strike-kinds-fixture/CCCCCCCCCCCCCCCCCCCCCCCCCC + 1 subagent(s)
+  ACTIVE     strike     EEEEEEEEEEEEEEEEEEEEEEEEEE  ->  ./home/.local/share/peasant/peasant-sync/__peasant-untracked__--ccf2a3ee--strike-kinds-fixture/EEEEEEEEEEEEEEEEEEEEEEEEEE
+[exit 0]
+
+$ peasant export sessions --session CCCCCCCCCCCCCCCCCCCCCCCCCC --output-dir ./out
+exported CCCCCCCCCCCCCCCCCCCCCCCCCC -> ./out/CCCCCCCCCCCCCCCCCCCCCCCCCC.json (4 turns)
+{"retainedUnknown":0,"retainedKinds":0,"partial":false,"turns":4}
+
+$ peasant export sessions --session DDDDDDDDDDDDDDDDDDDDDDDDDD --output-dir ./out
+exported DDDDDDDDDDDDDDDDDDDDDDDDDD -> ./out/DDDDDDDDDDDDDDDDDDDDDDDDDD.json (2 turns)
+{"retainedUnknown":0,"retainedKinds":0,"partial":false,"turns":2}
+
+$ peasant export sessions --session EEEEEEEEEEEEEEEEEEEEEEEEEE --output-dir ./out
+exported EEEEEEEEEEEEEEEEEEEEEEEEEE -> ./out/EEEEEEEEEEEEEEEEEEEEEEEEEE.json (2 turns)
+{"retainedUnknown":0,"retainedKinds":0,"partial":false,"turns":2}
+
+$ jq '{parentUuid,rootSessionId,relationships,subagents,cache:...}' peasant-sync/*/<id>/<id>--metadata.json
+{"id":"CCCC","parentUuid":null,"rootSessionId":null,"relationships":[],"subagents":["DDDDDDDDDDDDDDDDDDDDDDDDDD"],"cachedRead":80,"cachedWrite":15}
+{"id":"DDDD","parentUuid":"CCCCCCCCCCCCCCCCCCCCCCCCCC","rootSessionId":"CCCCCCCCCCCCCCCCCCCCCCCCCC","relationships":[],"subagents":[],"cachedRead":null,"cachedWrite":null}
+{"id":"EEEE","parentUuid":null,"rootSessionId":null,"relationships":[{"kind":"context_from","targetLocalId":"CCCCCCCCCCCCCCCCCCCCCCCCCC"}],"subagents":[],"cachedRead":null,"cachedWrite":null}
