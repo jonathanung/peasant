@@ -1,0 +1,1 @@
+ok  	github.com/peasant-labs/peasant/internal/tui	1.404s
