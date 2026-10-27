@@ -40,10 +40,7 @@ func newSessionExtrasStore(t *testing.T) *store.Store {
 // projection the local transcript renders.
 func sessionExtrasProvider(t *testing.T, db *store.Store) api.DataProvider {
 	t.Helper()
-	policy, err := sessionvisibility.New(config.SelectionConfig{Mode: config.SelectionModeAll})
-	if err != nil {
-		t.Fatalf("build selection policy: %v", err)
-	}
+	policy := sessionvisibility.New(config.SelectionConfig{Mode: config.SelectionModeAll})
 	return api.NewStoreDataProvider(db, policy)
 }
 

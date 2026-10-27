@@ -82,7 +82,7 @@ func TestClaudeTeammateIdentityReachesLocalReads(t *testing.T) {
 			}
 
 			// 1. The session summary construction site both list paths share.
-			provider := NewStoreDataProvider(db, sessionvisibility.All())
+			provider := NewStoreDataProvider(db, sessionvisibility.Browsing())
 			summaries, err := provider.SessionSummariesByID(ctx, []string{testCase.ChildSessionID, testCase.ParentSessionID, testCase.RootSessionID})
 			if err != nil {
 				t.Fatalf("SessionSummariesByID: %v", err)
