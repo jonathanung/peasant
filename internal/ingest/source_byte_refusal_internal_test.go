@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	_ "embed"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -18,10 +20,22 @@ import (
 var sourceByteRefusalYAML []byte
 
 type sourceByteRefusalCase struct {
-	Name            string `yaml:"name"`
-	Harness         string `yaml:"harness"`
-	Kind            string `yaml:"kind"`
-	Settles         bool   `yaml:"settles"`
+	Name    string `yaml:"name"`
+	Harness string `yaml:"harness"`
+	Kind    string `yaml:"kind"`
+	Settles bool   `yaml:"settles"`
+	Message string `yaml:"message"`
+	// MessageFrom names the production decode whose failure this case pins. The
+	// sentence is then rebuilt from that decode at test time instead of being
+	// written into the fixture, so a standard-library wording change fails only
+	// where the user would see it, and the rest of the sentence still has to
+	// match exactly. MessageTemplate is the literal wrapper that decode's
+	// failure is printed inside, with one verb for the cause: the wrapper is
+	// pinned here rather than copied from production, so a reworded capture
+	// template fails even though the cause is rebuilt. A case that sets
+	// MessageFrom sets MessageTemplate and must not also set Message.
+	MessageFrom     string `yaml:"message_from"`
+	MessageTemplate string `yaml:"message_template"`
 	MessageContains string `yaml:"message_contains"`
 	Transcript      string `yaml:"transcript"`
 }
@@ -57,15 +71,37 @@ func loadSourceByteRefusalFixture(t *testing.T) sourceByteRefusalFixture {
 		if strings.TrimSpace(testCase.Transcript) == "" {
 			t.Fatalf("case %s has no transcript", testCase.Name)
 		}
-		if testCase.Kind != "cancelled" && strings.TrimSpace(testCase.MessageContains) == "" {
-			t.Fatalf("case %s does not name the sentence the user already sees", testCase.Name)
+		switch testCase.Kind {
+		case "validation", "typed-decode":
+			switch testCase.MessageFrom {
+			case "":
+				if strings.TrimSpace(testCase.Message) == "" {
+					t.Fatalf("case %s does not pin the full refusal sentence", testCase.Name)
+				}
+				if strings.TrimSpace(testCase.MessageTemplate) != "" {
+					t.Fatalf("case %s pins a template without naming the decode that fills it", testCase.Name)
+				}
+			case "pi-message-content", "strike-event-data":
+				if strings.TrimSpace(testCase.Message) != "" {
+					t.Fatalf("case %s pins both a rebuilt and a literal sentence", testCase.Name)
+				}
+				if strings.TrimSpace(testCase.MessageTemplate) == "" {
+					t.Fatalf("case %s does not pin the refusal wrapper its rebuilt cause is printed inside", testCase.Name)
+				}
+				if strings.Count(testCase.MessageTemplate, "%") != 1 || (!strings.Contains(testCase.MessageTemplate, "%v") && !strings.Contains(testCase.MessageTemplate, "%s")) {
+					t.Fatalf("case %s must carry exactly one %%v or %%s verb for the decoded cause in its message template", testCase.Name)
+				}
+			default:
+				t.Fatalf("case %s names unknown message source %q", testCase.Name, testCase.MessageFrom)
+			}
+		case "cancelled":
+		default:
+			if strings.TrimSpace(testCase.MessageContains) == "" {
+				t.Fatalf("case %s does not name the sentence the user already sees", testCase.Name)
+			}
 		}
 	}
-	for _, name := range fixture.Required {
-		if !present[name] {
-			t.Fatalf("source-byte refusal fixture is missing required case %q", name)
-		}
-	}
+	requireNamedCases(t, "source-byte refusal fixture", fixture.Required, present)
 	return fixture
 }
 
@@ -102,8 +138,8 @@ func TestSourceByteRefusalKeepsTheSentenceAndLeavesCancellationUnmarked(t *testi
 			if err == nil {
 				t.Fatal("capture accepted bytes it must refuse")
 			}
-			if sourceRecordUnusable(err) != testCase.Settles {
-				t.Fatalf("sourceRecordUnusable = %v, want %v; error: %v", sourceRecordUnusable(err), testCase.Settles, err)
+			if sourceUnavailable(err) != testCase.Settles {
+				t.Fatalf("sourceUnavailable = %v, want %v; error: %v", sourceUnavailable(err), testCase.Settles, err)
 			}
 			if testCase.Kind == "cancelled" {
 				if !errors.Is(err, context.Canceled) {
@@ -111,14 +147,82 @@ func TestSourceByteRefusalKeepsTheSentenceAndLeavesCancellationUnmarked(t *testi
 				}
 				return
 			}
-			if !strings.Contains(err.Error(), testCase.MessageContains) {
-				t.Fatalf("message changed\n got %q\nwant it to contain %q", err.Error(), testCase.MessageContains)
-			}
-			if testCase.Kind == "unparseable" {
+			switch testCase.Kind {
+			case "validation", "typed-decode":
+				want := testCase.Message
+				if testCase.MessageFrom != "" {
+					want = rebuiltTypedDecodeSentence(t, testCase.MessageFrom, testCase.MessageTemplate, session, data)
+				}
+				if err.Error() != want {
+					t.Fatalf("message changed\n got %q\nwant %q", err.Error(), want)
+				}
+			case "unparseable":
+				if !strings.Contains(err.Error(), testCase.MessageContains) {
+					t.Fatalf("message changed\n got %q\nwant it to contain %q", err.Error(), testCase.MessageContains)
+				}
 				assertUnmarkedSentence(t, session, data, err)
+			default:
+				if !strings.Contains(err.Error(), testCase.MessageContains) {
+					t.Fatalf("message changed\n got %q\nwant it to contain %q", err.Error(), testCase.MessageContains)
+				}
 			}
 		})
 	}
+}
+
+// refusalRecords returns the records the capture numbers, in order: it skips
+// the empty lines the reader skips, so an index into the result is the record
+// number the sentence names.
+func refusalRecords(data []byte) [][]byte {
+	var records [][]byte
+	for rest := data; len(rest) > 0; {
+		raw, next, _ := bytes.Cut(rest, []byte{'\n'})
+		rest = next
+		if trimmed := bytes.TrimSpace(raw); len(trimmed) > 0 {
+			records = append(records, trimmed)
+		}
+	}
+	return records
+}
+
+// rebuiltTypedDecodeSentence rebuilds a typed-decode refusal from the production
+// decoder that produced it, so the sentence keeps its exact-equality check while
+// the decoder's own wording (which a standard-library upgrade can change) is not
+// copied into this fixture. The wrapper around that cause is NOT rebuilt: the
+// fixture's template supplies it literally, with one verb for the cause, so a
+// reworded capture template fails here instead of moving the expectation with
+// it. The record number and the step are part of the pinned template.
+func rebuiltTypedDecodeSentence(t *testing.T, from, template string, session DiscoveredSession, data []byte) string {
+	t.Helper()
+	for index, raw := range refusalRecords(data) {
+		line := index + 1
+		switch from {
+		case "pi-message-content":
+			entry, entryErr := decodePiEntry(raw, line)
+			if entryErr != nil {
+				continue
+			}
+			var message piMessagePayload
+			if err := json.Unmarshal(entry.Message, &message); err != nil {
+				continue
+			}
+			if _, err := decodePiContent(message.Content, message.Role == piRoleAssistant); err != nil {
+				return fmt.Sprintf(template, err)
+			}
+		case "strike-event-data":
+			var envelope strikeEnvelope
+			if err := json.Unmarshal(raw, &envelope); err != nil {
+				continue
+			}
+			if _, err := decodeStrikeEventData(envelope.Data); err != nil {
+				return fmt.Sprintf(template, err)
+			}
+		default:
+			t.Fatalf("unknown typed-decode source %q", from)
+		}
+	}
+	t.Fatalf("%s fixture has no record the production decoder refuses", from)
+	return ""
 }
 
 // assertUnmarkedSentence rebuilds the sentence the capture printed before the
@@ -169,15 +273,11 @@ func unmarkedStrikeSentence(t *testing.T, session DiscoveredSession, data []byte
 		rest = next
 		line++
 		raw = bytes.TrimSpace(raw)
-		if len(raw) == 0 || jsonValid(raw) {
+		if len(raw) == 0 || json.Valid(raw) {
 			continue
 		}
 		return captureFailure(session, line, malformedSourceRecord{}).Error()
 	}
 	t.Fatal("Strike fixture has no unparseable record to compare")
 	return ""
-}
-
-func jsonValid(raw []byte) bool {
-	return len(bytes.TrimSpace(raw)) > 0 && bytes.TrimSpace(raw)[0] == '{'
 }
