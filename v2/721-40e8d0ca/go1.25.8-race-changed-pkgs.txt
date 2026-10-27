@@ -1,0 +1,2 @@
+ok  	github.com/peasant-labs/peasant/cmd/peasant	436.810s
+ok  	github.com/peasant-labs/peasant/internal/store	841.163s
