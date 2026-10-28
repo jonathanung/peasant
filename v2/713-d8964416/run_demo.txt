@@ -1,0 +1,187 @@
+### BEFORE: develop be2bc57f (current develop tip)
+==================================================================
+CASE: before-real   extra args: none
+$ /home/hatch/workspace/pr-evidence/evidence-713/bin/peasant-before harvest 
+2026/10/28 19:32:51 WARN pipeline: store managed generation session_id=ffffffff-0000-4000-8000-000000000001 error="pipeline: activate managed generation for session ffffffff-0000-4000-8000-000000000001: store: captured index state for session ffffffff-0000-4000-8000-000000000001 changed before replacement; this parser result was refused and current entries and producer evidence were preserved; capture current input and retry indexing; the stored generation and producer stamps are unchanged"
+2026/10/28 19:32:51 WARN pipeline: store managed generation session_id=ffffffff-0000-4000-8000-000000000001 error="pipeline: activate managed generation for session ffffffff-0000-4000-8000-000000000001: store: activation batch repeats session ffffffff-0000-4000-8000-000000000001; submit one candidate per session in a batch; the repeated candidate was not installed; the stored generation and producer stamps are unchanged"
+2026/10/28 19:32:51 WARN content backfill failed; existing canonical state unchanged session_id=ffffffff-0000-4000-8000-000000000001 error="content recovery ffffffff-0000-4000-8000-000000000001: stored content does not match the stored projection shape; content-only recovery changed nothing; the ordinary index run replaces the entries with annotation remapping once the session is selected, and harvest index --force selects it explicitly"
+2026/10/28 19:32:51 WARN harvest: stored metrics remain retryable location=ffffffff-0000-4000-8000-000000000001 error="read metric input for session ffffffff-0000-4000-8000-000000000001: empty entries have no completed index; prior metrics were preserved; index the session before retrying"
+warning: ffffffff-0000-4000-8000-000000000001: index session ffffffff-0000-4000-8000-000000000001: pipeline: activate managed generation for session ffffffff-0000-4000-8000-000000000001: store: activation batch repeats session ffffffff-0000-4000-8000-000000000001; submit one candidate per session in a batch; the repeated candidate was not installed; the stored generation and producer stamps are unchanged; this attempt preserved the last successful index
+warning: ffffffff-0000-4000-8000-000000000001: index session ffffffff-0000-4000-8000-000000000001: pipeline: activate managed generation for session ffffffff-0000-4000-8000-000000000001: store: captured index state for session ffffffff-0000-4000-8000-000000000001 changed before replacement; this parser result was refused and current entries and producer evidence were preserved; capture current input and retry indexing; the stored generation and producer stamps are unchanged; this attempt preserved the last successful index
+warning: ffffffff-0000-4000-8000-000000000001: read metric input for session ffffffff-0000-4000-8000-000000000001: empty entries have no completed index; prior metrics were preserved; index the session before retrying
+warning: session ffffffff-0000-4000-8000-000000000001 stored-content recovery: content recovery ffffffff-0000-4000-8000-000000000001: stored content does not match the stored projection shape; content-only recovery changed nothing; the ordinary index run replaces the entries with annotation remapping once the session is selected, and harvest index --force selects it explicitly; the prior content and producer evidence were preserved; nothing is served from the database for this session yet; ordinary supported indexing remains eligible
+Output:  /home/hatch/workspace/pr-evidence/evidence-713/work/before-real/fixture/out
+Config:  /home/hatch/workspace/pr-evidence/evidence-713/work/before-real/fixture/config.yaml
+Sources:
+   - claude-code: /home/hatch/workspace/pr-evidence/evidence-713/work/before-real/fixture/projects
+
+peasant harvest: 2 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 0     errors
+   - 2     active (included)
+duration: 900ms
+
+index: 0 indexed, 0 computed (metadata_version=12)
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+  warning: 1 session(s) have no stored entries, so they are empty in the viewer, in search, in metrics, and in anything published.
+  Run 'peasant harvest --json' for the reason on each.
+
+  ACTIVE     claude-code ffffffff-0000-4000-8000-000000000001  ->  /home/hatch/workspace/pr-evidence/evidence-713/work/before-real/fixture/out/__peasant-untracked__--6b0434df--tmp-qa-one/ffffffff-0000-4000-8000-000000000001
+  ACTIVE     claude-code ffffffff-0000-4000-8000-000000000001  ->  /home/hatch/workspace/pr-evidence/evidence-713/work/before-real/fixture/out/__peasant-untracked__--962c6782--tmp-qa-two/ffffffff-0000-4000-8000-000000000001
+EXIT CODE: 0
+-- stored sessions in DB (before-real):
+ffffffff-0000-4000-8000-000000000001|/tmp/-tmp-qa-two|/home/hatch/workspace/pr-evidence/evidence-713/work/before-real/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl
+-- daily_summary rows:
+2026-10-01|1|0
+
+### AFTER: PR #713 rebased head d8964416 - real run
+==================================================================
+CASE: after-real   extra args: none
+$ /home/hatch/workspace/pr-evidence/evidence-713/bin/peasant-after harvest 
+warning: claude-code ffffffff-0000-4000-8000-000000000001: same session id in 2 source files (/home/hatch/workspace/pr-evidence/evidence-713/work/after-real/fixture/projects/-tmp-qa-one/ffffffff-0000-4000-8000-000000000001.jsonl, /home/hatch/workspace/pr-evidence/evidence-713/work/after-real/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl; newer: /home/hatch/workspace/pr-evidence/evidence-713/work/after-real/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl; larger: /home/hatch/workspace/pr-evidence/evidence-713/work/after-real/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl); none was ingested this run, so no stored row mixes them; move the one you do not want out of the harness directory (do not delete it: it may be the only copy of that transcript) and rerun harvest
+Output:  /home/hatch/workspace/pr-evidence/evidence-713/work/after-real/fixture/out
+Config:  /home/hatch/workspace/pr-evidence/evidence-713/work/after-real/fixture/config.yaml
+Sources:
+   - claude-code: /home/hatch/workspace/pr-evidence/evidence-713/work/after-real/fixture/projects
+
+peasant harvest: 1 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 1     errors
+   - 0     active (included)
+duration: 400ms
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+
+  ERROR      claude-code ffffffff-0000-4000-8000-000000000001
+Error: 1 session(s) failed
+Usage:
+  peasant harvest [flags]
+  peasant harvest [command]
+
+Aliases:
+  harvest, ingest
+
+Available Commands:
+  index       Populate database from existing peasant-sync/ files
+  logs        Extract transcripts to peasant-sync/ (no database)
+  verify      Verify database schema integrity
+
+Flags:
+      --all                     Process ALL sessions (clears filters, implies --force)
+      --detect-commits          Detect and store git commits linked to each session (default true)
+      --dry-run                 Show what would be processed without writing
+      --force                   Force re-process sessions that match current filters
+  -h, --help                    help for harvest
+      --include-active          Deprecated compatibility flag; active sessions are processed by default (default true)
+      --json                    Output as JSON instead of human-readable
+      --output string           Override output base path
+      --profile-index           Print INDEX parse/write timing diagnostics
+      --session strings         Filter to specific session IDs (repeatable, comma-separated)
+      --since string            Filter to sessions from the last N period (e.g. 2w, 3m, 7d)
+      --source-harness string   Override source harness (claude-code, opencode, codex, cursor, strike, pi)
+      --source-path string      Override source paths for the harness (replaces config, not additive)
+      --verbose                 Show file-level detail
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/home/hatch/workspace/pr-evidence/evidence-713/work/after-real/home/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+Use "peasant harvest [command] --help" for more information about a command.
+
+EXIT CODE: 1
+-- stored sessions in DB (after-real):
+-- daily_summary rows:
+
+### AFTER: PR #713 rebased head d8964416 - dry-run (must mirror real run)
+==================================================================
+CASE: after-dry-run   extra args: --dry-run
+$ /home/hatch/workspace/pr-evidence/evidence-713/bin/peasant-after harvest --dry-run
+notice: no analytics database exists yet at /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-run/data/peasant/peasant.db. This dry run creates none; each discovered session is compared against the stored artifacts on disk, and is reported as new when there are none. Run 'peasant harvest' to create it.
+warning: claude-code ffffffff-0000-4000-8000-000000000001: same session id in 2 source files (/home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-run/fixture/projects/-tmp-qa-one/ffffffff-0000-4000-8000-000000000001.jsonl, /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-run/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl; newer: /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-run/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl; larger: /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-run/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl); none was ingested this run, so no stored row mixes them; move the one you do not want out of the harness directory (do not delete it: it may be the only copy of that transcript) and rerun harvest
+Output:  /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-run/fixture/out
+Config:  /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-run/fixture/config.yaml
+Sources:
+   - claude-code: /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-run/fixture/projects
+
+peasant harvest: 1 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 1     errors
+   - 0     active (included)
+duration: 0s
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=21 index_version=1
+  codex: adapter_version=2 indexer_version=18 index_version=1
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=3 indexer_version=18 index_version=1
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+
+  ERROR      claude-code ffffffff-0000-4000-8000-000000000001
+Error: 1 session(s) failed
+Usage:
+  peasant harvest [flags]
+  peasant harvest [command]
+
+Aliases:
+  harvest, ingest
+
+Available Commands:
+  index       Populate database from existing peasant-sync/ files
+  logs        Extract transcripts to peasant-sync/ (no database)
+  verify      Verify database schema integrity
+
+Flags:
+      --all                     Process ALL sessions (clears filters, implies --force)
+      --detect-commits          Detect and store git commits linked to each session (default true)
+      --dry-run                 Show what would be processed without writing
+      --force                   Force re-process sessions that match current filters
+  -h, --help                    help for harvest
+      --include-active          Deprecated compatibility flag; active sessions are processed by default (default true)
+      --json                    Output as JSON instead of human-readable
+      --output string           Override output base path
+      --profile-index           Print INDEX parse/write timing diagnostics
+      --session strings         Filter to specific session IDs (repeatable, comma-separated)
+      --since string            Filter to sessions from the last N period (e.g. 2w, 3m, 7d)
+      --source-harness string   Override source harness (claude-code, opencode, codex, cursor, strike, pi)
+      --source-path string      Override source paths for the harness (replaces config, not additive)
+      --verbose                 Show file-level detail
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-run/home/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+Use "peasant harvest [command] --help" for more information about a command.
+
+EXIT CODE: 1
+-- no DB created (dry-run writes nothing)
+
+### AFTER: dry-run --json summary
+EXIT CODE: 0 (JSON mode: returns the document, as a real --json run does; the failure is summary.Errors below)
+"Errors": 1
+JSON summary: {'New': 0, 'Updated': 0, 'Unchanged': 0, 'Active': 0, 'Errors': 1, 'Indexed': 0, 'Computed': 0, 'StoreError': None, 'HarvesterVersions': {'claude-code': {'AdapterVersion': 3, 'IndexerVersion': 21, 'IndexVersion': 1}, 'codex': {'AdapterVersion': 2, 'IndexerVersion': 18, 'IndexVersion': 1}, 'cursor': {'AdapterVersion': 1, 'IndexerVersion': 18, 'IndexVersion': 1}, 'opencode': {'AdapterVersion': 3, 'IndexerVersion': 18, 'IndexVersion': 1}, 'pi': {'AdapterVersion': 3, 'IndexerVersion': 18, 'IndexVersion': 1}, 'strike': {'AdapterVersion': 1, 'IndexerVersion': 17, 'IndexVersion': 1}}, 'MetadataVersion': 12, 'ReminedEvidenceRecords': 2, 'OriginResolve': {'Examined': 0, 'Written': 0, 'Degraded': 0}, 'OriginResolveError': None}
+JSON session rows: 1
+ row error: same session id in 2 source files (/home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-json/fixture/projects/-tmp-qa-one/ffffffff-0000-4000-8000-000000000001.jsonl, /home/hatch/workspace/pr-evidence/evidence-71
+warning: claude-code ffffffff-0000-4000-8000-000000000001: same session id in 2 source files (/home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-json/fixture/projects/-tmp-qa-one/ffffffff-0000-4000-8000-000000000001.jsonl, /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-json/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl; newer: /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-json/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl; larger: /home/hatch/workspace/pr-evidence/evidence-713/work/after-dry-json/fixture/projects/-tmp-qa-two/ffffffff-0000-4000-8000-000000000001.jsonl); none was ingested this run, so no stored row mixes them; move the one you do not want out of the harness directory (do not delete it: it may be the only copy of that transcript) and rerun harvest
