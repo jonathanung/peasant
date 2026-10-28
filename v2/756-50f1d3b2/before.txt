@@ -1,0 +1,46 @@
+=== before: harvest Strike session set (lead contains all 49 lifecycle kinds) ===
+notice: no config found at /home/hatch/workspace/pr-evidence/pr-756-evidence/run-before/data/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.
+warning: CCCCCCCCCCCCCCCCCCCCCCCCCC: uninterpreted source data was retained with complete payload and source coordinates; interpretation is partial and outbound transfer limits apply
+warning: DDDDDDDDDDDDDDDDDDDDDDDDDD: uninterpreted source data was retained with complete payload and source coordinates; interpretation is partial and outbound transfer limits apply
+warning: EEEEEEEEEEEEEEEEEEEEEEEEEE: uninterpreted source data was retained with complete payload and source coordinates; interpretation is partial and outbound transfer limits apply
+{
+  "summary": {
+    "retained_unknown_kinds": [
+      {
+        "harness": "strike",
+        "namespace": "record",
+        "kind": "admission.decided",
+        "occurrences": 1,
+        "sessions": 1
+      },
+      {
+        "harness": "strike",
+        "namespace": "record",
+        "kind": "agent.contract.timeout",
+        "occurrences": 1,
+        "sessions": 1
+      },
+      {
+        "harness": "strike",
+        "namespace": "record",
+        "kind": "agent.message",
+ 
+=== before: export each session ===
+exported CCCCCCCCCCCCCCCCCCCCCCCCCC -> /home/hatch/workspace/pr-evidence/pr-756-evidence/run-before/export/CCCCCCCCCCCCCCCCCCCCCCCCCC.json (2 turns)
+exported DDDDDDDDDDDDDDDDDDDDDDDDDD -> /home/hatch/workspace/pr-evidence/pr-756-evidence/run-before/export/DDDDDDDDDDDDDDDDDDDDDDDDDD.json (2 turns)
+exported EEEEEEEEEEEEEEEEEEEEEEEEEE -> /home/hatch/workspace/pr-evidence/pr-756-evidence/run-before/export/EEEEEEEEEEEEEEEEEEEEEEEEEE.json (2 turns)
+total 28
+drwxrws--- 1 root nogroup   186 Oct 28 20:21 .
+drwxrws--- 1 root nogroup   294 Oct 28 20:21 ..
+-rw-r--r-- 1 root nogroup 16593 Oct 28 20:21 CCCCCCCCCCCCCCCCCCCCCCCCCC.json
+-rw-r--r-- 1 root nogroup  1221 Oct 28 20:21 DDDDDDDDDDDDDDDDDDDDDDDDDD.json
+-rw-r--r-- 1 root nogroup  1221 Oct 28 20:21 EEEEEEEEEEEEEEEEEEEEEEEEEE.json
+=== before: summary ===
+--- before ---
+CCCCCCCC… export: retainedUnknown=49 partial=True turns=2
+   retained kinds (49 distinct): admission.decided, agent.contract.timeout, agent.message, agent.selected, artifact.updated, autonomy.selected, child.completed, child.escalated, child.started, compaction.completed, compaction.started, context.controls, context.fit_warning, delegation.changed, diagnostic.bundle, effort.selected, engine.error, fast.selected, files.invalidated, harness.progress, hook.matched, ledger.updated, path.overlap, permission.asked, permission.decided, permission.mode, permission.resolved, phase.changed, phase.grant_approved, plan.handoff, prompt.effective, provider.retrying, question.asked, question.resolved, scheduler.admitted, scheduler.canceled, scheduler.queued, session.budget_warning, session.header, session.meta, session.rewound, team.roster, tool.loop_detected, tool.retrying, turn.steered, verification.completed, verification.started, wait.resolved, wait.started
+DDDDDDDD… export: retainedUnknown=1 partial=True turns=2
+   retained kinds (1 distinct): session.header
+EEEEEEEE… export: retainedUnknown=1 partial=True turns=2
+   retained kinds (1 distinct): session.header
+=== before done ===

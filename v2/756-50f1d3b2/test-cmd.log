@@ -1,0 +1,6 @@
+=== RUN   TestStrikeLifecycleSessionExportsAndPublishes
+=== PAUSE TestStrikeLifecycleSessionExportsAndPublishes
+=== CONT  TestStrikeLifecycleSessionExportsAndPublishes
+--- PASS: TestStrikeLifecycleSessionExportsAndPublishes (1.60s)
+PASS
+ok  	github.com/peasant-labs/peasant/cmd/peasant	1.995s
