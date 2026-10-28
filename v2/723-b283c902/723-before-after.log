@@ -1,0 +1,251 @@
+PR #723 before/after - harvest verify with session_generations dropped
+BEFORE binary: peasant built from develop be2bc57f (peasant-labs/peasant)
+AFTER binary:  peasant built from PR #723 rebased head b283c902 (qa/pr-verify-header onto develop be2bc57f)
+Same harvested database copied twice; session_generations dropped from both copies.
+Full terminal recording: 723-before-after.cast / 723-before-after.gif
+
+$ peasant harvest   # one synthetic Claude session, throwaway data dir
+  strike: adapter_version=1 indexer_version=17 index_version=1
+
+  NEW        claude-code aaaaaaaa-0000-4000-8000-000000000682  ->  /home/hatch/workspace/pr-evidence/pr-723/work/data/out/__peasant-untracked__--584c64e0--proj/aaaaaaaa-0000-4000-8000-000000000682
+db: data/peasant/peasant.db
+102
+
+$ sqlite3 <db> "PRAGMA foreign_keys=OFF; DROP TABLE session_generations;"   # in BOTH copies
+table dropped from both copies
+
+================ BEFORE: develop be2bc57f ================
+$ peasant-before harvest verify
+==============================================
+Peasant Database Verification
+==============================================
+Database: /home/hatch/workspace/pr-evidence/pr-723/work/data-before/peasant/peasant.db
+
+1. Schema Overview
+----------------------------------------------
+Expected schema: v1-v20 (migrations)
+Expected tables: 35
+Found tables:    100
+
+2. Table Presence Check
+----------------------------------------------
+[OK]   projects
+[OK]   host_slugs
+[OK]   sessions
+[OK]   session_metrics
+[OK]   daily_summary
+[OK]   daily_summary_harness
+[OK]   session_entries
+[OK]   session_entries_ext
+[OK]   ingest_log
+[OK]   push_log
+[OK]   models
+[OK]   daily_summary_by_project
+[OK]   index_log
+[OK]   session_commits
+[OK]   target_kinds
+[OK]   annotator_kinds
+[OK]   annotation_statuses
+[OK]   value_domain_kinds
+[OK]   type_origins
+[OK]   annotation_classes
+[OK]   annotation_families
+[OK]   annotation_types
+[OK]   annotation_type_deps
+[OK]   annotators
+[OK]   annotations
+[OK]   annotation_target_sessions
+[OK]   annotation_target_entries
+[OK]   annotation_target_annotations
+[OK]   annotation_target_projects
+[OK]   annotation_type_target_kinds
+[OK]   scale_kinds
+[OK]   pending_annotations
+[OK]   session_files
+[OK]   file_familiarity
+[OK]   session_commands
+
+3. Result Summary
+----------------------------------------------
+Status: PASSED
+All expected tables are present.
+
+4. Table Statistics
+----------------------------------------------
+(showing only tables with data; session_commits always shown)
+
+projects:                               1 rows
+host_slugs:                             1 rows
+sessions:                               1 rows
+session_metrics:                        1 rows
+daily_summary:                          1 rows
+daily_summary_harness:                  1 rows
+ingest_log:                             1 rows
+daily_summary_by_project:               1 rows
+index_log:                              1 rows
+target_kinds:                           5 rows
+annotator_kinds:                        3 rows
+annotation_statuses:                    4 rows
+value_domain_kinds:                     2 rows
+type_origins:                           3 rows
+annotation_classes:                     4 rows
+annotation_families:                    6 rows
+annotation_types:                      11 rows
+annotation_type_deps:                   3 rows
+annotators:                             6 rows
+annotations:                            2 rows
+annotation_target_sessions:             2 rows
+annotation_type_target_kinds:          12 rows
+scale_kinds:                            3 rows
+
+TOTAL:                                 75 rows
+
+  Commit Detection:
+  session_commits:                    0 rows
+  (run 'peasant harvest --detect-commits' to populate)
+
+  Annotation Engine:
+  annotation_types:          11  [OK]
+    active:      4 types
+    deprecated:  7 types
+  annotators:                6  [OK]
+  annotation_type_deps:      3  [OK]
+  taxonomy chain:            [OK]  (all types have valid family→class)
+  annotations (session   ): 2
+exit=0
+
+================ AFTER: PR #723 rebased head b283c902 ================
+$ peasant-after harvest verify
+==============================================
+Peasant Database Verification
+==============================================
+Database: /home/hatch/workspace/pr-evidence/pr-723/work/data-after/peasant/peasant.db
+
+1. Schema Overview
+----------------------------------------------
+Expected schema: v69
+Found schema:    v69
+Expected tables: 95
+Found tables:    100
+
+2. Table Presence Check
+----------------------------------------------
+[OK]   annotation_classes
+[OK]   annotation_families
+[OK]   annotation_run_state
+[OK]   annotation_statuses
+[OK]   annotation_target_anchors
+[OK]   annotation_target_annotations
+[OK]   annotation_target_associations
+[OK]   annotation_target_entries
+[OK]   annotation_target_projects
+[OK]   annotation_target_sessions
+[OK]   annotation_type_deps
+[OK]   annotation_type_target_kinds
+[OK]   annotation_types
+[OK]   annotations
+[OK]   annotator_kinds
+[OK]   annotators
+[OK]   claude_transcript_evidence
+[OK]   collective_attempt_sources
+[OK]   collective_domain_observations
+[OK]   collective_fetch_reports
+[OK]   collective_observation_scopes
+[OK]   collective_observation_versions
+[OK]   collective_relevance_observations
+[OK]   collective_source_installs
+[OK]   collective_tracking_preferences
+[OK]   daily_summary
+[OK]   daily_summary_by_project
+[OK]   daily_summary_harness
+[OK]   file_familiarity
+[OK]   host_slugs
+[OK]   index_log
+[OK]   ingest_log
+[OK]   ingest_run_outcomes
+[OK]   lesson_sources
+[OK]   lessons
+[OK]   local_contribution_receipts
+[OK]   local_operation_diagnostics
+[OK]   memory_injection_log
+[OK]   models
+[OK]   opencode_session_seq_cursor
+[OK]   pending_annotations
+[OK]   projects
+[OK]   publication_attempt_diagnostics
+[OK]   pulled_annotations
+[OK]   pulled_transcripts
+[OK]   push_log
+[OK]   remote_contribution_attempts
+[OK]   scale_kinds
+[OK]   session_captured_stats
+[OK]   session_commands
+[OK]   session_commit_associations
+[OK]   session_commits
+[OK]   session_content
+[OK]   session_content_captures
+[OK]   session_content_chunks
+[OK]   session_context_segment_refs
+[OK]   session_context_segments
+[OK]   session_entries
+[OK]   session_entries_ext
+[OK]   session_entry_bodies
+[OK]   session_entry_full_content
+[OK]   session_entry_full_content_chunks
+[OK]   session_files
+[OK]   session_generation_associations
+[OK]   session_generation_commits
+[OK]   session_generation_content
+[OK]   session_generation_diagnostics
+[OK]   session_generation_entries
+[OK]   session_generation_subagents
+[OK]   session_generation_title_refs
+[FAIL] session_generations - MISSING
+[OK]   session_metrics
+[OK]   session_migration_gaps
+[OK]   session_projection_aliases
+[OK]   session_projection_content
+[OK]   session_projection_entries
+[OK]   session_projection_generations
+[OK]   session_projection_sections
+[OK]   session_publication_metadata
+[OK]   session_publications
+[OK]   session_relationship_evidence
+[OK]   session_search_fts
+[OK]   session_search_fts_config
+[OK]   session_search_fts_data
+[OK]   session_search_fts_docsize
+[OK]   session_search_fts_idx
+[OK]   session_search_state
+[OK]   session_section_native_metadata
+[OK]   session_source_unavailability
+[OK]   sessions
+[OK]   target_kinds
+[OK]   transcript_collective_evidence
+[OK]   transcript_collective_observations
+[OK]   type_origins
+[OK]   value_domain_kinds
+
+3. Result Summary
+----------------------------------------------
+Status: FAILED
+Missing tables: 1
+  - session_generations
+Error: database verification failed: 1 missing table(s)
+Usage:
+  peasant harvest verify [flags]
+
+Flags:
+      --content   Verify session content objects and the search index
+  -h, --help      help for verify
+      --repair    Mark content corruptions found by --content for the repair activation (requires --content)
+      --verbose   Show sample data from each table
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/home/hatch/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+exit=1
