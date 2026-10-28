@@ -1,0 +1,95 @@
+================================================================
+PR #718 — fix(api): answer unknown /api/ paths with a JSON 404
+Issue #699 item 1: curl /api/v1/does-not-exist returned the SPA
+dashboard page with 200 text/html on develop.
+================================================================
+
+##### BEFORE — develop be2bc57f (current develop tip) #####
+$ peasant-before web start --port 18718   (throwaway HOME)
+
+$ curl -i http://localhost:18718/api/v1/does-not-exist
+HTTP/1.1 200 OK
+Content-Type: text/html
+Date: Wed, 28 Oct 2026 18:46:43 GMT
+Transfer-Encoding: chunked
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>local app not bundled | peasant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Atkinson+Hyperlegible+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>:root{color-scheme:dark;--canvas:#0b0b0a;--surface:#0b0b0a;--surface-2:#1c1b18;--ink-strong:#fbf8f1;--ink:#ece8df;--ink-2:#cdc8bb;--ink-3:#b3ad9f;--rule:#4f4a40;--rule-strong:#857f72;--amber:#d6ae66;--warning:#d6ae66;--success:#a9b688;--danger:#d08f74;--focus-ring:#d6ae66}
+@media (prefers-color-scheme:light){:root{color-scheme:light;--canvas:#fbfaf7;--surface:#fbfaf7;--surface-2:#f1eee6;--ink-strong:#0d0c09;--ink:#1f1c17;--ink-2:#3d3932;--ink-3:#4f4a41;--rule:#b3ab96;--rule-strong:#7f7762;--amber:#8a5f1f;--warning:#8a5f1f;--success:#586a3c;--danger:#974b32;--focus-ring:#0d0c09}}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:32px 16px;background:var(--canvas);color:var(--ink);font-family:"Atkinson Hyperlegible",ui-sans-serif,system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.5;letter-spacing:.03em;word-spacing:.16em;-webkit-font-smoothing:antialiased}
+::selection{background:var(--amber);color:var(--canvas)}
+.pg-card{width:min(27.5rem,100%);border:1px solid var(--rule-strong);background:var(--surface)}
+.pg-card>header,.pg-card>footer{padding:20px 24px}
+.pg-card>header{display:grid;gap:16px;border-bottom:1px solid var(--rule)}
+.pg-card>footer{border-top:1px solid var(--rule)}
+.pg-brand,.pg-card h1,.pg-status,.pg-note,.pg-hint,.pg-value,.pg-card code{font-family:"Atkinson Hyperlegible Mono",ui-monospace,Menlo,Consolas,monospace;letter-spacing:0;word-spacing:0}
+.pg-brand{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:16px;color:var(--ink-strong)}
+.pg-brand svg{flex:none;width:18px;height:22px;color:var(--amber)}
+.pg-card h1{margin:0;font-weight:700;font-size:22px;line-height:1.2;color:var(--ink-strong)}
+.pg-body{display:grid;gap:20px;padding:24px}
+
+$ curl -s -o /dev/null -w '%{http_code} %{content_type}\n' http://localhost:18718/api/v1/does-not-exist
+200 text/html
+
+##### AFTER — PR #718 head, rebased onto develop (7f789c2a) #####
+$ peasant-after web start --port 18718   (throwaway HOME)
+
+$ curl -i http://localhost:18718/api/v1/does-not-exist
+HTTP/1.1 404 Not Found
+Content-Type: application/json
+Date: Wed, 28 Oct 2026 18:46:50 GMT
+Content-Length: 122
+
+{"error":"no API route serves GET /api/v1/does-not-exist; check the path against the routes this server version exposes"}
+
+$ curl -s -o /dev/null -w '%{http_code} %{content_type}\n' http://localhost:18718/api/v1/does-not-exist
+404 application/json
+
+--- a real endpoint still works ---
+$ curl -i http://localhost:18718/api/v1/settings   (body truncated to 500 chars)
+HTTP/1.1 200 OK
+Content-Type: application/json
+Date: Wed, 28 Oct 2026 18:46:51 GMT
+Transfer-Encoding: chunked
+
+{"settings":[{"key":"version","kind":"integer","value":null,"effective":1,"editable":false,"inPeasantConfig":false,"description":"the configuration format version; peasant sets it"},{"key":"user.email","kind":"string","value":null,"effective":"","editable":true,"inPeasantConfig":false},{"key":"redaction.level","kind":"choice","value":null,"effective":"standard","options":["standard ...[truncated]
+
+--- wrong method on a real route -> 405 + Allow ---
+$ curl -i -X GET http://localhost:18718/api/v1/shutdown
+HTTP/1.1 405 Method Not Allowed
+Allow: POST
+Content-Type: application/json
+Date: Wed, 28 Oct 2026 18:46:51 GMT
+Content-Length: 64
+
+{"error":"/api/v1/shutdown does not serve GET; it serves POST"}
+
+$ curl -i -X DELETE http://localhost:18718/api/v1/settings
+HTTP/1.1 405 Method Not Allowed
+Allow: GET, PATCH
+Content-Type: application/json
+Date: Wed, 28 Oct 2026 18:46:51 GMT
+Content-Length: 73
+
+{"error":"/api/v1/settings does not serve DELETE; it serves GET, PATCH"}
+
+--- bare /api still serves the dashboard (no redirect) ---
+$ curl -s -o /dev/null -w '%{http_code} %{content_type}\n' http://localhost:18718/api
+200 text/html
+
+--- a non-API path still serves the dashboard ---
+$ curl -s -o /dev/null -w '%{http_code} %{content_type}\n' http://localhost:18718/sessions/abc
+200 text/html
+
+##### DONE #####
