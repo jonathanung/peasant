@@ -1,0 +1,5 @@
+$ peasant tui   (HOME=/tmp/peasant725-after-5t3v0p_i, corrupt DB at /tmp/peasant725-after-5t3v0p_i/.local/share/peasant/peasant.db)
+Command "tui" is deprecated, use `peasant web` for the dashboard, sessions, and trends, and `peasant annotate` for annotations. The command still runs. It will be removed after one release carries this notice.
+Error: tui startup: open the analytics database /tmp/peasant725-after-5t3v0p_i/.local/share/peasant/peasant.db: store: read user_version: sqlite: step: file is not a database; check the file's permissions, or move it aside and run `peasant harvest` to rebuild it from your transcripts; a rebuild does not bring back local-only data such as annotations and the session selection, so keep the moved file
+
+[exit code 1]

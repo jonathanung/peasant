@@ -1,0 +1,19 @@
+$ peasant tui   (HOME=/tmp/peasant725-before-thswjwel, corrupt DB at /tmp/peasant725-before-thswjwel/.local/share/peasant/peasant.db)
+Command "tui" is deprecated, use `peasant web` for the dashboard, sessions, and trends, and `peasant annotate` for annotations. The command still runs. It will be removed after one release carries this notice.
+Error: failed to fetch sessions: real provider not initialized for section "sessions"
+Usage:
+  peasant tui [flags]
+
+Flags:
+  -h, --help                     help for tui
+      --mock-data-store string   Use mock data store (comma-separated: web,tui,api or dashboard,sessions,trends,metrics,qualitySessions)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/peasant725-before-thswjwel/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+
+[exit code 1]
