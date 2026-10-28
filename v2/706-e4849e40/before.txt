@@ -1,0 +1,67 @@
+=== BEFORE develop be2bc57f : /home/hatch/workspace/pr-evidence/pr-706-evidence/bin/peasant-before ===
+
+$ setsid /home/hatch/workspace/pr-evidence/pr-706-evidence/bin/peasant-before kickstart </dev/null
+Error: setup flow failed: bubbletea: error opening TTY: bubbletea: could not open TTY: open /dev/tty: no such device or address
+Usage:
+  peasant kickstart [flags]
+
+Aliases:
+  kickstart, ftue
+
+Flags:
+  -h, --help    help for kickstart
+      --reset   Remove config, credentials, database, ingested data, and state (full reset)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.OdkrM0BXgb/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+[exit=1]
+
+$ setsid /home/hatch/workspace/pr-evidence/pr-706-evidence/bin/peasant-before config </dev/null
+Error: run config editor for "/tmp/tmp.OdkrM0BXgb/.config/peasant/config.yaml": bubbletea: error opening TTY: bubbletea: could not open TTY: open /dev/tty: no such device or address.
+what: the interactive terminal session stopped unexpectedly.
+why: Bubble Tea could not complete the mounted Screen session.
+where: peasant config terminal runner.
+when: while editing buffered settings.
+means: only a save confirmed before this terminal error could have changed a file.
+fix: inspect both named files, repair the terminal error, and retry peasant config.
+Usage:
+  peasant config [flags]
+
+Aliases:
+  config, settings
+
+Flags:
+  -h, --help   help for config
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.OdkrM0BXgb/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+[exit=1]
+
+$ setsid /home/hatch/workspace/pr-evidence/pr-706-evidence/bin/peasant-before tui </dev/null
+Command "tui" is deprecated, use `peasant web` for the dashboard, sessions, and trends, and `peasant annotate` for annotations. The command still runs. It will be removed after one release carries this notice.
+Error: failed to run TUI: bubbletea: error opening TTY: bubbletea: could not open TTY: open /dev/tty: no such device or address
+Usage:
+  peasant tui [flags]
+
+Flags:
+  -h, --help                     help for tui
+      --mock-data-store string   Use mock data store (comma-separated: web,tui,api or dashboard,sessions,trends,metrics,qualitySessions)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.OdkrM0BXgb/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+[exit=1]

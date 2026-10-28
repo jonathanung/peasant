@@ -1,0 +1,14 @@
+=== AFTER PR706 rebased e4849e40 : /home/hatch/workspace/pr-evidence/pr-706-evidence/bin/peasant-after ===
+
+$ setsid /home/hatch/workspace/pr-evidence/pr-706-evidence/bin/peasant-after kickstart </dev/null
+Error: `peasant kickstart` needs an interactive terminal; run it from a terminal session (to ingest without the wizard, use `peasant harvest`)
+[exit=1]
+
+$ setsid /home/hatch/workspace/pr-evidence/pr-706-evidence/bin/peasant-after config </dev/null
+Error: `peasant config` needs an interactive terminal; run it from a terminal session (to change settings without it, edit config.yaml; `peasant --help` shows its path under --config)
+[exit=1]
+
+$ setsid /home/hatch/workspace/pr-evidence/pr-706-evidence/bin/peasant-after tui </dev/null
+Command "tui" is deprecated, use `peasant web` for the dashboard, sessions, and trends, and `peasant annotate` for annotations. The command still runs. It will be removed after one release carries this notice.
+Error: `peasant tui` needs an interactive terminal; run it from a terminal session (for the dashboard, sessions and trends without a terminal UI, use `peasant web`)
+[exit=1]
