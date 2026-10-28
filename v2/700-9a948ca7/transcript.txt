@@ -1,0 +1,83 @@
+
+### PR #700 - make check must FAIL on unformatted Go, not silently rewrite it (issue #615)
+
+### BEFORE: develop be2bc57f (pre-fix, scratch copy)
+$ git rev-parse --short HEAD
+be2bc57f
+[exit: 0]
+$ grep -n '^check:' Makefile
+93:check: fmt lint sqlite-source-audit
+[exit: 0]
+$ sed -n '/^fmt:/,/^$/p' Makefile
+fmt:
+	@formatted=$$(go fmt ./...); \
+	if [ -n "$$formatted" ]; then \
+		echo "Files formatted:"; \
+		echo "$$formatted"; \
+	fi
+
+
+### Unformat one tracked file: 'package  annotations' (double space)
+$ sed -i 's/^package annotations/package  annotations/' internal/annotations/doc.go
+[exit: 0]
+$ grep -n '^package' internal/annotations/doc.go
+14:package  annotations
+[exit: 0]
+$ gofmt -l internal/annotations/doc.go
+internal/annotations/doc.go
+[exit: 0]
+
+### Run the fmt step that 'make check' depends on:
+$ make fmt
+Files formatted:
+internal/annotations/doc.go
+[exit: 0]
+
+### Result: exit 0, and the file was REWRITTEN back to clean - no failure, no trace:
+$ grep -n '^package' internal/annotations/doc.go
+14:package annotations
+[exit: 0]
+$ git status --porcelain
+[exit: 0]
+(empty git status = gate silently edited the file and passed)
+
+### AFTER: PR #700 head 9a948ca7 (scratch copy)
+$ git rev-parse --short HEAD
+9a948ca7
+[exit: 0]
+$ grep -n '^check:' Makefile
+102:check: fmt-check lint sqlite-source-audit
+[exit: 0]
+
+### Same unformatted file:
+$ sed -i 's/^package annotations/package  annotations/' internal/annotations/doc.go
+[exit: 0]
+$ gofmt -l internal/annotations/doc.go
+internal/annotations/doc.go
+[exit: 0]
+$ make fmt-check
+Go files not gofmt-clean (run make fmt):
+internal/annotations/doc.go
+make: *** [Makefile:81: fmt-check] Error 1
+[exit: 2]
+
+### Result: FAILS, names the file, and does NOT rewrite it:
+$ grep -n '^package' internal/annotations/doc.go
+14:package  annotations
+[exit: 0]
+
+### And 'make check' itself now stops at the fmt-check gate:
+$ make check
+Go files not gofmt-clean (run make fmt):
+internal/annotations/doc.go
+make: *** [Makefile:81: fmt-check] Error 1
+[exit: 2]
+
+### Restore the file, clean tree passes:
+$ git checkout -- internal/annotations/doc.go
+[exit: 0]
+$ make fmt-check
+[exit: 0]
+$ go test -run TestPreTestSources_MatchMakefile ./internal/testkit/testgate/  # run separately: ok (0.36s on rebased head, full package ok)
+
+### DONE: before = silent rewrite + pass; after = loud failure naming the file, clean tree passes
