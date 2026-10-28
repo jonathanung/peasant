@@ -56,10 +56,7 @@ func fixtureDetail(t *testing.T, dir, configPath, id string) *schema.SessionDeta
 	if err != nil {
 		t.Fatal(err)
 	}
-	policy, err := sessionvisibility.New(cfg.Selection)
-	if err != nil {
-		t.Fatal(err)
-	}
+	policy := sessionvisibility.New(cfg.Selection)
 	options, err := generationStoreOptions(filepath.Join(dir, "out"))
 	if err != nil {
 		t.Fatal(err)
