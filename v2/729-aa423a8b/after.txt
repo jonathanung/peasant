@@ -1,0 +1,117 @@
+### seeded: 1 synthetic Claude session, timestamp 2026-10-23T19:18:44.000Z (~5 days ago), in a throwaway HOME
+$ peasant harvest
+Output:  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.local/share/peasant/peasant-sync
+Config:  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.config/peasant/config.yaml
+Sources:
+   - cursor:   /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.cursor/projects
+   - pi:       /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.pi/agent/sessions
+   - claude-code: /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.claude/projects
+   - opencode: /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.local/share/opencode
+   - codex:    /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.codex/sessions
+
+peasant harvest: 1 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 0     errors
+   - 1     active (included)
+duration: 1.5s
+
+index: 1 indexed, 1 computed (metadata_version=12)
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+
+  ACTIVE     claude-code 72972972-9729-4729-8729-729729729729  ->  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.local/share/peasant/peasant-sync/__peasant-untracked__--74d82bb7--timefilter-demo/72972972-9729-4729-8729-729729729729
+notice: no config found at /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.config/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.
+(exit 0)
+
+== AFTER (PR #729, rebased aa423a8b): one grammar everywhere - Nh Nd Nw Nmo Ny or a date ==
+# harvest: 3m = 3 months, session in range
+$ peasant harvest --since 3m --dry-run
+Output:  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.local/share/peasant/peasant-sync
+Config:  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.config/peasant/config.yaml
+Sources:
+   - pi:       /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.pi/agent/sessions
+   - claude-code: /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.claude/projects
+   - opencode: /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.local/share/opencode
+   - codex:    /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.codex/sessions
+   - cursor:   /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.cursor/projects
+
+peasant harvest: 1 sessions
+   - 0     new
+   - 0     updated
+   - 1     unchanged
+   - 0     errors
+   - 0     active (included)
+duration: 200ms
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+notice: no config found at /home/hatch/workspace/pr-evidence/pr-729-evidence/home-after/.config/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.
+(exit 0)
+
+# sessions list: 3m = 3 months - the SAME session is now listed (agrees with harvest)
+$ peasant sessions list --since 3m
+ID                                    Date        Project          Turns   Tokens  Preview
+---------------------------------------------------------------------------------------------
+72972972-9729-4729-8729-729729729729  2026-10-23  timefilter-demo      2        0  Synthetic session for the time-filter ev
+(exit 0)
+
+# spot check, weeks: 2w lists it
+$ peasant sessions list --since 2w
+ID                                    Date        Project          Turns   Tokens  Preview
+---------------------------------------------------------------------------------------------
+72972972-9729-4729-8729-729729729729  2026-10-23  timefilter-demo      2        0  Synthetic session for the time-filter ev
+(exit 0)
+
+# spot check, days: 7d lists it; 2d does not (same cutoff logic, session is 5 days old)
+$ peasant sessions list --since 7d
+ID                                    Date        Project          Turns   Tokens  Preview
+---------------------------------------------------------------------------------------------
+72972972-9729-4729-8729-729729729729  2026-10-23  timefilter-demo      2        0  Synthetic session for the time-filter ev
+(exit 0)
+
+$ peasant sessions list --since 2d
+no sessions found
+(exit 0)
+
+# prune now accepts relative values: --before 7d selects nothing (session is newer than 7d ago)
+$ peasant prune --before 7d --dry-run
+no sessions match the given filters
+(exit 0)
+
+# prune --before 2d selects it (session is older than 2d ago) - dry-run only, nothing deleted
+$ peasant prune --before 2d --dry-run
+Sessions to delete (1):
+  SESSION ID                              HARNESS     PROJECT               DATE
+  72972972-9729-4729-8729-729729729729    claude-code  /home/user/projec...  2026-10-23 19:18
+
+dry run: 1 session(s) would be deleted
+(exit 0)
+
+# the destructive command REFUSES a bare m as ambiguous
+$ peasant prune --before 3m --dry-run
+Error: invalid --before date "3m": "3m" is ambiguous for prune: write 3mo for months (minutes are not supported); nothing was selected
+(cobra usage/help text on stderr omitted)
+(exit 1)
+
+# unambiguous months spelling works: 3mo selects nothing (session is newer than 3 months ago)
+$ peasant prune --before 3mo --dry-run
+no sessions match the given filters
+(exit 0)
+
+# KNOWN REGRESSION, disclosed: compound Go durations the old sessions-list parser accepted now error
+$ peasant sessions list --since 1h30m
+Error: invalid --since value "1h30m": invalid duration: "1h30m" (number must be positive integer; expected Nh, Nd, Nw, Nmo (months), Ny, or YYYY-MM-DD (UTC); minutes are not supported)
+(cobra usage/help text on stderr omitted)
+(exit 1)
+

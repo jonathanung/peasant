@@ -1,0 +1,78 @@
+### seeded: 1 synthetic Claude session, timestamp 2026-10-23T19:18:44.000Z (~5 days ago), in a throwaway HOME
+$ peasant harvest
+Output:  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.local/share/peasant/peasant-sync
+Config:  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.config/peasant/config.yaml
+Sources:
+   - codex:    /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.codex/sessions
+   - cursor:   /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.cursor/projects
+   - pi:       /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.pi/agent/sessions
+   - claude-code: /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.claude/projects
+   - opencode: /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.local/share/opencode
+
+peasant harvest: 1 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 0     errors
+   - 1     active (included)
+duration: 1.3s
+
+index: 1 indexed, 1 computed (metadata_version=12)
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+
+  ACTIVE     claude-code 72972972-9729-4729-8729-729729729729  ->  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.local/share/peasant/peasant-sync/__peasant-untracked__--7ca33eb0--timefilter-demo/72972972-9729-4729-8729-729729729729
+notice: no config found at /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.config/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.
+(exit 0)
+
+== BEFORE (develop be2bc57f): the same '3m' means different things per command ==
+# harvest reads 3m = 3 MONTHS: the 5-day-old session is in range (1 session, unchanged)
+$ peasant harvest --since 3m --dry-run
+Output:  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.local/share/peasant/peasant-sync
+Config:  /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.config/peasant/config.yaml
+Sources:
+   - opencode: /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.local/share/opencode
+   - codex:    /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.codex/sessions
+   - cursor:   /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.cursor/projects
+   - pi:       /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.pi/agent/sessions
+   - claude-code: /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.claude/projects
+
+peasant harvest: 1 sessions
+   - 0     new
+   - 0     updated
+   - 1     unchanged
+   - 0     errors
+   - 0     active (included)
+duration: 200ms
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+notice: no config found at /home/hatch/workspace/pr-evidence/pr-729-evidence/home-before/.config/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.
+(exit 0)
+
+# sessions list reads 3m = 3 MINUTES: the same session is NOT listed
+$ peasant sessions list --since 3m
+no sessions found
+(exit 0)
+
+# sessions list does not understand weeks at all
+$ peasant sessions list --since 3w
+Error: invalid --since value "3w": expected a duration (e.g. 7d, 24h) or date (YYYY-MM-DD): time: unknown unit "w" in duration "3w"
+(cobra usage/help text on stderr omitted)
+(exit 1)
+
+# prune accepts only YYYY-MM-DD dates
+$ peasant prune --before 7d --dry-run
+Error: invalid --before date "7d": use YYYY-MM-DD format
+(cobra usage/help text on stderr omitted)
+(exit 1)
+
