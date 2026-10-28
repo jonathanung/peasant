@@ -1,0 +1,8 @@
+=== RUN   TestDiscoveryReportsUnreadableSourceDirectories
+=== RUN   TestDiscoveryReportsUnreadableSourceDirectories/claude-code
+=== RUN   TestDiscoveryReportsUnreadableSourceDirectories/codex
+--- PASS: TestDiscoveryReportsUnreadableSourceDirectories (0.00s)
+    --- PASS: TestDiscoveryReportsUnreadableSourceDirectories/claude-code (0.00s)
+    --- PASS: TestDiscoveryReportsUnreadableSourceDirectories/codex (0.00s)
+PASS
+TEST_EXIT:0

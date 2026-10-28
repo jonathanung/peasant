@@ -1,0 +1,75 @@
+=== Fixture (throwaway HOME, synthetic Claude projects) ===
+drwxr-xr-x 2 nobody nogroup 60 Oct 28 20:11 /tmp/pr709/home/.claude/projects/-home-qa-visible
+d--------- 2 nobody nogroup 60 Oct 28 20:11 /tmp/pr709/home/.claude/projects/locked-hidden-proj
+
+$ ls locked-hidden-proj  (as nobody)
+ls: cannot open directory '/tmp/pr709/home/.claude/projects/locked-hidden-proj': Permission denied
+
+=== BEFORE: peasant built from develop (be2bc57f) ===
+$ peasant harvest --verbose
+notice: no config found at /tmp/pr709/home/.config/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.
+Output:  /tmp/pr709/home/.local/share/peasant/peasant-sync
+Config:  /tmp/pr709/home/.config/peasant/config.yaml
+Sources:
+   - codex:    /tmp/pr709/home/.codex/sessions
+   - cursor:   /tmp/pr709/home/.cursor/projects
+   - pi:       /tmp/pr709/home/.pi/agent/sessions
+   - claude-code: /tmp/pr709/home/.claude/projects
+   - opencode: /tmp/pr709/home/.local/share/opencode
+
+peasant harvest: 1 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 0     errors
+   - 1     active (included)
+duration: 1.2s
+
+index: 1 indexed, 1 computed (metadata_version=12)
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+
+  ACTIVE     claude-code aaaaaaaa-0000-4000-8000-000000000001  ->  /tmp/pr709/home/.local/share/peasant/peasant-sync/__peasant-untracked__--8db9cfa0--x/aaaaaaaa-0000-4000-8000-000000000001
+exit=0
+
+(peasant data dir reset; fixture unchanged)
+
+=== AFTER: peasant built from PR #709 head ff70a7aa (rebased onto develop) ===
+$ peasant harvest --verbose
+notice: no config found at /tmp/pr709/home/.config/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.
+warning: claude-code discovery skipped /tmp/pr709/home/.claude/projects/locked-hidden-proj: unreadable source directory
+Output:  /tmp/pr709/home/.local/share/peasant/peasant-sync
+Config:  /tmp/pr709/home/.config/peasant/config.yaml
+Sources:
+   - opencode: /tmp/pr709/home/.local/share/opencode
+   - codex:    /tmp/pr709/home/.codex/sessions
+   - cursor:   /tmp/pr709/home/.cursor/projects
+   - pi:       /tmp/pr709/home/.pi/agent/sessions
+   - claude-code: /tmp/pr709/home/.claude/projects
+
+peasant harvest: 1 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 0     errors
+   - 1     active (included)
+duration: 1.4s
+
+index: 1 indexed, 1 computed (metadata_version=12)
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+
+  ACTIVE     claude-code aaaaaaaa-0000-4000-8000-000000000001  ->  /tmp/pr709/home/.local/share/peasant/peasant-sync/__peasant-untracked__--a2faf948--x/aaaaaaaa-0000-4000-8000-000000000001
+exit=0
+
+=== BEFORE silently skipped locked-hidden-proj; AFTER warns naming it. ===
