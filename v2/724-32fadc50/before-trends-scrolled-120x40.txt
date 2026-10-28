@@ -1,0 +1,36 @@
+Sun Oct 25                                                                                                              
+Mon Oct 26                                                                                                              
+Tue Oct 27                                                                                                              
+Wed Oct 28                                                                                                              
+                                                                                                                        
+Signal Density per Day                                                                                                  
+                                                                                                                        
+Thu Oct 22                                                                                                              
+Fri Oct 23                                                                                                              
+Sat Oct 24                                                                                                              
+Sun Oct 25                                                                                                              
+Mon Oct 26                                                                                                              
+Tue Oct 27                                                                                                              
+Wed Oct 28  ████████████████████████████████████████████████████████████████████████████████████████  10000%            
+                                                                                                                        
+Reverts per Day                                                                                                         
+                                                                                                                        
+Thu Oct 22                                                                                                              
+Fri Oct 23                                                                                                              
+Sat Oct 24                                                                                                              
+Sun Oct 25                                                                                                              
+Mon Oct 26                                                                                                              
+Tue Oct 27                                                                                                              
+Wed Oct 28                                                                                                              
+                                                                                                                        
+Spec Score per Day                                                                                                      
+                                                                                                                        
+Thu Oct 22                                                                                                              
+Fri Oct 23                                                                                                              
+Sat Oct 24                                                                                                              
+Sun Oct 25                                                                                                              
+Mon Oct 26                                                                                                              
+Tue Oct 27                                                                                                              
+Wed Oct 28  ████████████████████████████████████████████████████████████████████████████████████████  10000             
+                                                                                                                        
+7-day total: 1,000 tokens across 1 sessions                                                                             

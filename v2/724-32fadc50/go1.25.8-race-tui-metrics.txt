@@ -1,0 +1,27 @@
+PR 724 rebased head 32fadc50 (on develop be2bc57f), go1.25.8, this VM.
+
+$ go test -race ./internal/tui/ -run TestPercentMetricsAreNotScaledTwice -v -count=1
+--- PASS: TestPercentMetricsAreNotScaledTwice (1.49s)
+ok  github.com/peasant-labs/peasant/internal/tui  5.298s
+
+$ go test -race ./internal/tui/ ./internal/metrics/ -count=1
+ok  github.com/peasant-labs/peasant/internal/tui      6.373s
+ok  github.com/peasant-labs/peasant/internal/metrics  67.371s
+
+$ go test ./internal/tui/... -count=1   (no race)
+ok  internal/tui, ftue, gates, keymap, kickstart, kit, mdrender,
+    pullprogress, search, settings, settings/scannerfix, theme,
+    theme/gen, transcriptview  (all 14 packages)
+
+$ go test -race ./internal/tui/... ./internal/metrics/... (first full run)
+One failure, unrelated to this PR: internal/tui/kickstart
+TestSourceTurns_DefaultBudgetsAreSharedAcrossOrigins — a preview
+materialization hit its own 5s deadline under shared-VM load
+(43 parallel evidence chats; race packages taking 100-250s each).
+Re-run of that single test under -race: ok internal/tui/kickstart 132.218s.
+All other packages ok under -race (ftue, gates, keymap, kit, mdrender,
+pullprogress, search, settings, settings/scannerfix, theme, theme/gen,
+transcriptview 116.8s, metrics 46.3s).
+
+$ FREEZE_PATH=<freeze v0.2.2> go test -race -tags=guided_screenshots ./cmd/peasant-guided-screenshots -count=1
+ok  github.com/peasant-labs/peasant/cmd/peasant-guided-screenshots  61.750s

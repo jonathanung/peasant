@@ -1,0 +1,36 @@
+Tokens per Day (Last 7 Days)                                                                                            
+                                                                                                                        
+Thu Oct 22                                                                                                              
+Fri Oct 23                                                                                                              
+Sat Oct 24                                                                                                              
+Sun Oct 25                                                                                                              
+Mon Oct 26                                                                                                              
+Tue Oct 27                                                                                                              
+Wed Oct 28  ████████████████████████████████████████████████████████████████████████████████████████  1,000 tokens      
+                                                                                                                        
+Sessions per Day                                                                                                        
+                                                                                                                        
+Thu Oct 22                                                                                                              
+Fri Oct 23                                                                                                              
+Sat Oct 24                                                                                                              
+Sun Oct 25                                                                                                              
+Mon Oct 26                                                                                                              
+Tue Oct 27                                                                                                              
+Wed Oct 28  ████████████████████████████████████████████████████████████████████████████████████████  1 sessions        
+                                                                                                                        
+Retry Loops per Day                                                                                                     
+                                                                                                                        
+Thu Oct 22                                                                                                              
+Fri Oct 23                                                                                                              
+Sat Oct 24                                                                                                              
+Sun Oct 25                                                                                                              
+Mon Oct 26                                                                                                              
+Tue Oct 27                                                                                                              
+Wed Oct 28                                                                                                              
+                                                                                                                        
+Signal Density per Day                                                                                                  
+                                                                                                                        
+Thu Oct 22                                                                                                              
+Fri Oct 23                                                                                                              
+Sat Oct 24                                                                                                              
+Sun Oct 25                                                                                                              

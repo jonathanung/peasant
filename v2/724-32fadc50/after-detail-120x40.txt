@@ -1,0 +1,36 @@
+Session Detail                                                                                                          
+──────────────                                                                                                          
+                                                                                                                        
+  ID:  99d59925-36bc-424c-a789-8be54d9702ba                                                                             
+  Provider:  claude-code                                                                                                
+  Start:  2026-10-28 20:20:11                                                                                           
+  End:  2026-10-28 20:25:11                                                                                             
+  Duration:  5m                                                                                                         
+  Tokens:  0 in / 0 out / 1000 total                                                                                    
+                                                                                                                        
+Quality Metrics                                                                                                         
+───────────────                                                                                                         
+                                                                                                                        
+  Outcome:                                                                                                              
+  Changes:  0 files, 0 lines                                                                                            
+  Retries:  0 loops (0 tokens wasted)                                                                                   
+  Signal Density:  100%                                                                                                 
+  Reverts:  0 within session                                                                                            
+  Spec Score:  100 / 100                                                                                                
+  Exploration:  0%                                                                                                      
+  Scope Breadth:  0 directories                                                                                         
+  Discovery:  0 turns                                                                                                   
+                                                                                                                        
+Turns                                                                                                                   
+─────                                                                                                                   
+                                                                                                                        
+>  Turn 0 [user]: Hello, world!                                                                                         
+   Turn 1 [assistant]: Hi there!                                                                                        
+                                                                                                                        
+  h/l: prev/next turn  Space: mark  Shift+Space: range  a: annotate  c: commit  d: delete  esc: back                    
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
