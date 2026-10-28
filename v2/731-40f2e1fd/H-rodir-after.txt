@@ -1,0 +1,163 @@
+########## AFTER: PR #731 rebased onto develop be2bc57f ##########
+
+data dir made read-only: chmod -R a-w /tmp/ro731/home/.local/share/peasant
+total 1024
+dr-x------ 4 nobody nogroup      80 Oct 28 19:40 peasant-sync
+-r--r----- 1 nobody nogroup 1048576 Oct 28 19:40 peasant.db
+
+$ peasant sessions list
+ID                                    Date        Project      Turns   Tokens  Preview
+-----------------------------------------------------------------------------------------
+agent-a083060                         2026-01-01  peasant-e2e      2        0  Review the widget total function for the
+6a46bcd8-b365-4608-be7d-5601e2fdd805  2026-01-01  peasant-e2e      4        0  Please add a small function that totals 
+[exit 0]
+
+$ peasant harvest verify
+==============================================
+Peasant Database Verification
+==============================================
+Database: /tmp/ro731/home/.local/share/peasant/peasant.db
+
+1. Schema Overview
+----------------------------------------------
+Expected schema: v1-v20 (migrations)
+Expected tables: 35
+Found tables:    101
+
+2. Table Presence Check
+----------------------------------------------
+[OK]   projects
+[OK]   host_slugs
+[OK]   sessions
+[OK]   session_metrics
+[OK]   daily_summary
+[OK]   daily_summary_harness
+[OK]   session_entries
+[OK]   session_entries_ext
+[OK]   ingest_log
+[OK]   push_log
+[OK]   models
+[OK]   daily_summary_by_project
+[OK]   index_log
+[OK]   session_commits
+[OK]   target_kinds
+[OK]   annotator_kinds
+[OK]   annotation_statuses
+[OK]   value_domain_kinds
+[OK]   type_origins
+[OK]   annotation_classes
+[OK]   annotation_families
+[OK]   annotation_types
+[OK]   annotation_type_deps
+[OK]   annotators
+[OK]   annotations
+[OK]   annotation_target_sessions
+[OK]   annotation_target_entries
+[OK]   annotation_target_annotations
+[OK]   annotation_target_projects
+[OK]   annotation_type_target_kinds
+[OK]   scale_kinds
+[OK]   pending_annotations
+[OK]   session_files
+[OK]   file_familiarity
+[OK]   session_commands
+
+3. Result Summary
+----------------------------------------------
+Status: PASSED
+All expected tables are present.
+
+4. Table Statistics
+----------------------------------------------
+(showing only tables with data; session_commits always shown)
+
+projects:                               1 rows
+host_slugs:                             1 rows
+sessions:                               2 rows
+session_metrics:                        2 rows
+daily_summary:                          1 rows
+daily_summary_harness:                  1 rows
+ingest_log:                             1 rows
+daily_summary_by_project:               1 rows
+index_log:                              2 rows
+target_kinds:                           5 rows
+annotator_kinds:                        3 rows
+annotation_statuses:                    4 rows
+value_domain_kinds:                     2 rows
+type_origins:                           3 rows
+annotation_classes:                     4 rows
+annotation_families:                    6 rows
+annotation_types:                      11 rows
+annotation_type_deps:                   3 rows
+annotators:                             6 rows
+annotations:                            4 rows
+annotation_target_sessions:             4 rows
+annotation_type_target_kinds:          12 rows
+scale_kinds:                            3 rows
+
+TOTAL:                                 82 rows
+
+  Commit Detection:
+  session_commits:                    0 rows
+  (run 'peasant harvest --detect-commits' to populate)
+
+  Annotation Engine:
+  annotation_types:          11  [OK]
+    active:      4 types
+    deprecated:  7 types
+  annotators:                6  [OK]
+  annotation_type_deps:      3  [OK]
+  taxonomy chain:            [OK]  (all types have valid family→class)
+  annotations (session   ): 4
+[exit 0]
+
+$ peasant harvest verify --content
+Content verification
+sessions checked: 2
+orphan content: 0 bodies, 0 blobs, 0 database payload bytes
+orphan owned directories: 0, 0 bytes
+unflagged orphan sessions: 0
+damaged sessions: none
+search index: healthy
+search size: 16384 bytes over 777 bytes of text (9 documents), fresh estimate 303 bytes, ratio 54.07 (needs-optimize: run the offline optimize + VACUUM)
+Status: PASSED
+[exit 0]
+
+$ peasant prune --all --dry-run
+Sessions to delete (2):
+  SESSION ID                              HARNESS     PROJECT               DATE
+  agent-a083060                           claude-code  /home/user/projec...  2026-01-01 10:00
+  6a46bcd8-b365-4608-be7d-5601e2fdd805    claude-code  /home/user/projec...  2026-01-01 10:00
+
+dry run: 2 session(s) would be deleted
+[exit 0]
+
+$ peasant metrics compute --dry-run
+peasant metrics compute: 0 session(s) would be computed (dry-run)
+[exit 0]
+
+--- and a genuinely WRITING command must still fail, naming the dir ---
+
+$ peasant metrics compute
+Error: data dir is not writable: /tmp/ro731/home/.local/share/peasant; restore write permission (for example `chmod -R u+w /tmp/ro731/home/.local/share/peasant`), or use a read-only command such as `peasant sessions list` or `peasant prune --dry-run`
+Usage:
+  peasant metrics compute [flags]
+
+Flags:
+      --dry-run          Show what would be computed without writing
+      --force            Recompute all sessions (ignore compute version)
+  -h, --help             help for compute
+      --session string   Compute metrics for a single session ID
+      --verbose          Show per-session detail
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/ro731/home/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+[exit 1]
+
+==============================================================
+DONE

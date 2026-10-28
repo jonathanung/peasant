@@ -1,0 +1,106 @@
+==============================================================
+PR #731 - read-only commands on a read-only data dir (#691)
+seeded data dir (harvested Claude session), then chmod -R a-w
+==============================================================
+
+########## BEFORE: develop be2bc57f ##########
+
+data dir made read-only: chmod -R a-w /tmp/ro731/home/.local/share/peasant
+total 1024
+dr-x------ 4 nobody nogroup      80 Oct 28 19:40 peasant-sync
+-r--r----- 1 nobody nogroup 1048576 Oct 28 19:40 peasant.db
+
+$ peasant sessions list
+Error: open analytics store: store: read user_version: sqlite: step: attempt to write a readonly database
+Usage:
+  peasant sessions list [flags]
+
+Flags:
+      --harness string   Filter by harness (claude-code, gemini-cli, codex, opencode)
+  -h, --help             help for list
+      --json             Output as JSON array
+      --limit int        Maximum number of sessions to show (0 = no limit) (default 20)
+      --project string   Filter by project name (matches git remote URL or directory basename)
+      --reverse          Reverse sort order (ascending instead of descending)
+      --session string   Filter to one exact session id
+      --since string     Show sessions starting after this date (e.g. 7d, 24h, 2026-01-01)
+      --sort string      Sort by field (date, turns, tokens, project) (default "date")
+      --tag string       Filter by session tag
+      --until string     Show sessions starting before this date (e.g. 7d, 24h, 2026-01-01)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/ro731/home/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+[exit 1]
+
+$ peasant harvest verify
+Error: open database: store: read user_version: sqlite: step: attempt to write a readonly database
+Usage:
+  peasant harvest verify [flags]
+
+Flags:
+      --content   Verify session content objects and the search index
+  -h, --help      help for verify
+      --repair    Mark content corruptions found by --content for the repair activation (requires --content)
+      --verbose   Show sample data from each table
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/ro731/home/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+[exit 1]
+
+$ peasant prune --all --dry-run
+Error: open analytics store: store: read user_version: sqlite: step: attempt to write a readonly database
+Usage:
+  peasant prune [flags]
+
+Flags:
+      --after string      Prune sessions started after this date (YYYY-MM-DD)
+      --all               Prune all sessions
+      --before string     Prune sessions started before this date (YYYY-MM-DD)
+      --confirm           Skip interactive confirmation (for scripts/CI)
+      --dry-run           Show what would be deleted without deleting
+      --harness string    Prune sessions by harness (claude-code, gemini-cli, codex, opencode)
+  -h, --help              help for prune
+      --json              Output results as JSON
+      --project string    Prune sessions by project hash
+      --session strings   Session IDs to prune (repeatable)
+      --unselected        Prune sessions not selected by harness, project, clone, branch, or explicit session rules (requires selection.mode=selected)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/ro731/home/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+[exit 1]
+
+$ peasant metrics compute --dry-run
+Error: open analytics store: store: read user_version: sqlite: step: attempt to write a readonly database
+Usage:
+  peasant metrics compute [flags]
+
+Flags:
+      --dry-run          Show what would be computed without writing
+      --force            Recompute all sessions (ignore compute version)
+  -h, --help             help for compute
+      --session string   Compute metrics for a single session ID
+      --verbose          Show per-session detail
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/ro731/home/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+[exit 1]
