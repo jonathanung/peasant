@@ -1,0 +1,10 @@
+label=before
+turnCount=4 turnsArray=6
+{"index":0,"depth":0,"parentIndex":null,"timestamp":"2026-01-01T10:00:00Z","text":"Please add a small function that totals widget value"}
+{"index":1,"depth":0,"parentIndex":null,"timestamp":"2026-01-01T10:00:01Z","text":"Here is a compact implementation:\n\n```go\nfunc comput"}
+{"index":2,"depth":1,"parentIndex":1,"timestamp":"0001-01-01T00:00:00Z","text":"Here is a compact implementation:\n\n```go\nfunc comput"}
+{"index":3,"depth":0,"parentIndex":null,"timestamp":"2026-01-01T10:00:02Z","text":"Please include a test for an empty list."}
+{"index":4,"depth":0,"parentIndex":null,"timestamp":"2026-01-01T10:00:03Z","text":"The empty-list case should return zero; I would asse"}
+{"index":5,"depth":1,"parentIndex":4,"timestamp":"0001-01-01T00:00:00Z","text":"The empty-list case should return zero; I would asse"}
+export sha256:
+20a93effcac1c8c6ab5b115b04f9baab9bb7ce701cebed9de9dc5206c8065d70  /home/hatch/workspace/pr-evidence/pr-726-evidence/export-before/6a46bcd8-b365-4608-be7d-5601e2fdd805.json
