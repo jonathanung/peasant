@@ -1,0 +1,38 @@
+=== scaling test: BEFORE (develop be2bc57f + PR test file only) ===
+=== RUN   TestGenerationValidateScalesLinearlyWithTitleRefs
+    title_refs_scaling_test.go:83: generation Validate allocated 15.8x the bytes for 4x the entries (3554136 -> 56213776); want linear growth (~4x)
+    title_refs_scaling_test.go:83: snapshot Validate allocated 15.8x the bytes for 4x the entries (3554648 -> 56219856); want linear growth (~4x)
+--- FAIL: TestGenerationValidateScalesLinearlyWithTitleRefs (0.72s)
+FAIL
+FAIL	github.com/peasant-labs/peasant/internal/indexformat	0.890s
+FAIL
+=== scaling test: AFTER (PR head, rebased) ===
+=== RUN   TestGenerationValidateScalesLinearlyWithTitleRefs
+--- PASS: TestGenerationValidateScalesLinearlyWithTitleRefs (0.06s)
+PASS
+ok  	github.com/peasant-labs/peasant/internal/indexformat	0.226s
+=== benchmark round 1: BEFORE ===
+BenchmarkGenerationValidateLongSession/1000-2         	       4	 327071039 ns/op	54903264 B/op	    6778 allocs/op
+BenchmarkGenerationValidateLongSession/4000-2         	       1	4649020475 ns/op	874914888 B/op	   75842 allocs/op
+ok  	github.com/peasant-labs/peasant/internal/indexformat	8.487s
+=== benchmark round 1: AFTER ===
+BenchmarkGenerationValidateLongSession/1000-2         	     374	   3387170 ns/op	  348939 B/op	    1775 allocs/op
+BenchmarkGenerationValidateLongSession/4000-2         	     100	  16651652 ns/op	 1404204 B/op	    7847 allocs/op
+ok  	github.com/peasant-labs/peasant/internal/indexformat	4.047s
+=== benchmark round 2: BEFORE ===
+BenchmarkGenerationValidateLongSession/1000-2         	       4	 299657977 ns/op	54903216 B/op	    6778 allocs/op
+BenchmarkGenerationValidateLongSession/4000-2         	       1	6164816217 ns/op	874914984 B/op	   75843 allocs/op
+ok  	github.com/peasant-labs/peasant/internal/indexformat	8.142s
+=== benchmark round 2: AFTER ===
+BenchmarkGenerationValidateLongSession/1000-2         	     261	   3864466 ns/op	  348938 B/op	    1775 allocs/op
+BenchmarkGenerationValidateLongSession/4000-2         	      39	  26424196 ns/op	 1404183 B/op	    7848 allocs/op
+ok  	github.com/peasant-labs/peasant/internal/indexformat	4.267s
+=== benchmark round 3: BEFORE ===
+BenchmarkGenerationValidateLongSession/1000-2         	       6	 357249204 ns/op	54904130 B/op	    6779 allocs/op
+BenchmarkGenerationValidateLongSession/4000-2         	       1	4367106706 ns/op	874914888 B/op	   75842 allocs/op
+ok  	github.com/peasant-labs/peasant/internal/indexformat	7.008s
+=== benchmark round 3: AFTER ===
+BenchmarkGenerationValidateLongSession/1000-2         	     218	   6128849 ns/op	  348944 B/op	    1775 allocs/op
+BenchmarkGenerationValidateLongSession/4000-2         	     162	  26991697 ns/op	 1404159 B/op	    7847 allocs/op
+ok  	github.com/peasant-labs/peasant/internal/indexformat	8.557s
+ALL DONE

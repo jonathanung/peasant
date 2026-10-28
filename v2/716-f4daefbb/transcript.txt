@@ -1,0 +1,43 @@
+PR #716 — perf(indexformat): build the main-entry set once when validating title refs
+Before/after measurement transcript (same VM, Go 1.25.8, interleaved rounds)
+
+BEFORE = develop be2bc57f, with only the PR's title_refs_scaling_test.go added
+         (so the identical benchmark/test runs against the old generation.go)
+AFTER  = PR head f4daefbb (qa/pr-title-refs rebased onto be2bc57f)
+
+--- Scaling test (allocation growth, 256 -> 1024 entries) ---
+BEFORE: FAIL — generation Validate allocated 15.8x the bytes for 4x the entries
+        (3554136 -> 56213776); snapshot Validate allocated 15.8x (3554648 -> 56219856)
+AFTER:  PASS (0.06s)
+
+--- BenchmarkGenerationValidateLongSession, 3 interleaved rounds (raw in bench-raw.txt) ---
+1000 entries:
+  BEFORE ns/op: 327071039 / 299657977 / 357249204   median 327071039  (327.1 ms)
+  AFTER  ns/op:   3387170 /   3864466 /   6128849   median   3864466  (  3.9 ms)
+  BEFORE B/op: 54903264 / 54903216 / 54904130       median 54903264   (54.90 MB)
+  AFTER  B/op:   348939 /   348938 /   348944       median   348939   ( 0.35 MB)
+  allocs/op: 6778 -> 1775
+4000 entries:
+  BEFORE ns/op: 4649020475 / 6164816217 / 4367106706  median 4649020475 (4.65 s)
+  AFTER  ns/op:   16651652 /   26424196 /   26991697  median   26424196 (26.4 ms)
+  BEFORE B/op: 874914888 / 874914984 / 874914888      median 874914888  (874.9 MB)
+  AFTER  B/op:   1404204 /   1404183 /   1404159      median   1404183  ( 1.40 MB)
+  allocs/op: 75842 -> 7847
+
+Median speedups: ~85x at 1000 entries, ~176x at 4000 entries.
+Allocation reduction: ~157x at 1000, ~623x at 4000.
+VM noise note: this VM was heavily loaded during measurement (dozens of parallel
+sessions); AFTER 4000-entry samples ranged 16.7–27.0 ms and BEFORE 4.37–6.16 s,
+so even worst-after vs best-before is >160x at 4000 entries. Allocation numbers
+are load-independent and near-identical across rounds.
+
+--- Package tests on AFTER (rebased head) ---
+go test ./internal/indexformat/ -count=1        -> ok 0.198s
+go test -race ./internal/indexformat/ -count=1  -> ok 2.361s
+
+--- The recorded video run (pr-716-benchmark.cast, a 4th interleaved round) ---
+BEFORE 1000: 452180340 ns/op, 54903224 B/op, 6778 allocs/op
+BEFORE 4000: 11513587282 ns/op, 874915176 B/op, 75845 allocs/op
+AFTER  1000: 8425821 ns/op, 348943 B/op, 1775 allocs/op
+AFTER  4000: 15066556 ns/op, 1404144 B/op, 7847 allocs/op
+Full package tests AFTER: ok 0.948s
