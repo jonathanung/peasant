@@ -1,0 +1,18 @@
+== harvest: README flags (17): --all --config --config-dir --data-dir --detect-commits --dry-run --force --include-active --json --output --profile-index --session --since --source-harness --source-path --state-dir --verbose
+== harvest: --help command flags (13): --all --detect-commits --dry-run --force --include-active --json --output --profile-index --session --since --source-harness --source-path --verbose
+== harvest: --help global flags (4): --config --config-dir --data-dir --state-dir
+UNKNOWN (in README, not in --help): none
+UNDOCUMENTED command flags: none
+UNDOCUMENTED global flags (not in this table nor the harvest table): none
+harvest diff: IDENTICAL (command flags; globals documented)
+== verify: README flags (3): --content --repair --verbose
+== verify: --help command flags (3): --content --repair --verbose
+== verify: --help global flags (4): --config --config-dir --data-dir --state-dir
+UNKNOWN (in README, not in --help): none
+UNDOCUMENTED command flags: none
+UNDOCUMENTED global flags (not in this table nor the harvest table): none
+verify diff: IDENTICAL (command flags; globals documented)
+== source-harness values README (6): claude-code codex cursor opencode pi strike
+== source-harness values --help (6): claude-code codex cursor opencode pi strike
+harness diff: IDENTICAL
+RESULT: PASS - README tables match --help
