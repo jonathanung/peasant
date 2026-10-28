@@ -1,0 +1,57 @@
+==================================================================
+PR #727 — codex: stamp each classified block with its rollout timestamp
+Issue #683: Codex turns served as 0001-01-01T00:00:00Z
+==================================================================
+
+########## BEFORE — develop be2bc57f (current base) ##########
+--- synthetic Codex rollout: every line carries a timestamp
+"timestamp":"2024-01-02T03:00:00Z"
+"timestamp":"2024-01-02T03:00:00Z"
+"timestamp":"2024-01-02T03:00:01Z"
+"timestamp":"2024-01-02T03:00:02Z"
+"timestamp":"2024-01-02T03:00:03Z"
+"timestamp":"2024-01-02T03:00:04Z"
+"timestamp":"2024-01-02T03:00:05Z"
+"timestamp":"2024-01-02T03:00:06Z"
+--- peasant harvest
+  ACTIVE codex 019e7724-8abb-7851-adac-69a30b4bc1bb
+  ACTIVE codex 019e7724-38f5-7660-b2d7-2eda237d4a7d
+--- peasant web start --port 18727
+Peasant web dashboard running at http://localhost:18727
+--- GET /api/v1/sessions/019e7724-38f5-7660-b2d7-2eda237d4a7d
+{"index":0,"timestamp":"0001-01-01T00:00:00Z","text":"What value does the sample counter have afte"}
+{"index":1,"timestamp":"0001-01-01T00:00:00Z","text":"The sample counter has the value 1."}
+--- GET /api/v1/sessions/019e7724-8abb-7851-adac-69a30b4bc1bb
+{"index":0,"timestamp":"0001-01-01T00:00:00Z","text":"Add a short greeting file to the sample proj"}
+{"index":1,"timestamp":"0001-01-01T00:00:00Z","text":""}
+{"index":6,"timestamp":"0001-01-01T00:00:00Z","text":"Added GREETING.txt with the requested sample"}
+Peasant web dashboard shutting down
+
+########## AFTER — PR #727 rebased head c78cf079 ##########
+--- synthetic Codex rollout: every line carries a timestamp
+"timestamp":"2024-01-02T03:00:00Z"
+"timestamp":"2024-01-02T03:00:00Z"
+"timestamp":"2024-01-02T03:00:01Z"
+"timestamp":"2024-01-02T03:00:02Z"
+"timestamp":"2024-01-02T03:00:03Z"
+"timestamp":"2024-01-02T03:00:04Z"
+"timestamp":"2024-01-02T03:00:05Z"
+"timestamp":"2024-01-02T03:00:06Z"
+--- peasant harvest
+  ACTIVE codex 019e7724-38f5-7660-b2d7-2eda237d4a7d
+  ACTIVE codex 019e7724-8abb-7851-adac-69a30b4bc1bb
+--- peasant web start --port 18728
+Peasant web dashboard running at http://localhost:18728
+--- GET /api/v1/sessions/019e7724-38f5-7660-b2d7-2eda237d4a7d
+{"index":0,"timestamp":"2024-01-02T03:00:03Z","text":"What value does the sample counter have afte"}
+{"index":1,"timestamp":"2024-01-02T03:00:04Z","text":"The sample counter has the value 1."}
+--- GET /api/v1/sessions/019e7724-8abb-7851-adac-69a30b4bc1bb
+{"index":0,"timestamp":"2024-01-02T03:04:03Z","text":"Add a short greeting file to the sample proj"}
+{"index":1,"timestamp":"2024-01-02T03:04:04Z","text":""}
+{"index":6,"timestamp":"2024-01-02T03:04:08Z","text":"Added GREETING.txt with the requested sample"}
+Peasant web dashboard shutting down
+
+==================================================================
+BEFORE: every Codex turn timestamp = 0001-01-01T00:00:00Z
+AFTER:  each turn carries its rollout line's 2024-01-02 timestamp
+==================================================================
