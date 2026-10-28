@@ -7,6 +7,13 @@ Release, which holds the signed artifacts and checksums.
 
 ## [Unreleased]
 
+## [0.13.4] - 2026-10-28
+
+### Changed
+- The transcript uses the shared bounded layout and identifies recorded pull
+  requests as unverified evidence. Their source opens the recorded command and
+  result without making a GitHub request or changing access.
+
 ## [0.13.3] - 2026-10-28
 
 ### Changed
@@ -928,6 +935,7 @@ Second public release. See the
 Initial public release. See the
 [v0.1.0 release](https://github.com/peasant-labs/peasant/releases/tag/v0.1.0).
 
+[0.13.4]: https://github.com/peasant-labs/peasant/releases/tag/v0.13.4
 [0.13.3]: https://github.com/peasant-labs/peasant/releases/tag/v0.13.3
 [0.11.1]: https://github.com/peasant-labs/peasant/releases/tag/v0.11.1
 [0.11.0]: https://github.com/peasant-labs/peasant/releases/tag/v0.11.0
