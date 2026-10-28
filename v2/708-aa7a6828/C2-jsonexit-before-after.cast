@@ -1,0 +1,11 @@
+{"version": 2, "width": 110, "height": 30, "timestamp": 1793218367, "idle_time_limit": 2.0, "env": {"SHELL": null, "TERM": null}}
+[0.107619, "o", "# PR #708: harvest --json must exit non-zero when a session fails (issue #678)\r\n# Same input both runs: 1 good session + 1 session that fails ingest ('not json' line)\r\n\r\n===== BEFORE: develop (be2bc57f) =====\r\n"]
+[0.326622, "o", "seeded: aaaaaaaa-0000-4000-8000-000000000001.jsonl\r\nbbbbbbbb-0000-4000-8000-000000000002.jsonl\r\n"]
+[5.712527, "o", "exit=0\r\n"]
+[5.763419, "o", "stderr: notice: no config found at /tmp/pr708-before/.config/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.\r\n"]
+[6.773638, "o", "stdout parses as JSON; Summary.Errors = 1\r\n"]
+[6.887863, "o", "\r\n===== AFTER: PR #708 head (qa/pr-json-exit, rebased ed6b7bb2) =====\r\n"]
+[7.005248, "o", "seeded: aaaaaaaa-0000-4000-8000-000000000001.jsonl\r\nbbbbbbbb-0000-4000-8000-000000000002.jsonl\r\n"]
+[12.399968, "o", "exit=1\r\nstderr: notice: no config found at /tmp/pr708-after/.config/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.\r\nError: 1 session(s) failed\r\n"]
+[12.590153, "o", "stdout parses as JSON; Summary.Errors = 1\r\n"]
+[12.729725, "o", "\r\n# BEFORE exited 0 despite Errors=1 (bug). AFTER prints the same JSON and exits 1.\r\n"]

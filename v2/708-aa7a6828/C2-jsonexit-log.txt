@@ -1,0 +1,26 @@
+PR #708 - harvest --json exit code (issue #678, item 2)
+Binaries built per version with go1.25.8 (go build ./cmd/peasant):
+  BEFORE: develop be2bc57f (pr-708-develop worktree)
+  AFTER:  qa/pr-json-exit rebased onto develop, head ed6b7bb2
+Input (identical, fresh throwaway HOME per run, per issue #678 repro):
+  ~/.claude/projects/-home-qa-x/bbbbbbbb-...0002.jsonl  good session (2 valid records)
+  ~/.claude/projects/-home-qa-x/aaaaaaaa-...0001.jsonl  valid record, then a line: not json
+
+BEFORE (develop):
+  $ peasant harvest --json > before.json 2> before.err
+  exit=0
+  stderr: notice: no config found ... using defaults.
+  stdout parses as JSON; summary.Errors = 1, summary.Indexed = 1
+
+AFTER (PR head, rebased):
+  $ peasant harvest --json > after.json 2> after.err
+  exit=1
+  stderr: notice: no config found ... using defaults.
+          Error: 1 session(s) failed
+  stdout parses as JSON; summary.Errors = 1, summary.Indexed = 1
+
+Focused tests on the rebased head (go test -race, go1.25.8):
+  TestHarvestJSONExitsNonZeroWhenASessionFails              PASS (18.0s)
+  TestExecuteHarvestCommitsOutcomeBeforeFinalDelivery       PASS
+  TestLegacyOpenCodeSQLiteMountedHarvestCreatesManagedIndexedAnalyticsState PASS
+  TestInterruptedPairInstallMounted (all subtests)          PASS (package ok, 490s under VM load)
