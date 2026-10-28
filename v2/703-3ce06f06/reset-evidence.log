@@ -1,0 +1,158 @@
+==================================================================
+PR #703 - peasant kickstart --reset must confirm before deleting
+==================================================================
+
+### BEFORE (develop): kickstart --reset </dev/null, no confirmation
+  files under scratch HOME:
+  $HOME/.config/peasant/config.yaml
+  $HOME/.config/peasant/credentials.json
+  $HOME/.local/share/peasant/peasant-sync/proj/s1/s1--transcript.jsonl
+  $HOME/.local/share/peasant/peasant.db
+  $HOME/.local/share/peasant/peasant.db-journal
+  $HOME/.local/share/peasant/peasant.db-shm
+  $HOME/.local/share/peasant/peasant.db-wal
+  $HOME/.local/state/peasant/web-18690.pid
+$ peasant kickstart --reset </dev/null   (setsid: no controlling terminal, as in #675)
+  removed /tmp/tmp.ybSfCQozFC/.config/peasant/config.yaml
+  removed /tmp/tmp.ybSfCQozFC/.local/share/peasant/peasant.db
+  removed /tmp/tmp.ybSfCQozFC/.local/share/peasant/peasant-sync
+  removed /tmp/tmp.ybSfCQozFC/.local/state/peasant
+Reset: cleaned config, credentials, database, peasant-sync, and state.
+Error: setup flow failed: bubbletea: error opening TTY: bubbletea: could not open TTY: open /dev/tty: no such device or address
+Usage:
+  peasant kickstart [flags]
+
+Aliases:
+  kickstart, ftue
+
+Flags:
+  -h, --help    help for kickstart
+      --reset   Remove config, credentials, database, ingested data, and state (full reset)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.ybSfCQozFC/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+  exit: 1
+  files under scratch HOME:
+  $HOME/.config/peasant/.credentials.lock
+  $HOME/.local/share/peasant/peasant.db-journal
+  $HOME/.local/share/peasant/peasant.db-shm
+  $HOME/.local/share/peasant/peasant.db-wal
+>> BEFORE: config, credentials, database, peasant-sync and state were ALL
+>> deleted with no confirmation, before the wizard TTY error.
+>> (develop even left the DB sidecar files behind - the PR removes those too.)
+
+### AFTER (PR head): same command, no --confirm
+  files under scratch HOME:
+  $HOME/.config/peasant/config.yaml
+  $HOME/.config/peasant/credentials.json
+  $HOME/.local/share/peasant/peasant-sync/proj/s1/s1--transcript.jsonl
+  $HOME/.local/share/peasant/peasant.db
+  $HOME/.local/share/peasant/peasant.db-journal
+  $HOME/.local/share/peasant/peasant.db-shm
+  $HOME/.local/share/peasant/peasant.db-wal
+  $HOME/.local/state/peasant/web-18690.pid
+$ peasant kickstart --reset </dev/null   (setsid: no controlling terminal, as in #675)
+Error: non-interactive terminal: `peasant kickstart --reset` refused to prompt for consent because its standard input is not a terminal; nothing was removed; re-run with --confirm to reset without a prompt, or run the command from an interactive shell
+Usage:
+  peasant kickstart [flags]
+
+Aliases:
+  kickstart, ftue
+
+Flags:
+      --confirm   With --reset: skip the confirmation prompt (for scripts/CI)
+  -h, --help      help for kickstart
+      --reset     Remove config, credentials, database, ingested data, and state (full reset); asks for confirmation
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.Z2Tjs2V40p/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+  exit: 1
+  files under scratch HOME:
+  $HOME/.config/peasant/config.yaml
+  $HOME/.config/peasant/credentials.json
+  $HOME/.local/share/peasant/peasant-sync/proj/s1/s1--transcript.jsonl
+  $HOME/.local/share/peasant/peasant.db
+  $HOME/.local/share/peasant/peasant.db-journal
+  $HOME/.local/share/peasant/peasant.db-shm
+  $HOME/.local/share/peasant/peasant.db-wal
+  $HOME/.local/state/peasant/web-18690.pid
+>> AFTER: reset REFUSED (names --confirm), nothing was deleted.
+
+### AFTER (PR head): interactive prompt, answer 'n'
+$ peasant kickstart --reset   # in a terminal, typing n
+n
+kickstart --reset permanently removes:
+  config:       /tmp/tmp.ZUxJO5Nxxo/.config/peasant/config.yaml
+  credentials:  the saved village login
+  database:     /tmp/tmp.ZUxJO5Nxxo/.local/share/peasant/peasant.db (and its -wal, -shm and -journal files)
+  peasant-sync: /tmp/tmp.ZUxJO5Nxxo/.local/share/peasant/peasant-sync
+  state:        /tmp/tmp.ZUxJO5Nxxo/.local/state/peasant
+Reset everything? [y/N]: Reset cancelled; nothing was removed.
+  exit: 0
+  files under scratch HOME:
+  $HOME/.config/peasant/config.yaml
+  $HOME/.config/peasant/credentials.json
+  $HOME/.local/share/peasant/peasant-sync/proj/s1/s1--transcript.jsonl
+  $HOME/.local/share/peasant/peasant.db
+  $HOME/.local/share/peasant/peasant.db-journal
+  $HOME/.local/share/peasant/peasant.db-shm
+  $HOME/.local/share/peasant/peasant.db-wal
+  $HOME/.local/state/peasant/web-18690.pid
+>> AFTER: prompt listed the targets; 'n' cancelled, nothing deleted.
+
+### AFTER (PR head): scripted --reset --confirm
+  files under scratch HOME:
+  $HOME/.config/peasant/config.yaml
+  $HOME/.config/peasant/credentials.json
+  $HOME/.local/share/peasant/peasant-sync/proj/s1/s1--transcript.jsonl
+  $HOME/.local/share/peasant/peasant.db
+  $HOME/.local/share/peasant/peasant.db-journal
+  $HOME/.local/share/peasant/peasant.db-shm
+  $HOME/.local/share/peasant/peasant.db-wal
+  $HOME/.local/state/peasant/web-18690.pid
+$ peasant kickstart --reset --confirm </dev/null   (setsid: no controlling terminal)
+  removed /tmp/tmp.jhyDkHOH9T/.config/peasant/config.yaml
+  removed /tmp/tmp.jhyDkHOH9T/.local/share/peasant/peasant.db
+  removed /tmp/tmp.jhyDkHOH9T/.local/share/peasant/peasant.db-wal
+  removed /tmp/tmp.jhyDkHOH9T/.local/share/peasant/peasant.db-shm
+  removed /tmp/tmp.jhyDkHOH9T/.local/share/peasant/peasant.db-journal
+  removed /tmp/tmp.jhyDkHOH9T/.local/share/peasant/peasant-sync
+  removed /tmp/tmp.jhyDkHOH9T/.local/state/peasant
+Reset: cleaned config, credentials, database, peasant-sync, and state.
+Error: setup flow failed: bubbletea: error opening TTY: bubbletea: could not open TTY: open /dev/tty: no such device or address
+Usage:
+  peasant kickstart [flags]
+
+Aliases:
+  kickstart, ftue
+
+Flags:
+      --confirm   With --reset: skip the confirmation prompt (for scripts/CI)
+  -h, --help      help for kickstart
+      --reset     Remove config, credentials, database, ingested data, and state (full reset); asks for confirmation
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.jhyDkHOH9T/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+  exit: 1  (1 = documented: after the reset, the wizard itself needs a terminal)
+  files under scratch HOME:
+  $HOME/.config/peasant/.credentials.lock
+>> AFTER: with explicit --confirm, everything is removed, incl. DB sidecars.
+>> (the lone .credentials.lock is an empty lock file created while clearing
+>>  credentials; credentials.json itself is gone.)
+
+DONE
