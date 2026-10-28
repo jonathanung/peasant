@@ -1,0 +1,121 @@
+==================================================================
+== AFTER - PR 734 rebased 7b99ab7d on develop be2bc57f   tree=/home/hatch/workspace/pr-evidence/pr-734
+==================================================================
+--- git HEAD ---
+7b99ab7d
+7b99ab7d docs: README uses harvest, notes make build's pnpm need; TUI.md deprecation; --concurrency help
+
+--- [1] README command names (Quick start + Commands table + pipeline) ---
+50:peasant harvest
+80:| `peasant harvest` | Run the data ingestion pipeline (`peasant ingest` is a hidden alias) |
+81:| `peasant harvest verify` | Verify database schema integrity |
+158:### `peasant ingest verify` flags
+164:### `peasant ingest` flags
+266:`peasant harvest` runs a 9-stage pipeline (`internal/ingest/pipeline.go`):
+376:`peasant harvest index --all` to rebuild a lost or damaged database from those
+945:./peasant harvest verify
+README 'harvest' in Quick start / table?
+15:peasant harvest
+45:| `peasant harvest` | Run the data ingestion pipeline (`peasant ingest` is a hidden alias) |
+46:| `peasant harvest verify` | Verify database schema integrity |
+
+--- [2] README 'make build' prerequisites ---
+
+```bash
+# Enter the dev shell (provides Go toolchain, gopls, staticcheck, delve)
+nix develop
+
+# Build the binary. make build also builds the embedded web dashboard, so it
+# needs pnpm 11.24.0 (web/package.json "packageManager") and runs a full
+# Next.js build. go build ./cmd/peasant builds the CLI alone.
+make build          # outputs peasant
+
+# Run the first-time setup wizard
+peasant kickstart
+
+# Harvest sessions from all configured harnesses
+peasant harvest
+pnpm mentioned in the Quick start build block (above)?
+7:# needs pnpm 11.24.0 (web/package.json "packageManager") and runs a full
+Makefile reality: build target depends on web, web target hard-fails without pnpm:
+220:build: web
+221-	@$(build_peasant_cli)
+222-	@cd web && pnpm test:provider-build-provenance
+45:		echo 'ERROR [make web] pnpm is not on PATH. web/ is pnpm-only (web/pnpm-lock.yaml is the single lockfile;'; \
+6:  "packageManager": "pnpm@11.24.0",
+
+--- [3] docs/TUI.md deprecation note ---
+# TUI Keyboard Shortcuts
+
+> **`peasant tui` is deprecated.** Its Dashboard, Sessions and Trends screens are
+> not documented here; use `peasant web` for them and `peasant annotate` for
+> annotations. This file covers the screens that stay: `peasant config` and the
+> `peasant kickstart` wizard.
+
+Peasant's kit-based TUI screens derive dispatch, footer hints, and help from one
+TUI.md mentions deprecated: YES
+
+--- [3b] Real CLI says tui is deprecated ---
+Command "tui" is deprecated, use `peasant web` for the dashboard, sessions, and trends, and `peasant annotate` for annotations. The command still runs. It will be removed after one release carries this notice.
+Launch the terminal UI.
+
+
+--- [4] Real CLI: peasant --help (is harvest visible? are ingest/tui?) ---
+Developer observability for AI coding agent sessions
+
+Usage:
+  peasant [flags]
+  peasant [command]
+
+Available Commands:
+  annotate    Manage session and project annotations
+  completion  Generate the autocompletion script for the specified shell
+  config      Edit peasant configuration
+  export      Export session data, annotations, and schemas
+  harvest     Harvest AI coding agent transcripts
+  help        Help about any command
+  kickstart   Run the first-time setup wizard
+  metrics     Manage session metrics
+  migrate     Convert file-backed sessions to the harmonized content model
+  models      Manage model reference data
+  open        Record one session and open its transcript in the web dashboard
+  prune       Remove sessions from local store and database
+  reclaim     Reclaim superseded managed generations (rows and blob directories)
+  redact      Redact local transcripts
+  sessions    Manage sessions
+  upgrade     Upgrade Peasant
+  version     Print the version
+  village     Interact with peasant online
+  web         Launch the web dashboard
+
+Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/home/hatch/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+  -h, --help                help for peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+Use "peasant [command] --help" for more information about a command.
+
+--- [4b] Real CLI: peasant harvest --help exists? peasant ingest is what? ---
+Discover, normalize, and store AI coding agent transcripts from Claude Code, OpenCode, Codex, Cursor, Strike, and Pi.
+Use 'harvest logs' for file extraction only, or 'harvest index' for DB population only.
+
+Usage:
+  peasant harvest [flags]
+  peasant harvest [command]
+...
+Discover, normalize, and store AI coding agent transcripts from Claude Code, OpenCode, Codex, Cursor, Strike, and Pi.
+Use 'harvest logs' for file extraction only, or 'harvest index' for DB population only.
+
+Usage:
+
+--- [5] village push --concurrency help text ---
+Flag line:
+      --concurrency int               Number of parallel uploads and HTTP connection-pool size. Must be >= 1. Overrides push.concurrency in config. Default: max(1, NumCPU/2) (tuned for steady-state re-push). For a one-time large COLD push, raise it to about 2x NumCPU to scale toward peasant online's capacity.
+Long help (for contrast):
+--concurrency to about 2x NumCPU to scale throughput up to peasant online's capacity; confirm
+      --concurrency int               Number of parallel uploads and HTTP connection-pool size. Must be >= 1. Overrides push.concurrency in config. Default: max(1, NumCPU/2) (tuned for steady-state re-push). For a one-time large COLD push, raise it to about 2x NumCPU to scale toward peasant online's capacity.
+
+== END AFTER - PR 734 rebased 7b99ab7d on develop be2bc57f ==

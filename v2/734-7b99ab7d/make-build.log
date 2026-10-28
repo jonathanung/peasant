@@ -1,0 +1,67 @@
+[WARN] Unsupported engine: wanted: {"node":">=26"} (current: {"node":"v24.22.1","pnpm":"11.24.0"})
+Already up to date
+Done in 7.7s using pnpm v11.24.0
+[WARN] Unsupported engine: wanted: {"node":">=26"} (current: {"node":"v24.22.1","pnpm":"11.24.0"})
+$ next build
+   ▲ Next.js 15.5.19
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully in 4.9min
+   Linting and checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/15) ...
+Failed to build /_error: /404 (attempt 1 of 3) because it took more than 60 seconds. Retrying again shortly.
+Failed to build /_error: /500 (attempt 1 of 3) because it took more than 60 seconds. Retrying again shortly.
+Failed to build /icon.svg/route: /icon.svg (attempt 1 of 3) because it took more than 60 seconds. Retrying again shortly.
+Failed to build /_not-found/page: /_not-found (attempt 1 of 3) because it took more than 60 seconds. Retrying again shortly.
+Failed to build /analytics/page: /analytics (attempt 1 of 3) because it took more than 60 seconds. Retrying again shortly.
+Failed to build /settings/page: /settings (attempt 1 of 3) because it took more than 60 seconds. Retrying again shortly.
+Failed to build /share/page: /share (attempt 1 of 3) because it took more than 60 seconds. Retrying again shortly.
+Failed to build /village/page: /village (attempt 1 of 3) because it took more than 60 seconds. Retrying again shortly.
+   Generating static pages (1/15) 
+   Generating static pages (3/15) 
+   Generating static pages (7/15) 
+   Generating static pages (11/15) 
+ ✓ Generating static pages (15/15)
+   Finalizing page optimization ...
+   Collecting build traces ...
+   Exporting (0/2) ...
+ ✓ Exporting (2/2)
+
+Route (app)                                 Size  First Load JS
+┌ ○ /                                    12.1 kB         362 kB
+├ ○ /_not-found                            133 B         104 kB
+├ ○ /analytics                            110 kB         453 kB
+├ ○ /dev/changes-harness                 2.43 kB         255 kB
+├ ○ /dev/visual-harness                  6.51 kB         415 kB
+├ ○ /icon.svg                                0 B            0 B
+├ ● /map/[[...segments]]                 10.7 kB         432 kB
+├   └ /map
+├ ● /projects/[[...segments]]            21.4 kB         445 kB
+├   └ /projects
+├ ● /review/[[...segments]]               3.1 kB         422 kB
+├   └ /review
+├ ● /sessions/[[...segments]]            3.14 kB         355 kB
+├   └ /sessions
+├ ○ /settings                            15.7 kB         347 kB
+├ ○ /share                               16.7 kB         365 kB
+└ ○ /village                             6.49 kB         334 kB
++ First Load JS shared by all             104 kB
+  ├ chunks/1581e093-df44a9a2e7ddb4bb.js  54.2 kB
+  ├ chunks/5941-1bc5866d13b535b5.js      46.7 kB
+  └ other shared chunks (total)          3.23 kB
+
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+
+# `next build` (output: export) CLEANS web/out/ and deletes the tracked
+# web/out/.gitkeep placeholder. Re-create it so the worktree stays clean
+# (goreleaser refuses a dirty tree) and the //go:embed all:web/out
+# tracked-file invariant holds (go install / nix). The real index.html +
+# _next/** the build wrote are gitignored.
+[WARN] Unsupported engine: wanted: {"node":">=26"} (current: {"node":"v24.22.1","pnpm":"11.24.0"})
+$ node scripts/provider-build-provenance-guidance.test.mjs && node scripts/provider-build-provenance.mjs
+provider build provenance guidance: exact final Schema release guidance is protected
+provider build provenance: projects=[/_next/static/chunks/7216-8e7e3bff36bc8133.js] transcript=[/_next/static/chunks/7216-8e7e3bff36bc8133.js] Map=[/_next/static/chunks/7216-8e7e3bff36bc8133.js] Changes=[/_next/static/chunks/7216-8e7e3bff36bc8133.js]
+provider build provenance: eight harnesses, official Strike SVG/policy, and fail-closed validation found in web/out and ./peasant (41891d444f810883ba55a8b28cafef8db12bba78713182cf342cccb0d4011ee0)
