@@ -1,0 +1,68 @@
+PR #711 evidence — two `peasant harvest` runs started 0.3s apart on one data dir
+(fresh throwaway HOME, 40 synthetic Claude sessions x 120 records, issue #680 repro).
+Binaries built with go1.25.8: BEFORE = develop be2bc57f, AFTER = PR #711 rebased head 6580663c.
+
+Unrecorded runs (same script as the video; race outcomes vary run to run, as in #680):
+
+=== BEFORE (develop be2bc57f) ===
+wall time for both: 49s
+--- run a ---
+peasant harvest: 40 sessions
+   - 0     new
+   - 16    updated
+   - 0     unchanged
+   - 0     errors
+   - 24    active (included)
+duration: 46.7s
+index: 24 indexed, 5 computed (metadata_version=12)
+refused-warnings: 14
+waiting-warnings ('another harvest is running'): 0
+  warning: 12 session(s) have no stored entries, so they are empty in the viewer, in search, in metrics, and in anything published.
+  warning: 4 session(s) failed to re-index but kept their previous entries, so they are still readable. Rerun 'peasant harvest' to retry them.
+--- run b ---
+peasant harvest: 40 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 0     errors
+   - 40    active (included)
+duration: 46.9s
+index: 5 indexed, 23 computed (metadata_version=12)
+refused-warnings: 56
+waiting-warnings ('another harvest is running'): 0
+  warning: 12 session(s) have no stored entries, so they are empty in the viewer, in search, in metrics, and in anything published.
+  warning: 23 session(s) failed to re-index but kept their previous entries, so they are still readable. Rerun 'peasant harvest' to retry them.
+harvest verify --content: PASSED
+
+=== AFTER (PR #711 rebased head 6580663c) ===
+wall time for both: 51s
+--- run a ---
+peasant harvest: 40 sessions
+   - 0     new
+   - 0     updated
+   - 40    unchanged
+   - 0     errors
+   - 0     active (included)
+duration: 48.5s
+refused-warnings: 0
+waiting-warnings ('another harvest is running'): 1
+no empty/failed session warnings
+--- run b ---
+peasant harvest: 40 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 0     errors
+   - 40    active (included)
+duration: 36.8s
+index: 40 indexed, 40 computed (metadata_version=12)
+refused-warnings: 0
+waiting-warnings ('another harvest is running'): 0
+no empty/failed session warnings
+harvest verify --content: PASSED
+
+Video (before-after-711.cast / .gif / .mp4) is a separate recorded take of the
+same script: BEFORE shows refused warnings, both runs claiming the same work
+and 8 sessions left empty with 0 errors reported; AFTER shows one run indexing
+all 40 (index: 40 indexed, 40 computed) and the other waiting once
+('another harvest is running') then reporting 40 unchanged.
