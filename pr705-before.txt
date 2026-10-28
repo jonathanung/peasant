@@ -1,0 +1,25 @@
+==================================================================
+== BEFORE-develop: peasant dev
+== HOME=/home/hatch/workspace/pr-evidence/pr-705-evidence/home-BEFORE-develop
+== XDG_DATA_HOME (default) = /home/hatch/workspace/pr-evidence/pr-705-evidence/home-BEFORE-develop/.local/share
+== --data-dir              = /home/hatch/workspace/pr-evidence/pr-705-evidence/home-BEFORE-develop/dd
+------------------------------------------------------------------
+$ peasant --data-dir $DD harvest --source-harness claude-code --source-path $HOME/src/projects
+Output:  /home/hatch/workspace/pr-evidence/pr-705-evidence/home-BEFORE-develop/.local/share/peasant/peasant-sync
+peasant harvest: 1 sessions
+   - 0     errors
+------------------------------------------------------------------
+-- files under --data-dir ($DD):
+~/dd
+~/dd/peasant
+~/dd/peasant/peasant.db
+-- peasant-sync copies under --data-dir:
+   count: 0
+-- peasant-sync copies under default XDG_DATA_HOME:
+~/.local/share/peasant/peasant-sync/__peasant-untracked__--b091cc77--qa-proj/aaaaaaaa-0000-4000-8000-000000000001/aaaaaaaa-0000-4000-8000-000000000001--metadata.json
+~/.local/share/peasant/peasant-sync/__peasant-untracked__--b091cc77--qa-proj/aaaaaaaa-0000-4000-8000-000000000001/aaaaaaaa-0000-4000-8000-000000000001--transcript.jsonl
+~/.local/share/peasant/peasant-sync/locks/aaaaaaaa-0000-4000-8000-000000000001.lock
+   count: 3
+-- database:
+~/dd/peasant/peasant.db
+==================================================================

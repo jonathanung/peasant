@@ -1,0 +1,32 @@
+==================================================================
+== AFTER-pr705: peasant v0.13.5-0.20261028174622-cee1b4e7fa55
+== HOME=/home/hatch/workspace/pr-evidence/pr-705-evidence/home-AFTER-pr705
+== XDG_DATA_HOME (default) = /home/hatch/workspace/pr-evidence/pr-705-evidence/home-AFTER-pr705/.local/share
+== --data-dir              = /home/hatch/workspace/pr-evidence/pr-705-evidence/home-AFTER-pr705/dd
+------------------------------------------------------------------
+$ peasant --data-dir $DD harvest --source-harness claude-code --source-path $HOME/src/projects
+Output:  /home/hatch/workspace/pr-evidence/pr-705-evidence/home-AFTER-pr705/dd/peasant/peasant-sync
+peasant harvest: 1 sessions
+   - 0     errors
+------------------------------------------------------------------
+-- files under --data-dir ($DD):
+~/dd
+~/dd/peasant
+~/dd/peasant/peasant-sync
+~/dd/peasant/peasant-sync/__peasant-untracked__--505e7e3b--qa-proj
+~/dd/peasant/peasant-sync/__peasant-untracked__--505e7e3b--qa-proj/aaaaaaaa-0000-4000-8000-000000000001
+~/dd/peasant/peasant-sync/__peasant-untracked__--505e7e3b--qa-proj/aaaaaaaa-0000-4000-8000-000000000001/aaaaaaaa-0000-4000-8000-000000000001--metadata.json
+~/dd/peasant/peasant-sync/__peasant-untracked__--505e7e3b--qa-proj/aaaaaaaa-0000-4000-8000-000000000001/aaaaaaaa-0000-4000-8000-000000000001--transcript.jsonl
+~/dd/peasant/peasant-sync/locks
+~/dd/peasant/peasant-sync/locks/aaaaaaaa-0000-4000-8000-000000000001.lock
+~/dd/peasant/peasant.db
+-- peasant-sync copies under --data-dir:
+~/dd/peasant/peasant-sync/__peasant-untracked__--505e7e3b--qa-proj/aaaaaaaa-0000-4000-8000-000000000001/aaaaaaaa-0000-4000-8000-000000000001--metadata.json
+~/dd/peasant/peasant-sync/__peasant-untracked__--505e7e3b--qa-proj/aaaaaaaa-0000-4000-8000-000000000001/aaaaaaaa-0000-4000-8000-000000000001--transcript.jsonl
+~/dd/peasant/peasant-sync/locks/aaaaaaaa-0000-4000-8000-000000000001.lock
+   count: 3
+-- peasant-sync copies under default XDG_DATA_HOME:
+   count: 0
+-- database:
+~/dd/peasant/peasant.db
+==================================================================
