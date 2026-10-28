@@ -1,0 +1,164 @@
+############################################################
+# BEFORE: develop (be2bc57f) - peasant web start --port ...
+############################################################
+$ peasant web start --no-browser --port 0
+Warning: server may not be ready (health check timed out)
+Peasant web dashboard running at http://localhost:0
+To stop the server, run:
+  peasant web stop
+
+If the server becomes unresponsive, the process ID (11528)
+is saved at /tmp/tmp.BwNBbueSi2/.local/state/peasant/web-0.pid
+exit=0
+$ peasant web start --no-browser --port -1
+Warning: server may not be ready (health check timed out)
+Peasant web dashboard running at http://localhost:-1
+To stop the server, run:
+  peasant web stop
+
+If the server becomes unresponsive, the process ID (11710)
+is saved at /tmp/tmp.BwNBbueSi2/.local/state/peasant/web--1.pid
+exit=0
+$ peasant web start --no-browser --port 70000
+Warning: server may not be ready (health check timed out)
+Peasant web dashboard running at http://localhost:70000
+To stop the server, run:
+  peasant web stop
+
+If the server becomes unresponsive, the process ID (11855)
+is saved at /tmp/tmp.BwNBbueSi2/.local/state/peasant/web-70000.pid
+exit=0
+$ ls $XDG_STATE_HOME/peasant/
+web--1.pid
+web-0.pid
+web-70000.pid
+
+############################################################
+# AFTER: PR #715 (qa/pr-port-range) - same commands
+############################################################
+$ peasant web start --no-browser --port 0
+Error: invalid argument "0" for "--port" flag: "0" is not a TCP port; use a number from 1-65535
+Usage:
+  peasant web start [flags]
+
+Flags:
+      --dev                      Dev mode: proxy to Next.js dev server (implies --foreground)
+      --experimental             Advertise the code-map navigation capability; the local app currently keeps the code map reachable by URL only, so the header and palette do not change
+      --foreground               Run in foreground (no background fork)
+  -h, --help                     help for start
+      --mock-data-store string   Use mock data store (comma-separated: web,tui,api or dashboard,sessions,trends,metrics,qualitySessions)
+      --no-browser               Don't auto-open browser
+      --port int                 Port to listen on (1-65535) (default 8690)
+      --verbose                  Enable verbose logging (debug level)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.S1PhC1kY28/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+exit=1
+$ peasant web start --no-browser --port -1
+Error: invalid argument "-1" for "--port" flag: "-1" is not a TCP port; use a number from 1-65535
+Usage:
+  peasant web start [flags]
+
+Flags:
+      --dev                      Dev mode: proxy to Next.js dev server (implies --foreground)
+      --experimental             Advertise the code-map navigation capability; the local app currently keeps the code map reachable by URL only, so the header and palette do not change
+      --foreground               Run in foreground (no background fork)
+  -h, --help                     help for start
+      --mock-data-store string   Use mock data store (comma-separated: web,tui,api or dashboard,sessions,trends,metrics,qualitySessions)
+      --no-browser               Don't auto-open browser
+      --port int                 Port to listen on (1-65535) (default 8690)
+      --verbose                  Enable verbose logging (debug level)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.S1PhC1kY28/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+exit=1
+$ peasant web start --no-browser --port 70000
+Error: invalid argument "70000" for "--port" flag: "70000" is not a TCP port; use a number from 1-65535
+Usage:
+  peasant web start [flags]
+
+Flags:
+      --dev                      Dev mode: proxy to Next.js dev server (implies --foreground)
+      --experimental             Advertise the code-map navigation capability; the local app currently keeps the code map reachable by URL only, so the header and palette do not change
+      --foreground               Run in foreground (no background fork)
+  -h, --help                     help for start
+      --mock-data-store string   Use mock data store (comma-separated: web,tui,api or dashboard,sessions,trends,metrics,qualitySessions)
+      --no-browser               Don't auto-open browser
+      --port int                 Port to listen on (1-65535) (default 8690)
+      --verbose                  Enable verbose logging (debug level)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.S1PhC1kY28/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+exit=1
+$ peasant web stop --port 70000
+Error: invalid argument "70000" for "--port" flag: "70000" is not a TCP port; use a number from 1-65535
+Usage:
+  peasant web stop [flags]
+
+Flags:
+  -h, --help       help for stop
+      --port int   Port the server is listening on (1-65535) (default 8690)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.S1PhC1kY28/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+exit=1
+$ peasant open --port 70000
+Error: invalid argument "70000" for "--port" flag: "70000" is not a TCP port; use a number from 1-65535
+Usage:
+  peasant open [flags]
+
+Flags:
+  -h, --help             help for open
+      --hook             Print the Claude Code hook response JSON instead of plain lines, and exit 0 on every outcome
+      --port int         Port of the web dashboard (1-65535) (default 8690)
+      --session string   ID of the session to record and open (required)
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/tmp/tmp.S1PhC1kY28/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+exit=1
+$ ls $XDG_STATE_HOME/peasant/   (expect: no PID files)
+ls: cannot access '/tmp/tmp.S1PhC1kY28/.local/state/peasant/': No such file or directory
+
+############################################################
+# AFTER: a valid port still starts and stops normally
+############################################################
+$ peasant web start --no-browser --port 18715
+Peasant web dashboard running at http://localhost:18715
+To stop the server, run:
+  peasant web stop
+
+If the server becomes unresponsive, the process ID (12006)
+is saved at /tmp/tmp.S1PhC1kY28/.local/state/peasant/web-18715.pid
+exit=0
+$ ls $XDG_STATE_HOME/peasant/
+web-18715.pid
+$ peasant web stop --port 18715
+Peasant web dashboard shutting down
+exit=0
+$ ls $XDG_STATE_HOME/peasant/   (expect: PID file removed)
+DONE
