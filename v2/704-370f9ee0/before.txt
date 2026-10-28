@@ -1,0 +1,10 @@
+=== RUN   TestEvidenceDemo704
+    evidence_demo_test.go:23: fixture record 1 (isMeta=true ): Your claude.ai usage limit has reset. Continue the task you were working on.
+    evidence_demo_test.go:24: fixture record 2 (real user)  : Profile the generation validator
+    evidence_demo_test.go:36: derived discovery title: "Your claude.ai usage limit has reset. Continue the task you were working on."
+    evidence_demo_test.go:37: branch/cwd hints (should still come from the isMeta record): "meta-branch" / "/workspace/meta"
+    evidence_demo_test.go:39: WRONG TITLE: got "Your claude.ai usage limit has reset. Continue the task you were working on.", want the real first user record "Profile the generation validator"
+--- FAIL: TestEvidenceDemo704 (0.00s)
+FAIL
+FAIL	github.com/peasant-labs/peasant/internal/ingest	0.775s
+FAIL
