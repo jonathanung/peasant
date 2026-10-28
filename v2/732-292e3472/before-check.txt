@@ -1,0 +1,18 @@
+== harvest: README flags (13): --config --detect-commits --dry-run --force --include-active --json --output --reindex --session --since --source-harness --source-path --verbose
+== harvest: --help command flags (13): --all --detect-commits --dry-run --force --include-active --json --output --profile-index --session --since --source-harness --source-path --verbose
+== harvest: --help global flags (4): --config --config-dir --data-dir --state-dir
+UNKNOWN (in README, not in --help): --reindex
+UNDOCUMENTED command flags: --all --profile-index
+UNDOCUMENTED global flags (not in this table nor the harvest table): --config-dir --data-dir --state-dir
+harvest diff: MISMATCH
+== verify: README flags (1): --verbose
+== verify: --help command flags (3): --content --repair --verbose
+== verify: --help global flags (4): --config --config-dir --data-dir --state-dir
+UNKNOWN (in README, not in --help): none
+UNDOCUMENTED command flags: --content --repair
+UNDOCUMENTED global flags (not in this table nor the harvest table): --config-dir --data-dir --state-dir
+verify diff: MISMATCH
+== source-harness values README (5): claude-code codex cursor opencode strike
+== source-harness values --help (6): claude-code codex cursor opencode pi strike
+harness diff: MISMATCH
+RESULT: FAIL - mismatches above
