@@ -1,0 +1,2 @@
+ok  	github.com/peasant-labs/peasant/internal/ingest	6.529s
+GO_TEST_EXIT=0

@@ -1,0 +1,75 @@
+=== RUN   TestExecGitResolver_RepositoryIdentityFailureBoundaries
+=== RUN   TestExecGitResolver_RepositoryIdentityFailureBoundaries/superproject-command
+=== RUN   TestExecGitResolver_RepositoryIdentityFailureBoundaries/child-top-level-command
+=== RUN   TestExecGitResolver_RepositoryIdentityFailureBoundaries/superproject-physical-path
+=== RUN   TestExecGitResolver_RepositoryIdentityFailureBoundaries/superproject-top-level-command
+=== RUN   TestExecGitResolver_RepositoryIdentityFailureBoundaries/declaration-command
+--- PASS: TestExecGitResolver_RepositoryIdentityFailureBoundaries (0.07s)
+    --- PASS: TestExecGitResolver_RepositoryIdentityFailureBoundaries/superproject-command (0.00s)
+    --- PASS: TestExecGitResolver_RepositoryIdentityFailureBoundaries/child-top-level-command (0.00s)
+    --- PASS: TestExecGitResolver_RepositoryIdentityFailureBoundaries/superproject-physical-path (0.00s)
+    --- PASS: TestExecGitResolver_RepositoryIdentityFailureBoundaries/superproject-top-level-command (0.00s)
+    --- PASS: TestExecGitResolver_RepositoryIdentityFailureBoundaries/declaration-command (0.00s)
+=== RUN   TestExecGitResolver_RepositoryIdentityTopologyGuards
+=== RUN   TestExecGitResolver_RepositoryIdentityTopologyGuards/child-outside-direct-superproject
+=== RUN   TestExecGitResolver_RepositoryIdentityTopologyGuards/repeated-physical-superproject
+=== RUN   TestExecGitResolver_RepositoryIdentityTopologyGuards/nested-submodule-depth-limit
+--- PASS: TestExecGitResolver_RepositoryIdentityTopologyGuards (0.00s)
+    --- PASS: TestExecGitResolver_RepositoryIdentityTopologyGuards/child-outside-direct-superproject (0.00s)
+    --- PASS: TestExecGitResolver_RepositoryIdentityTopologyGuards/repeated-physical-superproject (0.00s)
+    --- PASS: TestExecGitResolver_RepositoryIdentityTopologyGuards/nested-submodule-depth-limit (0.00s)
+=== RUN   TestExecGitResolver_RemoteURL
+    git_test.go:307: RemoteURL = "https://github.com/testuser/testrepo.git", want "git@github.com:testuser/testrepo.git"
+--- FAIL: TestExecGitResolver_RemoteURL (0.57s)
+=== RUN   TestExecGitResolver_Branch
+--- PASS: TestExecGitResolver_Branch (0.41s)
+=== RUN   TestExecGitResolver_Worktree_MainCheckout
+--- PASS: TestExecGitResolver_Worktree_MainCheckout (0.21s)
+=== RUN   TestExecGitResolver_Worktree_Subdir
+--- PASS: TestExecGitResolver_Worktree_Subdir (0.47s)
+=== RUN   TestExecGitResolver_Worktree_LinkedWorktreeSubdir
+--- PASS: TestExecGitResolver_Worktree_LinkedWorktreeSubdir (1.35s)
+=== RUN   TestExecGitResolver_UserEmail
+    git_test.go:439: UserEmail not available in this environment: git config --global user.email: exit status 1
+--- SKIP: TestExecGitResolver_UserEmail (0.01s)
+=== RUN   TestExecGitResolver_RemoteURL_NoRemote
+--- PASS: TestExecGitResolver_RemoteURL_NoRemote (0.19s)
+=== RUN   TestExecGitResolver_WalkUpRemoteURL_FirstHop
+    git_test.go:484: remote = "https://github.com/testuser/testrepo.git", want "git@github.com:testuser/testrepo.git"
+--- FAIL: TestExecGitResolver_WalkUpRemoteURL_FirstHop (0.38s)
+=== RUN   TestExecGitResolver_WalkUpRemoteURL_NthHop
+    git_test.go:510: remote = "https://github.com/testuser/testrepo.git", want "git@github.com:testuser/testrepo.git"
+--- FAIL: TestExecGitResolver_WalkUpRemoteURL_NthHop (0.26s)
+=== RUN   TestExecGitResolver_WalkUpRemoteURL_StopsAtRepositoryBoundary
+    git_test.go:581: WalkUpRemoteURL(/home/hatch/workspace/tools/tmp/TestExecGitResolver_WalkUpRemoteURL_StopsAtRepositoryBoundary4054802339/001) = "https://github.com/testuser/testrepo.git", want "git@github.com:testuser/testrepo.git"
+    git_test.go:581: WalkUpRemoteURL(/home/hatch/workspace/tools/tmp/TestExecGitResolver_WalkUpRemoteURL_StopsAtRepositoryBoundary4054802339/001/a/b) = "https://github.com/testuser/testrepo.git", want "git@github.com:testuser/testrepo.git"
+--- FAIL: TestExecGitResolver_WalkUpRemoteURL_StopsAtRepositoryBoundary (0.65s)
+=== RUN   TestExecGitResolver_WalkUpRemoteURL_NoRemoteAnywhere
+--- PASS: TestExecGitResolver_WalkUpRemoteURL_NoRemoteAnywhere (0.43s)
+=== RUN   TestExecGitResolver_WalkUpRemoteURL_ContextCancelled
+--- PASS: TestExecGitResolver_WalkUpRemoteURL_ContextCancelled (0.00s)
+=== RUN   TestResolveGitRemoteAttribution
+=== RUN   TestResolveGitRemoteAttribution/recorded_branch_tracks_non-origin
+=== RUN   TestResolveGitRemoteAttribution/checkout_falls_back_to_origin
+    git_attribution_test.go:70: got ("https://github.com/testuser/testrepo.git", ""), want ("git@github.com:testuser/testrepo.git", "")
+=== RUN   TestResolveGitRemoteAttribution/provider_remote_remains_authoritative
+=== RUN   TestResolveGitRemoteAttribution/recorded_untracked_branch_ignores_checkout_upstream
+    git_attribution_test.go:70: got ("https://github.com/testuser/testrepo.git", ""), want ("git@github.com:testuser/testrepo.git", "")
+=== RUN   TestResolveGitRemoteAttribution/recorded_untracked_branch_falls_back_to_path
+=== RUN   TestResolveGitRemoteAttribution/local_recorded_upstream_falls_back_to_origin
+    git_attribution_test.go:70: got ("https://github.com/testuser/testrepo.git", ""), want ("git@github.com:testuser/testrepo.git", "")
+--- FAIL: TestResolveGitRemoteAttribution (2.97s)
+    --- PASS: TestResolveGitRemoteAttribution/recorded_branch_tracks_non-origin (0.58s)
+    --- FAIL: TestResolveGitRemoteAttribution/checkout_falls_back_to_origin (0.57s)
+    --- PASS: TestResolveGitRemoteAttribution/provider_remote_remains_authoritative (0.17s)
+    --- FAIL: TestResolveGitRemoteAttribution/recorded_untracked_branch_ignores_checkout_upstream (0.48s)
+    --- PASS: TestResolveGitRemoteAttribution/recorded_untracked_branch_falls_back_to_path (0.73s)
+    --- FAIL: TestResolveGitRemoteAttribution/local_recorded_upstream_falls_back_to_origin (0.42s)
+=== RUN   TestExecGitResolver_RepositoryIdentityErrorIsActionable
+=== PAUSE TestExecGitResolver_RepositoryIdentityErrorIsActionable
+=== CONT  TestExecGitResolver_RepositoryIdentityErrorIsActionable
+--- PASS: TestExecGitResolver_RepositoryIdentityErrorIsActionable (0.00s)
+FAIL
+FAIL	github.com/peasant-labs/peasant/internal/ingest	8.986s
+FAIL
+GO_TEST_EXIT=1
