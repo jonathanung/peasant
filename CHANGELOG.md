@@ -7,6 +7,12 @@ Release, which holds the signed artifacts and checksums.
 
 ## [Unreleased]
 
+### Changed
+- `--port` on `peasant web start`, `web stop` and `open` takes a decimal port
+  from 1 to 65535 and rejects anything else with the valid range. Values were
+  read with Go's base prefixes before, so `0x50` meant port 80 and `080` was
+  octal; now `0x50` is rejected and `080` means port 80.
+
 ## [0.13.4] - 2026-10-28
 
 ### Changed
