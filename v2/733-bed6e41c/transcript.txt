@@ -1,0 +1,123 @@
+TERM environment variable not set.
+================================================================
+ PR #733 - docs(install): fetch the latest release instead
+ of pinning 0.1.0   (issue #694)
+ Proof = execute each guide's own commands, live.
+================================================================
+
+########## BEFORE - base branch: develop ##########
+
+$ git checkout -q develop && git log --oneline -1
+be2bc57f release(v0.13.4): restore canonical transcript host and recorded PR evidence (#774)
+
+$ grep -rn 'VERSION=\|0\.1\.0' docs/install README.md
+docs/install/arch.md:3:Peasant `v0.1.0` is distributed to Arch through the official static Linux release
+docs/install/arch.md:8:> **Availability:** `peasant-bin` is not published for `v0.1.0`. Release candidates
+docs/install/arch.md:15:VERSION=0.1.0
+docs/install/macos.md:16:VERSION=0.1.0
+docs/install/ubuntu.md:20:VERSION=0.1.0                       # the release you want, without the leading "v"
+docs/install/ubuntu.md:39:version comparison upgrades in place. Release-candidate packages (`0.1.0~rc1`) sort
+docs/install/ubuntu.md:40:*older* than their final (`0.1.0`), so an rc upgrades cleanly to the final.
+docs/install/ubuntu.md:59:VERSION=0.1.0
+docs/install/windows.md:19:$Version = '0.1.0'
+docs/install/windows.md:50:$Version = '0.1.0'
+README.md:916:> Distinct from the **`github.com/peasant-labs/schema` module version** (`v0.1.0`, published), which is how
+
+-- ubuntu.md Option B, followed literally (up to download step):
+
+$ sed -n '/## Option B/,/^curl/p' docs/install/ubuntu.md | head -12
+## Option B — raw binary tarball
+
+No package database entry; you manage the binary yourself.
+
+```bash
+VERSION=0.1.0
+ARCH=amd64    # or arm64
+
+curl -fLO "https://github.com/peasant-labs/peasant/releases/download/v${VERSION}/peasant_${VERSION}_linux_${ARCH}.tar.gz"
+
+$ VERSION=0.1.0; ARCH=amd64; echo VERSION=$VERSION
+VERSION=0.1.0
+
+$ URL="https://github.com/peasant-labs/peasant/releases/download/v${VERSION}/peasant_${VERSION}_linux_${ARCH}.tar.gz"; echo $URL
+https://github.com/peasant-labs/peasant/releases/download/v0.1.0/peasant_0.1.0_linux_amd64.tar.gz
+
+$ curl -sIL -o /dev/null -w 'HTTP %{http_code}\n' "$URL"
+HTTP 200
+>> The URL works - and installs peasant 0.1.0, long superseded.
+
+$ gh release view --repo peasant-labs/peasant --json tagName --jq .tagName
+v0.13.4
+>> Latest release today is the tag above; the guide never reaches it.
+
+$ curl -sIL -o /dev/null -w 'windows v0.1.0 zip: HTTP %{http_code}\n' 'https://github.com/peasant-labs/peasant/releases/download/v0.1.0/peasant_0.1.0_windows_amd64.zip'
+windows v0.1.0 zip: HTTP 404
+>> ...and the Windows 0.1.0 asset does not even exist (404).
+
+########## AFTER - PR branch: qa/pr-docs-install-version ##########
+
+$ git checkout -q qa/pr-docs-install-version && git log --oneline -3
+bed6e41c #733 review: fail clearly when the latest-release lookup returns no version
+8fbe8b1b docs(install): fetch the latest release instead of pinning 0.1.0
+be2bc57f release(v0.13.4): restore canonical transcript host and recorded PR evidence (#774)
+
+$ grep -rn 'VERSION=\|0\.1\.0' docs/install README.md
+docs/install/arch.md:15:VERSION=$(curl -fsSL https://api.github.com/repos/peasant-labs/peasant/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')   # latest release; pin one with e.g. VERSION=0.12.0
+docs/install/arch.md:16:: "${VERSION:?could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand}"
+docs/install/macos.md:16:VERSION=$(curl -fsSL https://api.github.com/repos/peasant-labs/peasant/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')   # latest release; pin one with e.g. VERSION=0.12.0
+docs/install/macos.md:17:: "${VERSION:?could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand}"
+docs/install/ubuntu.md:20:VERSION=$(curl -fsSL https://api.github.com/repos/peasant-labs/peasant/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')   # latest release; pin one with e.g. VERSION=0.12.0
+docs/install/ubuntu.md:21:: "${VERSION:?could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand}"
+docs/install/ubuntu.md:40:version comparison upgrades in place. Release-candidate packages (`0.1.0~rc1`) sort
+docs/install/ubuntu.md:41:*older* than their final (`0.1.0`), so an rc upgrades cleanly to the final.
+docs/install/ubuntu.md:60:VERSION=$(curl -fsSL https://api.github.com/repos/peasant-labs/peasant/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')   # latest release; pin one with e.g. VERSION=0.12.0
+docs/install/ubuntu.md:61:: "${VERSION:?could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand}"
+README.md:916:> Distinct from the **`github.com/peasant-labs/schema` module version** (`v0.1.0`, published), which is how
+>> No VERSION=0.1.0 pins left. Only the rc-sorting example
+>> (0.1.0~rc1 in ubuntu.md) remains - intentional, not a pin.
+
+-- the PR guide's own version-resolution snippet, run live:
+
+$ sed -n '/## Option B/,/^ARCH/p' docs/install/ubuntu.md | head -10
+## Option B — raw binary tarball
+
+No package database entry; you manage the binary yourself.
+
+```bash
+VERSION=$(curl -fsSL https://api.github.com/repos/peasant-labs/peasant/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')   # latest release; pin one with e.g. VERSION=0.12.0
+: "${VERSION:?could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand}"
+ARCH=amd64    # or arm64
+
+$ VERSION=$(curl -fsSL https://api.github.com/repos/peasant-labs/peasant/releases/latest | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+
+$ : "${VERSION:?could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand}"
+
+$ ARCH=amd64; echo "VERSION=$VERSION ARCH=$ARCH"
+VERSION=0.13.4 ARCH=amd64
+
+$ URL="https://github.com/peasant-labs/peasant/releases/download/v${VERSION}/peasant_${VERSION}_linux_${ARCH}.tar.gz"; echo $URL
+https://github.com/peasant-labs/peasant/releases/download/v0.13.4/peasant_0.13.4_linux_amd64.tar.gz
+
+$ curl -sIL -o /dev/null -w 'tar.gz: HTTP %{http_code}\n' "$URL"
+tar.gz: HTTP 200
+
+$ curl -sIL -o /dev/null -w '.deb:   HTTP %{http_code}\n' "https://github.com/peasant-labs/peasant/releases/download/v${VERSION}/peasant_${VERSION}_linux_${ARCH}.deb"
+.deb:   HTTP 200
+
+$ gh release view --repo peasant-labs/peasant --json assets --jq '.assets[].name' | grep linux_amd64
+peasant_0.13.4_linux_amd64.deb
+peasant_0.13.4_linux_amd64.rpm
+peasant_0.13.4_linux_amd64.tar.gz
+>> Constructed asset names match the real release assets exactly.
+
+-- guard behaviour when the lookup returns no version (rate-limit payload):
+
+$ ( VERSION=$(printf '%s' '{"message":"API rate limit exceeded"}' | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p'); : "${VERSION:?could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand}" )
+/home/hatch/workspace/pr-evidence/pr-733-media/demo.sh: line 4: VERSION: could not read the latest release (GitHub API rate limit?); set VERSION=0.12.0 by hand
+>> Guard exit code: 1 - clear message, no broken download URL is built.
+
+================================================================
+ BEFORE: guide pins VERSION=0.1.0 (stale; Windows asset 404)
+ AFTER:  guide resolves the latest release live (shown above)
+         and HEAD-checks 200; failure is guarded with a message.
+================================================================
