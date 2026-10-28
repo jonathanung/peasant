@@ -1,0 +1,41 @@
+generated 4 transcripts (2 parents + 2 subagents sharing agent-a1b2c3d) under /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after
+=== after: peasant harvest --verbose (binary: /home/hatch/workspace/pr-evidence/pr-712-evidence/bin/peasant-after) ===
+notice: no config found at /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.config/peasant/config.yaml — using defaults. Run 'peasant kickstart' to configure.
+warning: claude-code discovery skipped /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.claude/projects/-home-qa-delta/22222222-0000-4000-8000-000000000002/subagents/agent-a1b2c3d.jsonl: subagent left out: another session's subagent has the same agent id
+Output:  /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.local/share/peasant/peasant-sync
+Config:  /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.config/peasant/config.yaml
+Sources:
+   - codex:    /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.codex/sessions
+   - cursor:   /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.cursor/projects
+   - pi:       /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.pi/agent/sessions
+   - claude-code: /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.claude/projects
+   - opencode: /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.local/share/opencode
+
+peasant harvest: 3 sessions
+   - 0     new
+   - 0     updated
+   - 0     unchanged
+   - 0     errors
+   - 3     active (included)
+duration: 1s
+
+index: 3 indexed, 3 computed (metadata_version=12)
+harvester targets:
+  claude-code: adapter_version=3 indexer_version=22 index_version=2
+  codex: adapter_version=3 indexer_version=20 index_version=2
+  cursor: adapter_version=1 indexer_version=18 index_version=1
+  opencode: adapter_version=4 indexer_version=19 index_version=2
+  pi: adapter_version=3 indexer_version=18 index_version=1
+  strike: adapter_version=1 indexer_version=17 index_version=1
+
+  ACTIVE     claude-code 22222222-0000-4000-8000-000000000002  ->  /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.local/share/peasant/peasant-sync/__peasant-untracked__--5bcc0eef--qa/22222222-0000-4000-8000-000000000002
+  ACTIVE     claude-code 11111111-0000-4000-8000-000000000001  ->  /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.local/share/peasant/peasant-sync/__peasant-untracked__--5bcc0eef--qa/11111111-0000-4000-8000-000000000001
+                          agent-a1b2c3d  ->  /home/hatch/workspace/pr-evidence/pr-712-evidence/home-after/.local/share/peasant/peasant-sync/__peasant-untracked__--5bcc0eef--qa/11111111-0000-4000-8000-000000000001/subagents/agent-a1b2c3d
+--- harvest exit: 0 ---
+=== after: sessions in DB ===
+11111111-0000-4000-8000-000000000001|-
+22222222-0000-4000-8000-000000000002|-
+agent-a1b2c3d|11111111-0000-4000-8000-000000000001
+after total sessions stored: 3
+after agent-* sessions stored: 1
+source transcripts on disk: 4 (2 parents + 2 subagents, both subagents named agent-a1b2c3d)
