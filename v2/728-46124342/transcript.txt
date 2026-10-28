@@ -1,0 +1,63 @@
+============================================================
+BEFORE — develop be2bc57f (binary: peasant-before)
+============================================================
+$ peasant models sync --dry-run </dev/null
+This will sync model data.
+Source: models.dev API (https://models.dev)
+Purpose: Update local model reference data with pricing and capabilities
+
+Continue? [y/N] Error: read confirmation: EOF
+Usage:
+  peasant models sync [flags]
+
+Flags:
+      --dry-run           Show count without writing
+  -h, --help              help for sync
+      --provider string   Only sync models from this provider
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/home/hatch/workspace/pr-evidence/pr-728/home-before/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+exit=1
+
+$ peasant models sync --yes </dev/null
+Error: unknown flag: --yes
+Usage:
+  peasant models sync [flags]
+
+Flags:
+      --dry-run           Show count without writing
+  -h, --help              help for sync
+      --provider string   Only sync models from this provider
+
+Global Flags:
+      --config string       Path to config file (default: ~/.config/peasant/config.yaml) (default "/home/hatch/workspace/pr-evidence/pr-728/home-before/.config/peasant/config.yaml")
+      --config-dir string   Override the config directory (default: $XDG_CONFIG_HOME or ~/.config); config lives under <config-dir>/peasant
+      --data-dir string     Override the data directory (default: $XDG_DATA_HOME or ~/.local/share); the DB + peasant-sync live under <data-dir>/peasant
+      --state-dir string    Override the state directory (default: $XDG_STATE_HOME or ~/.local/state); logs/PID live under <state-dir>/peasant
+  -v, --version             Print the version
+
+exit=1
+
+============================================================
+AFTER — PR #728 rebased head 46124342, on develop be2bc57f (binary: peasant-after)
+============================================================
+$ peasant models sync --dry-run </dev/null
+This will sync model data.
+Source: models.dev API (https://models.dev)
+Purpose: Update local model reference data with pricing and capabilities
+peasant models sync: 8886 model(s) would be synced (dry-run)
+exit=0
+
+$ peasant models sync --yes </dev/null
+This will sync model data.
+Source: models.dev API (https://models.dev)
+Purpose: Update local model reference data with pricing and capabilities
+peasant models sync: 8886 model(s) synced
+exit=0
+
+DONE
