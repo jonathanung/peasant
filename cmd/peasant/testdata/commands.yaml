@@ -69,7 +69,7 @@ commands:
         output_contains: ["harvest"]
       - args: ["--source-harness=nosuchprovider"]
         expect_error: true
-        error_contains: ["--source-harness requires --source-path"]
+        error_contains: ["unknown harness"]
 
   - name: Web
     use: web
@@ -182,6 +182,9 @@ commands:
     aliases: ["ftue"]
     flags:
       - name: reset
+        type: bool
+        default: "false"
+      - name: confirm
         type: bool
         default: "false"
 
