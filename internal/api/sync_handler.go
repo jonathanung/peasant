@@ -1520,9 +1520,10 @@ func (h *syncHandler) handleSyncIngestStatus(w http.ResponseWriter, _ *http.Requ
 
 	if result != nil {
 		resp["result"] = map[string]any{
-			"new":       result.Summary.New,
-			"updated":   result.Summary.Updated,
-			"unchanged": result.Summary.Unchanged,
+			"new":     result.Summary.New,
+			"updated": result.Summary.Updated,
+			// Local API contract unchanged: excluded sessions stay in "unchanged".
+			"unchanged": result.Summary.Unchanged + result.Summary.ExcludedBySelection,
 			"errors":    result.Summary.Errors,
 			"indexed":   result.Summary.Indexed,
 			"computed":  result.Summary.Computed,
