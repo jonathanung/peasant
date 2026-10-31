@@ -186,13 +186,13 @@ func serveSyncSessions(w http.ResponseWriter, r *http.Request, db syncSessionRea
 	w.Header().Set(defaults.HeaderContentType, defaults.ContentJSON.String())
 
 	if db == nil {
-		http.Error(w, `{"error":"store not available"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "store not available")
 		return
 	}
 
 	entries, err := loadSyncEntries(r.Context(), db)
 	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"query sessions: %s"}`, err), http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("query sessions: %s", err))
 		return
 	}
 
@@ -305,7 +305,7 @@ func (h *syncHandler) handleSyncRedactions(w http.ResponseWriter, r *http.Reques
 
 	sessionID := r.URL.Query().Get("session_id")
 	if sessionID == "" {
-		http.Error(w, `{"error":"missing session_id parameter"}`, http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "missing session_id parameter")
 		return
 	}
 
@@ -336,7 +336,7 @@ func (h *syncHandler) handleSyncRedactions(w http.ResponseWriter, r *http.Reques
 	}
 
 	if h.store == nil {
-		http.Error(w, `{"error":"store not available"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "store not available")
 		return
 	}
 
@@ -1106,14 +1106,14 @@ func (h *syncHandler) handleSyncIngest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(defaults.HeaderContentType, defaults.ContentJSON.String())
 
 	if h.currentConfig() == nil {
-		http.Error(w, `{"error":"config not available"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "config not available")
 		return
 	}
 
 	h.mu.Lock()
 	if h.ingestStatus == "running" || h.sessionIngest {
 		h.mu.Unlock()
-		http.Error(w, `{"error":"ingest already running"}`, http.StatusConflict)
+		writeJSONError(w, http.StatusConflict, "ingest already running")
 		return
 	}
 
@@ -1509,9 +1509,10 @@ func (h *syncHandler) handleSyncIngestStatus(w http.ResponseWriter, _ *http.Requ
 
 	if result != nil {
 		resp["result"] = map[string]any{
-			"new":       result.Summary.New,
-			"updated":   result.Summary.Updated,
-			"unchanged": result.Summary.Unchanged,
+			"new":     result.Summary.New,
+			"updated": result.Summary.Updated,
+			// Local API contract unchanged: excluded sessions stay in "unchanged".
+			"unchanged": result.Summary.Unchanged + result.Summary.ExcludedBySelection,
 			"errors":    result.Summary.Errors,
 			"indexed":   result.Summary.Indexed,
 			"computed":  result.Summary.Computed,

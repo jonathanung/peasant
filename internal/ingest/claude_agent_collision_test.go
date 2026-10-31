@@ -67,3 +67,34 @@ func TestClaudeDiscoveryReportsAgentIDCollisionAcrossParents(t *testing.T) {
 		t.Fatalf("the subagent left out by the agent-id collision was not reported: %+v", adapter.DiscoveryDiagnostics())
 	}
 }
+
+// TestClaudeDiscoveryStaysSilentForACopyUnderOneParent proves the expected case
+// raises no warning: a workflow copy of a subagent under the same parent.
+func TestClaudeDiscoveryStaysSilentForACopyUnderOneParent(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	const sid = "33333333-0000-4000-8000-000000000003"
+	line := func(uuid, extra string) string {
+		return `{"type":"user","sessionId":"` + sid + `","uuid":"` + uuid + `","cwd":"/tmp/qa"` + extra + `,"timestamp":"2026-10-01T10:00:00Z","message":{"role":"user","content":"hello"}}` + "\n"
+	}
+	sub := `,"isSidechain":true,"agentId":"a1b2c3d"`
+	for path, body := range map[string]string{
+		filepath.Join(root, "-tmp-qa", sid+".jsonl"):                                                 line("u1", ""),
+		filepath.Join(root, "-tmp-qa", sid, "subagents", "agent-a1b2c3d.jsonl"):                      line("s1", sub),
+		filepath.Join(root, "-tmp-qa", sid, "subagents", "workflows", "wf_1", "agent-a1b2c3d.jsonl"): line("s2", sub),
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	adapter := ingest.NewClaudeAdapter(&ingest.OSFileSystem{}, testutil.DefaultGitResolver(), salt.Salt{})
+	if _, err := adapter.Discover(context.Background(), ingest.SourceConfig{Enabled: true, Paths: []ingest.ResolvedPath{ingest.ResolvedPath(root)}}); err != nil {
+		t.Fatal(err)
+	}
+	if diagnostics := adapter.DiscoveryDiagnostics(); len(diagnostics) != 0 {
+		t.Fatalf("a copy under one parent raised diagnostics: %+v", diagnostics)
+	}
+}

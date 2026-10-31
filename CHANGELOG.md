@@ -7,6 +7,40 @@ Release, which holds the signed artifacts and checksums.
 
 ## [Unreleased]
 
+### Fixed
+- A Claude subagent left out because another session's subagent has the same
+  agent id now raises a `claude_agent_id_collision` warning naming both, in the
+  summary and in `discoveryDiagnostics`. The subagent is still not stored.
+- Claude discovery skips harness-injected `isMeta` notices when choosing session titles. Existing cached transcripts are read again once to refresh their titles.
+
+### Fixed
+- `--data-dir` now keeps default transcript copies beside its database under
+  `<data-dir>/peasant/peasant-sync`, including web publication and reindexing.
+  A configured custom output path is preserved. Existing copies are not moved;
+  installations that previously used `--data-dir` can run `harvest --force`
+  with that same data directory once to recreate them in the corrected location.
+### Changed
+- The local web commands accept decimal TCP ports from 1 to 65535 and reject
+  invalid values before starting a server. Base-prefixed values such as `0x50`
+  are refused; `080` means port 80.
+- `peasant harvest --json`: `Summary.Unchanged` no longer counts sessions
+  the saved selection leaves out. They are counted in a new
+  `Summary.ExcludedBySelection` key, and each such session in `Sessions`
+  carries a new `excludedBySelection: true` key; its `status` stays
+  `"unchanged"`, so readers of `status` see no change. Scripts that add up
+  `Unchanged` to get the total must add `ExcludedBySelection`. The text
+  summary and kickstart's completion screen show "N excluded by
+  selection". The local web API's sync status is unchanged: its
+  `unchanged` count still includes excluded sessions.
+
+## [0.13.5] - 2026-10-29
+
+### Fixed
+- Transcript search highlights matches and reveals results inside nested output.
+- Mermaid diagrams accept safe line breaks, and tool disclosures start their
+  transitions from the beginning.
+- Fixed-width readers adapt to the space available beside the sidebars.
+
 ## [0.13.4] - 2026-10-28
 
 ### Changed
@@ -935,6 +969,7 @@ Second public release. See the
 Initial public release. See the
 [v0.1.0 release](https://github.com/peasant-labs/peasant/releases/tag/v0.1.0).
 
+[0.13.5]: https://github.com/peasant-labs/peasant/releases/tag/v0.13.5
 [0.13.4]: https://github.com/peasant-labs/peasant/releases/tag/v0.13.4
 [0.13.3]: https://github.com/peasant-labs/peasant/releases/tag/v0.13.3
 [0.11.1]: https://github.com/peasant-labs/peasant/releases/tag/v0.11.1
