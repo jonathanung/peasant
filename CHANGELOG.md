@@ -7,7 +7,26 @@ Release, which holds the signed artifacts and checksums.
 
 ## [Unreleased]
 
+### Changed
+- `sessions list` shows main sessions only by default, so a script that counts
+  its rows now sees fewer. `--include-subagents` lists every session, and
+  `--session <id>` still finds a subagent session. Each `--json` row now states
+  `parentSessionId`, `parentUnresolved` and `rootSessionId`.
+
 ### Fixed
+- Only one writing harvest runs at a time per data directory. Two harvests
+  started together on one data dir used to race each other's index
+  replacement. Now `peasant harvest`, `harvest logs`, `harvest index` and
+  kickstart's import take a lock file (`harvest.lock` in the data
+  directory). A second one waits for the first to finish: the CLI logs
+  "another harvest is running on this data dir; waiting for it to finish",
+  kickstart shows the same reason on its progress screen, and Ctrl+C stops
+  the wait. The web server does not wait: after one 250ms attempt, its
+  ingest and re-index routes refuse with "another harvest is running"
+  (HTTP 409 `ingest_running` for re-indexing one session). A dry run takes
+  no lock. Other commands that write the data directory, such as `prune`,
+  `redact` and `kickstart --reset`, do not take this lock; do not run them
+  during a harvest.
 - A Claude subagent left out because another session's subagent has the same
   agent id now raises a `claude_agent_id_collision` warning naming both, in the
   summary and in `discoveryDiagnostics`. The subagent is still not stored.

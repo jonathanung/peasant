@@ -289,6 +289,11 @@ type indexedMeta struct {
 // Pipeline composes all ingest stages with dependency injection.
 // It is the concrete implementation of Discoverer, DiffResolver, and OrphanCleaner.
 type Pipeline struct {
+	// runLockPath is the WithRunLock lock file; empty takes no lock.
+	// runLockNoWait fails a held lock after one runLockPoll attempt (WithRunLockNoWait).
+	runLockPath   string
+	runLockNoWait bool
+
 	fs       FileSystem
 	git      GitResolver
 	adapters map[Harness]AdapterFactory
@@ -736,6 +741,11 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("pipeline start: %w", err)
 	}
+	unlock, err := p.lockRun(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	// REINDEX mode: alternative code path that scans peasant-sync output
 	// instead of discovering from source providers.
