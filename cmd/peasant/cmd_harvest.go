@@ -1536,6 +1536,13 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 					suffix)
 			}
 			printReason(sr.Error, "")
+			// A failed subagent has no row of its own here, so its reason
+			// names it.
+			for _, sub := range subagentsByParent[sr.SessionID] {
+				if sub.Error != nil {
+					printReason(fmt.Errorf("subagent %s: %w", sub.SessionID, sub.Error), "")
+				}
+			}
 		}
 	}
 

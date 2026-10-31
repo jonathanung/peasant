@@ -73,3 +73,20 @@ func TestVerboseSummaryPutsEachReasonUnderItsRow(t *testing.T) {
 		}
 	}
 }
+
+// TestDefaultSummaryNamesAFailedSubagentsReason proves a failed subagent, which
+// has no row of its own in the default summary, still says why it failed.
+func TestDefaultSummaryNamesAFailedSubagentsReason(t *testing.T) {
+	t.Parallel()
+	root := ingest.SessionID("eeeeeeee-0000-4000-8000-000000000003")
+	child := ingest.SessionID("eeeeeeee-0000-4000-8000-000000000004")
+	result := &ingest.PipelineResult{Sessions: []ingest.SessionResult{
+		{SessionID: root, Harness: ingest.HarnessClaudeCode, Status: ingest.DiffNew},
+		{SessionID: child, Harness: ingest.HarnessClaudeCode, ParentUUID: &root, Error: errors.New("child reason")},
+	}}
+	var b strings.Builder
+	printSummary(&b, result, false, false, "", "", nil, 0)
+	if !strings.Contains(b.String(), "subagent "+string(child)+": child reason") {
+		t.Fatalf("default summary does not say why the subagent failed:\n%s", b.String())
+	}
+}
