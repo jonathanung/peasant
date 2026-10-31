@@ -1362,6 +1362,11 @@ func (p Program) doneContent() string {
 		lines = append(lines, styles.Base.Render(fmt.Sprintf(
 			"local import completed: %d new, %d updated, %d unchanged, %d errors",
 			p.ingestRes.New, p.ingestRes.Updated, p.ingestRes.Unchanged, p.ingestRes.Errors)))
+		// Sessions the selection kept out are not unchanged; without this
+		// line they would drop out of every count on this screen.
+		if p.ingestRes.ExcludedBySelection > 0 {
+			lines = append(lines, styles.Base.Render(fmt.Sprintf("%d excluded by selection", p.ingestRes.ExcludedBySelection)))
+		}
 	} else {
 		lines = append(lines, styles.Muted.Render("local import was not run"))
 	}
