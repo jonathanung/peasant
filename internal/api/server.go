@@ -280,21 +280,42 @@ func (s *Server) Listen(ctx context.Context) error {
 	mux.HandleFunc("PATCH "+defaults.RouteSettings.String(), settingsRoutes.handleUpdateSetting)
 
 	// Static assets or dev proxy
+	var fallback http.Handler
 	if s.cfg.DevMode && s.cfg.DevProxyAddr != "" {
 		proxyURL, err := url.Parse("http://" + s.cfg.DevProxyAddr)
 		if err != nil {
 			return fmt.Errorf("invalid dev proxy address: %w", err)
 		}
-		proxy := httputil.NewSingleHostReverseProxy(proxyURL)
-		mux.Handle("/", proxy)
+		fallback = httputil.NewSingleHostReverseProxy(proxyURL)
 	} else if s.cfg.WebAssets != nil {
-		mux.Handle("/", &spaHandler{fs: http.FS(s.cfg.WebAssets)})
+		fallback = &spaHandler{fs: http.FS(s.cfg.WebAssets)}
 	} else {
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fallback = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set(defaults.HeaderContentType, defaults.ContentHTML.String())
 			w.Write(webDashboardNotBundledHTML)
 		})
 	}
+	mux.Handle("/", fallback)
+
+	// Any other path under /api/ is a client mistake: answer it as the API
+	// does, with a JSON 404, rather than letting the dashboard fallback return
+	// its HTML page with 200. OPTIONS keeps reaching the fallback as before,
+	// so preflight handling does not change here.
+	mux.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			fallback.ServeHTTP(w, r)
+			return
+		}
+		if allow := allowedAPIMethods(mux, r); len(allow) > 0 {
+			w.Header().Set(defaults.HeaderAllow, strings.Join(allow, ", "))
+			writeJSONError(w, http.StatusMethodNotAllowed, fmt.Sprintf("%s does not serve %s; it serves %s", r.URL.Path, r.Method, strings.Join(allow, ", ")))
+			return
+		}
+		writeJSONError(w, http.StatusNotFound, fmt.Sprintf("no API route serves %s %s; check the path against the routes this server version exposes", r.Method, r.URL.Path))
+	})
+	// A bare /api keeps the dashboard page, as before the /api/ handler
+	// existed, instead of the mux's redirect to /api/.
+	mux.Handle("/api", fallback)
 
 	s.server = &http.Server{
 		Handler: requestLogger(localRequestGuard(mux)),
@@ -376,18 +397,18 @@ func (s *Server) handleMockConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(defaults.HeaderContentType, defaults.ContentJSON.String())
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
 	if s.cfg.MockConfig == nil {
-		http.Error(w, `{"error":"mock config not available"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "mock config not available")
 		return
 	}
 
 	data, err := json.Marshal(s.cfg.MockConfig)
 	if err != nil {
-		http.Error(w, `{"error":"failed to marshal config"}`, http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "failed to marshal config")
 		return
 	}
 	w.Write(data)
@@ -407,20 +428,13 @@ func (s *Server) handleMockConfig(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleUICapabilities(w http.ResponseWriter, _ *http.Request) {
 	resp, err := newUICapabilitiesResponse(uiCapabilitiesForConfig(s.cfg))
 	if err != nil {
-		http.Error(
-			w,
-			fmt.Sprintf(
-				`{"error":"failed to build UI capabilities advertisement: %s"}`,
-				err.Error(),
-			),
-			http.StatusInternalServerError,
-		)
+		writeJSONError(w, http.StatusInternalServerError, "failed to build UI capabilities advertisement: "+err.Error())
 		return
 	}
 
 	data, err := json.Marshal(resp)
 	if err != nil {
-		http.Error(w, `{"error":"failed to marshal UI capabilities response"}`, http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "failed to marshal UI capabilities response")
 		return
 	}
 
@@ -439,24 +453,24 @@ func (s *Server) handleSessionDetail(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(defaults.HeaderContentType, defaults.ContentJSON.String())
 
 	if s.cfg.Provider == nil {
-		http.Error(w, `{"error":"data provider not available"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "data provider not available")
 		return
 	}
 
 	sessionID := r.PathValue("id")
 	if sessionID == "" {
-		http.Error(w, `{"error":"missing session ID"}`, http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "missing session ID")
 		return
 	}
 	if _, err := ingest.NewSessionID(sessionID); err != nil {
-		http.Error(w, `{"error":"invalid session ID"}`, http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "invalid session ID")
 		return
 	}
 
 	detail, err := SessionDetailReadForProvider(r.Context(), s.cfg.Provider, sessionID)
 	if err != nil {
 		if errors.Is(err, ErrSessionNotFound) {
-			http.Error(w, `{"error":"session not found"}`, http.StatusNotFound)
+			writeJSONError(w, http.StatusNotFound, "session not found")
 			return
 		}
 		writeDiscoveryError(w, "failed to load session detail", err)
@@ -465,7 +479,7 @@ func (s *Server) handleSessionDetail(w http.ResponseWriter, r *http.Request) {
 
 	data, err := json.Marshal(detail)
 	if err != nil {
-		http.Error(w, `{"error":"failed to marshal session detail"}`, http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "failed to marshal session detail")
 		return
 	}
 	w.Write(data)
@@ -475,12 +489,12 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(defaults.HeaderContentType, defaults.ContentJSON.String())
 
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+		writeJSONError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
 
 	if s.cfg.Provider == nil {
-		http.Error(w, `{"error":"data provider not available"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "data provider not available")
 		return
 	}
 
@@ -512,7 +526,7 @@ func (s *Server) handleSessions(w http.ResponseWriter, r *http.Request) {
 	}
 	data, err := json.Marshal(sessionsEnvelope{Sessions: summaries})
 	if err != nil {
-		http.Error(w, `{"error":"failed to marshal sessions"}`, http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "failed to marshal sessions")
 		return
 	}
 	w.Write(data)
@@ -529,7 +543,7 @@ func (s *Server) handleSessionSummariesByID(w http.ResponseWriter, r *http.Reque
 	w.Header().Set(defaults.HeaderContentType, defaults.ContentJSON.String())
 
 	if s.cfg.Provider == nil {
-		http.Error(w, `{"error":"data provider not available"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "data provider not available")
 		return
 	}
 
@@ -560,7 +574,7 @@ func (s *Server) handleSessionSummariesByID(w http.ResponseWriter, r *http.Reque
 	}
 	data, err := json.Marshal(sessionsEnvelope{Sessions: summaries})
 	if err != nil {
-		http.Error(w, `{"error":"failed to marshal sessions"}`, http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "failed to marshal sessions")
 		return
 	}
 	w.Write(data)
@@ -569,24 +583,24 @@ func (s *Server) handleSessionSummariesByID(w http.ResponseWriter, r *http.Reque
 func (s *Server) handleSessionTranscript(w http.ResponseWriter, r *http.Request) {
 	sessionID := r.PathValue("id")
 	if sessionID == "" {
-		http.Error(w, `{"error":"missing session ID"}`, http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "missing session ID")
 		return
 	}
 
 	if s.cfg.Store == nil {
-		http.Error(w, `{"error":"store not available"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "store not available")
 		return
 	}
 
 	sid, sidErr := ingest.NewSessionID(sessionID)
 	if sidErr != nil {
-		http.Error(w, `{"error":"invalid session ID"}`, http.StatusBadRequest)
+		writeJSONError(w, http.StatusBadRequest, "invalid session ID")
 		return
 	}
 
 	hostSlug, parentID, err := s.cfg.Store.LookupSessionLocation(r.Context(), sid)
 	if err != nil || hostSlug == "" {
-		http.Error(w, `{"error":"session not found"}`, http.StatusNotFound)
+		writeJSONError(w, http.StatusNotFound, "session not found")
 		return
 	}
 
@@ -619,8 +633,7 @@ func (s *Server) handleSessionTranscript(w http.ResponseWriter, r *http.Request)
 	if transcriptPath == "" {
 		// The database still holds the session; only the saved file is gone.
 		// Name where it was looked for and the command that saves it again.
-		body := fmt.Sprintf(`{"error":"the saved transcript file for session %s is missing from %s; the session is still stored in the database; run peasant harvest --force --session %s to save it again"}`, sessionID, sessionDir, sessionID)
-		http.Error(w, body, http.StatusNotFound)
+		writeJSONError(w, http.StatusNotFound, fmt.Sprintf("the saved transcript file for session %s is missing from %s; the session is still stored in the database; run peasant harvest --force --session %s to save it again", sessionID, sessionDir, sessionID))
 		return
 	}
 
@@ -634,14 +647,14 @@ func (s *Server) handleReviewSessions(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(defaults.HeaderContentType, defaults.ContentJSON.String())
 
 	if s.cfg.Store == nil {
-		http.Error(w, `{"error":"store not available"}`, http.StatusServiceUnavailable)
+		writeJSONError(w, http.StatusServiceUnavailable, "store not available")
 		return
 	}
 
 	pool := s.cfg.Store.Pool()
 	conn, err := pool.Take(r.Context())
 	if err != nil {
-		http.Error(w, `{"error":"db connection failed"}`, http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, "db connection failed")
 		return
 	}
 	defer pool.Put(conn)
@@ -682,7 +695,7 @@ func (s *Server) handleReviewSessions(w http.ResponseWriter, r *http.Request) {
 	var rows []reviewRow
 	stmt, _, stmtErr := conn.PrepareTransient(query)
 	if stmtErr != nil {
-		http.Error(w, fmt.Sprintf(`{"error":"query failed: %s"}`, stmtErr), http.StatusInternalServerError)
+		writeJSONError(w, http.StatusInternalServerError, fmt.Sprintf("query failed: %s", stmtErr))
 		return
 	}
 	defer stmt.Finalize()
@@ -968,4 +981,22 @@ func (r *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 		return hj.Hijack()
 	}
 	return nil, nil, fmt.Errorf("underlying ResponseWriter does not implement http.Hijacker")
+}
+
+// apiRouteMethods are the methods allowedAPIMethods probes.
+var apiRouteMethods = []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete}
+
+// allowedAPIMethods lists the methods a registered API route serves for the
+// request's path, or none when only the /api/ catch-all matches it. The
+// catch-all wins over the mux's own 405 because it matches every method.
+func allowedAPIMethods(mux *http.ServeMux, r *http.Request) []string {
+	var allow []string
+	for _, method := range apiRouteMethods {
+		probe := r.Clone(r.Context())
+		probe.Method = method
+		if _, pattern := mux.Handler(probe); pattern != "/api/" && pattern != "/" && pattern != "" {
+			allow = append(allow, method)
+		}
+	}
+	return allow
 }
