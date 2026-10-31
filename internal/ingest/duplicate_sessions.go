@@ -19,8 +19,8 @@ func duplicateCheckedHarness(h Harness) bool {
 // Processing both files stored one row mixed from the two transcripts and
 // raced their index writes while the run reported no errors. Neither file can
 // be preferred safely, so the id fails until one file is moved aside. A
-// session the selection rejects is left for the selection to skip.
-func refuseDuplicateSessionIDs(fsys FileSystem, sessions []DiscoveredSession, selected func(DiscoveredSession) bool) ([]DiscoveredSession, []SessionResult) {
+// session outside the run's scope is left for the FILTER stage to skip.
+func refuseDuplicateSessionIDs(fsys FileSystem, sessions []DiscoveredSession, inScope func(DiscoveredSession) bool) ([]DiscoveredSession, []SessionResult) {
 	type key struct {
 		harness Harness
 		id      SessionID
@@ -36,14 +36,14 @@ func refuseDuplicateSessionIDs(fsys FileSystem, sessions []DiscoveredSession, se
 		}
 		paths[k][s.SourcePath] = s
 	}
-	// The selection is asked only about claims on a duplicated id, so a run
+	// The scope is asked only about claims on a duplicated id, so a run
 	// without duplicates calls it exactly as before.
 	for k, claims := range paths {
-		if len(claims) < 2 || selected == nil {
+		if len(claims) < 2 || inScope == nil {
 			continue
 		}
 		for p, s := range claims {
-			if s.ParentUUID == nil && !selected(s) {
+			if !inScope(s) {
 				delete(claims, p)
 			}
 		}
@@ -79,6 +79,21 @@ func refuseDuplicateSessionIDs(fsys FileSystem, sessions []DiscoveredSession, se
 		})
 	}
 	return kept, refused
+}
+
+// inRunScope reports whether this run would process s: the explicit --session
+// and --since filters, the exact exclusions, and the selection. A subagent is
+// not asked about the selection here: it inherits its parent's decision in the
+// FILTER stage. Without this, a duplicate elsewhere fails a run scoped to one
+// unrelated session, such as `peasant open`.
+func (p *Pipeline) inRunScope(s DiscoveredSession) bool {
+	if !p.includesSession(s.SessionID) || !p.withinRunAge(discoveredSessionStart(s)) {
+		return false
+	}
+	if p.config.SessionExclusionFilter != nil && p.config.SessionExclusionFilter(s) {
+		return false
+	}
+	return s.ParentUUID != nil || p.config.SessionFilter == nil || p.config.SessionFilter(s)
 }
 
 // duplicateSessionError names every file, the newer and the larger one, and

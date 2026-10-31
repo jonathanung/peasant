@@ -1,15 +1,50 @@
 package ingest
 
 import (
+	_ "embed"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
+//go:embed testdata/duplicate_sessions.yaml
+var duplicateSessionFixtureYAML []byte
+
+type duplicateSessionFixture struct {
+	RequiredNames []string `yaml:"required_names"`
+	Cases         []struct {
+		Name       string `yaml:"name"`
+		Harness    string `yaml:"harness"`
+		OutOfScope bool   `yaml:"out_of_scope"`
+		Refused    bool   `yaml:"refused"`
+	} `yaml:"cases"`
+}
+
+func loadDuplicateSessionFixture(t *testing.T) duplicateSessionFixture {
+	t.Helper()
+	var fixture duplicateSessionFixture
+	if err := yaml.Unmarshal(duplicateSessionFixtureYAML, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, 0, len(fixture.Cases))
+	for _, c := range fixture.Cases {
+		names = append(names, c.Name)
+	}
+	for _, required := range fixture.RequiredNames {
+		if !slices.Contains(names, required) {
+			t.Fatalf("fixture lost required case %q", required)
+		}
+	}
+	return fixture
+}
+
 // TestRefuseDuplicateSessionIDsScope proves only file-per-session harnesses
-// are refused, a deselected duplicate is left to the selection, and the
+// are refused, a duplicate outside the run's scope is left alone, and the
 // refusal names the newer and larger file and says not to delete either.
 func TestRefuseDuplicateSessionIDsScope(t *testing.T) {
 	t.Parallel()
@@ -28,25 +63,19 @@ func TestRefuseDuplicateSessionIDsScope(t *testing.T) {
 			{Harness: h, SessionID: "s1", SourcePath: ResolvedPath(big), ModTime: now.Add(-time.Hour)},
 		}
 	}
-	for _, c := range []struct {
-		name     string
-		harness  Harness
-		selected func(DiscoveredSession) bool
-		refused  bool
-	}{
-		{"claude-two-files", HarnessClaudeCode, nil, true},
-		{"codex-two-files", HarnessCodex, nil, true},
-		{"opencode-two-stores", HarnessOpenCode, nil, false},
-		{"cursor-two-paths", HarnessCursor, nil, false},
-		{"claude-deselected", HarnessClaudeCode, func(DiscoveredSession) bool { return false }, false},
-	} {
-		t.Run(c.name, func(t *testing.T) {
+	fixture := loadDuplicateSessionFixture(t)
+	for _, c := range fixture.Cases {
+		var inScope func(DiscoveredSession) bool
+		if c.OutOfScope {
+			inScope = func(DiscoveredSession) bool { return false }
+		}
+		t.Run(c.Name, func(t *testing.T) {
 			t.Parallel()
-			kept, refused := refuseDuplicateSessionIDs(&OSFileSystem{}, pair(c.harness), c.selected)
-			if got := len(refused) == 1; got != c.refused {
-				t.Fatalf("refused = %v, want %v", refused, c.refused)
+			kept, refused := refuseDuplicateSessionIDs(&OSFileSystem{}, pair(Harness(c.Harness)), inScope)
+			if got := len(refused) == 1; got != c.Refused {
+				t.Fatalf("refused = %v, want %v", refused, c.Refused)
 			}
-			if !c.refused {
+			if !c.Refused {
 				if len(kept) != 2 {
 					t.Fatalf("kept %d sessions, want both", len(kept))
 				}

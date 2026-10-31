@@ -779,11 +779,12 @@ func (p *Pipeline) Run(ctx context.Context) (result *PipelineResult, err error) 
 			return nil, fmt.Errorf("pipeline prepare session filter after discovery: %w", err)
 		}
 	}
-	// After the selection is prepared, so a deselected duplicate is skipped
-	// by the selection like any other session instead of failing the run.
-	allSessions, duplicateResults := refuseDuplicateSessionIDs(p.fs, allSessions, p.config.SessionFilter)
+	// After the selection is prepared, so a duplicate this run does not cover
+	// is skipped by the FILTER stage like any other session instead of failing
+	// a run that was scoped to something else.
+	allSessions, duplicateResults := refuseDuplicateSessionIDs(p.fs, allSessions, p.inRunScope)
 	for _, refused := range duplicateResults {
-		p.reportDiagnostic(DiagnosticEntry{ErrorType: "duplicate_session_id", Location: string(refused.Harness) + " " + string(refused.SessionID), Message: refused.Error.Error(), Remediation: "Move one of the files out of the harness directory (keep a copy; it may be the only one) and retry harvest."})
+		p.reportSessionDiagnostic(refused.SessionID, DiagnosticEntry{ErrorType: "duplicate_session_id", Location: string(refused.Harness) + " " + string(refused.SessionID), Message: refused.Error.Error(), Remediation: "Move one of the files out of the harness directory (keep a copy; it may be the only one) and retry harvest."})
 	}
 
 	// Fill in the verdict on every session an EARLIER run stored, before this

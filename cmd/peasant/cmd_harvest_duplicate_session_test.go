@@ -7,6 +7,7 @@ import (
 	"github.com/peasant-labs/peasant/third_party/zombiezen-sqlite/sqlitex"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -16,6 +17,7 @@ type duplicateSessionHarvestFixture struct {
 	dir        string
 	configPath string
 	sessionID  string
+	projects   string
 }
 
 func writeDuplicateSessionHarvestFixture(t *testing.T) duplicateSessionHarvestFixture {
@@ -46,7 +48,7 @@ func writeDuplicateSessionHarvestFixture(t *testing.T) duplicateSessionHarvestFi
 	if err := os.WriteFile(configPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	return duplicateSessionHarvestFixture{dir: dir, configPath: configPath, sessionID: sid}
+	return duplicateSessionHarvestFixture{dir: dir, configPath: configPath, sessionID: sid, projects: src}
 }
 
 func harvestReportsDuplicateSession(output string) bool {
@@ -86,8 +88,28 @@ func TestHarvestRefusesOneSessionIDInTwoSourceFiles(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(reasons) == 0 {
-		t.Fatalf("no audit outcome was recorded for the refused session %s", sid)
+	if !slices.Contains(reasons, "duplicate_session_id") {
+		t.Fatalf("audit outcomes for the refused session %s = %v, want duplicate_session_id", sid, reasons)
+	}
+}
+
+// TestHarvestScopedToAnotherSessionIgnoresADuplicateElsewhere proves a duplicate
+// id does not fail a run that was scoped to an unrelated session, which is what
+// `peasant open` and a one-session re-index run.
+func TestHarvestScopedToAnotherSessionIgnoresADuplicateElsewhere(t *testing.T) {
+	t.Parallel()
+	fixture := writeDuplicateSessionHarvestFixture(t)
+	const other = "dddddddd-0000-4000-8000-000000000001"
+	line := `{"type":"user","sessionId":"` + other + `","uuid":"u1","cwd":"/tmp/x","timestamp":"2026-10-01T10:00:00Z","message":{"role":"user","content":"hello"}}` + "\n"
+	if err := os.WriteFile(filepath.Join(fixture.projects, "-tmp-qa-one", other+".jsonl"), []byte(line), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output, err := executeHarvestCmd(t, fixture.dir, []string{"--config=" + fixture.configPath, "--session=" + other, "--include-active"})
+	if err != nil {
+		t.Fatalf("harvest --session %s failed on a duplicate of another session: %v\n%s", other, err, output)
+	}
+	if strings.Contains(output, "same session id") {
+		t.Fatalf("a run scoped to %s reported an unrelated duplicate:\n%s", other, output)
 	}
 }
 
