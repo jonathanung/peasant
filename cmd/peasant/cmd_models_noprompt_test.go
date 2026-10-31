@@ -46,3 +46,16 @@ func TestModelsSyncRunsWithoutAPrompt(t *testing.T) {
 		}
 	}
 }
+
+// TestModelsSyncStillAsksWithoutAFlag proves a plain sync keeps its gate: with
+// nobody to answer, it refuses, names --yes, and reports no sync.
+func TestModelsSyncStillAsksWithoutAFlag(t *testing.T) {
+	t.Parallel()
+	out, err := runModelsSyncNoInput(t)
+	if err == nil || !strings.Contains(err.Error(), "--yes") {
+		t.Fatalf("models sync with no input: err = %v, want a refusal naming --yes:\n%s", err, out)
+	}
+	if !strings.Contains(out, "Continue? [y/N]") || strings.Contains(out, "model(s) synced") {
+		t.Fatalf("models sync with no input: want the prompt and no sync:\n%s", out)
+	}
+}
