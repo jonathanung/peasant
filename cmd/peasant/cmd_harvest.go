@@ -1489,6 +1489,14 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 		if sr.Error != nil {
 			statusStr = "error"
 		}
+		// printReason names a failure directly under its row; without it the
+		// human output gave only "ERROR <harness> <id>" and the cause was in
+		// --json alone.
+		printReason := func(err error, indent string) {
+			if err != nil {
+				fmt.Fprintf(w, "  %-10s %s%v\n", "", indent, err)
+			}
+		}
 
 		if verbose {
 			// Verbose mode expands subagents beneath each root session.
@@ -1504,6 +1512,7 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 					string(sr.Harness),
 					string(sr.SessionID))
 			}
+			printReason(sr.Error, "")
 			// Expand each subagent on its own indented line.
 			for _, sub := range subagentsByParent[sr.SessionID] {
 				if sub.OutputPath != "" {
@@ -1516,6 +1525,7 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 						"", "",
 						string(sub.SessionID))
 				}
+				printReason(sub.Error, strings.Repeat(" ", 13))
 			}
 		} else {
 			// Default mode summarizes subagents beside the provider and output path.
@@ -1536,6 +1546,14 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 					string(sr.Harness),
 					string(sr.SessionID),
 					suffix)
+			}
+			printReason(sr.Error, "")
+			// A failed subagent has no row of its own here, so its reason
+			// names it.
+			for _, sub := range subagentsByParent[sr.SessionID] {
+				if sub.Error != nil {
+					printReason(fmt.Errorf("subagent %s: %w", sub.SessionID, sub.Error), "")
+				}
 			}
 		}
 	}
