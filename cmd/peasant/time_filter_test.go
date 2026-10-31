@@ -1,50 +1,113 @@
 package main
 
 import (
+	_ "embed"
+	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
+//go:embed testdata/time_filter.yaml
+var timeFilterYAML []byte
+
+//go:embed testdata/time_filter.manifest.yaml
+var timeFilterManifestYAML []byte
+
+type timeFilterAccepted struct {
+	Name    string `yaml:"name"`
+	Input   string `yaml:"input"`
+	MinDays int    `yaml:"minDays"`
+	MaxDays int    `yaml:"maxDays"`
+}
+
+type timeFilterRefused struct {
+	Name      string `yaml:"name"`
+	Input     string `yaml:"input"`
+	WantError string `yaml:"wantError"`
+}
+
+type timeFilterFixture struct {
+	Accepted  []timeFilterAccepted `yaml:"accepted"`
+	Refused   []timeFilterRefused  `yaml:"refused"`
+	PruneOnly []timeFilterRefused  `yaml:"pruneOnly"`
+}
+
+func loadTimeFilterFixture(t *testing.T) timeFilterFixture {
+	t.Helper()
+	var fixture timeFilterFixture
+	if err := yaml.Unmarshal(timeFilterYAML, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		Required []string `yaml:"required"`
+	}
+	if err := yaml.Unmarshal(timeFilterManifestYAML, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	present := map[string]bool{}
+	for _, c := range fixture.Accepted {
+		present[c.Name] = true
+	}
+	for _, c := range append(slices.Clone(fixture.Refused), fixture.PruneOnly...) {
+		present[c.Name] = true
+	}
+	for _, name := range manifest.Required {
+		if !present[name] {
+			t.Errorf("time_filter.yaml lost the required case %q", name)
+		}
+	}
+	return fixture
+}
+
 // TestTimeFiltersShareOneGrammar proves harvest --since, sessions list
-// --since and prune --before/--after read the same relative grammar
-// (h/d/w/mo/y; bare m = months outside prune) and the same dates, through the functions those
-// commands call.
+// --since and prune --before/--after read the same grammar and refuse the
+// same inputs, through the functions those commands call.
 func TestTimeFiltersShareOneGrammar(t *testing.T) {
 	t.Parallel()
+	fixture := loadTimeFilterFixture(t)
 	daysAgo := func(ms int64) int { return int(time.Since(time.UnixMilli(ms)).Hours() / 24) }
-	for _, tc := range []struct {
-		in       string
-		min, max int
-	}{
-		{"3w", 20, 22},
-		{"7d", 6, 8},
-		{"3mo", 88, 93},
-		{"1y", 364, 367},
-	} {
-		h, err := parseSinceDuration(tc.in)
+	for _, tc := range fixture.Accepted {
+		h, err := parseSinceDuration(tc.Input)
 		if err != nil {
-			t.Errorf("harvest --since %s: %v", tc.in, err)
-		} else if d := daysAgo(h.UnixMilli()); d < tc.min || d > tc.max {
-			t.Errorf("harvest --since %s: %d days ago, want %d-%d", tc.in, d, tc.min, tc.max)
+			t.Errorf("%s: harvest --since %s: %v", tc.Name, tc.Input, err)
+		} else if d := daysAgo(h.UnixMilli()); d < tc.MinDays || d > tc.MaxDays {
+			t.Errorf("%s: harvest --since %s: %d days ago, want %d-%d", tc.Name, tc.Input, d, tc.MinDays, tc.MaxDays)
 		}
-		s, err := parseDateOrDuration(tc.in, true)
+		s, err := parseDateOrDuration(tc.Input, true)
 		if err != nil {
-			t.Errorf("sessions list --since %s: %v", tc.in, err)
-		} else if d := daysAgo(s); d < tc.min || d > tc.max {
-			t.Errorf("sessions list --since %s: %d days ago, want %d-%d", tc.in, d, tc.min, tc.max)
+			t.Errorf("%s: sessions list --since %s: %v", tc.Name, tc.Input, err)
+		} else if d := daysAgo(s); d < tc.MinDays || d > tc.MaxDays {
+			t.Errorf("%s: sessions list --since %s: %d days ago, want %d-%d", tc.Name, tc.Input, d, tc.MinDays, tc.MaxDays)
 		}
-		f, err := buildPruneFilter(nil, "", "", tc.in, tc.in, false)
+		f, err := buildPruneFilter(nil, "", "", tc.Input, tc.Input, false)
 		if err != nil {
-			t.Errorf("prune --before/--after %s: %v", tc.in, err)
+			t.Errorf("%s: prune --before/--after %s: %v", tc.Name, tc.Input, err)
 			continue
 		}
 		for name, v := range map[string]*int64{"before": f.Before, "after": f.After} {
 			if v == nil {
-				t.Errorf("prune --%s %s: unset", name, tc.in)
-			} else if d := daysAgo(*v); d < tc.min || d > tc.max {
-				t.Errorf("prune --%s %s: %d days ago, want %d-%d", name, tc.in, d, tc.min, tc.max)
+				t.Errorf("%s: prune --%s %s: unset", tc.Name, name, tc.Input)
+			} else if d := daysAgo(*v); d < tc.MinDays || d > tc.MaxDays {
+				t.Errorf("%s: prune --%s %s: %d days ago, want %d-%d", tc.Name, name, tc.Input, d, tc.MinDays, tc.MaxDays)
 			}
+		}
+	}
+	for _, tc := range fixture.Refused {
+		_, harvestErr := parseSinceDuration(tc.Input)
+		_, listErr := parseDateOrDuration(tc.Input, true)
+		_, pruneErr := buildPruneFilter(nil, "", "", tc.Input, "", false)
+		for name, err := range map[string]error{"harvest": harvestErr, "sessions list": listErr, "prune": pruneErr} {
+			if err == nil || !strings.Contains(err.Error(), tc.WantError) {
+				t.Errorf("%s: %s %q: err = %v, want it to name %q", tc.Name, name, tc.Input, err, tc.WantError)
+			}
+		}
+	}
+	for _, tc := range fixture.PruneOnly {
+		if _, err := buildPruneFilter(nil, "", "", tc.Input, "", false); err == nil || !strings.Contains(err.Error(), tc.WantError) {
+			t.Errorf("%s: prune %q: err = %v, want it to name %q", tc.Name, tc.Input, err, tc.WantError)
 		}
 	}
 	h, err := parseSinceDuration("2026-01-02")

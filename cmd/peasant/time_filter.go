@@ -28,14 +28,15 @@ func parseRelativeAgo(s string, now time.Time) (time.Time, error) {
 	if len(s) < 2 {
 		return time.Time{}, fmt.Errorf("invalid duration: %q (expected %s)", s, timeFilterHelp)
 	}
+	number, unit := s[:len(s)-1], s[len(s)-1]
 	if strings.HasSuffix(s, "mo") {
-		s = strings.TrimSuffix(s, "o")
+		number, unit = s[:len(s)-2], 'm'
 	}
-	n, err := strconv.Atoi(s[:len(s)-1])
+	n, err := strconv.Atoi(number)
 	if err != nil || n <= 0 {
 		return time.Time{}, fmt.Errorf("invalid duration: %q (number must be positive integer; expected %s)", s, timeFilterHelp)
 	}
-	switch s[len(s)-1] {
+	switch unit {
 	case 'h':
 		return now.Add(-time.Duration(n) * time.Hour), nil
 	case 'd':
@@ -47,7 +48,7 @@ func parseRelativeAgo(s string, now time.Time) (time.Time, error) {
 	case 'y':
 		return now.AddDate(-n, 0, 0), nil
 	default:
-		return time.Time{}, fmt.Errorf("invalid duration unit %q in %q (expected %s)", s[len(s)-1:], s, timeFilterHelp)
+		return time.Time{}, fmt.Errorf("invalid duration unit %q in %q (expected %s)", string(unit), s, timeFilterHelp)
 	}
 }
 
