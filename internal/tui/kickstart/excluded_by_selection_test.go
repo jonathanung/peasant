@@ -16,29 +16,24 @@ import (
 // screen. A run with none excluded keeps the old line.
 func TestProgramDoneShowsSessionsExcludedBySelection(t *testing.T) {
 	t.Parallel()
-	for _, row := range []struct {
-		excluded int
-		want     string
-		absent   string
-	}{
-		{excluded: 4, want: "4 excluded by selection"},
-		{excluded: 0, absent: "excluded by selection"},
-	} {
-		result := &ftue.IngestResult{New: 2, Updated: 1, Unchanged: 3, ExcludedBySelection: row.excluded}
-		program, _ := newTestProgram(t, kickstart.ProgramDeps{AlreadyConnected: true, Ingest: func(context.Context) (*ftue.IngestResult, error) { return result, nil }})
-		program.SetSize(120, 40)
-		program = drainProgram(program, program.Init())
-		program, command := advanceToCommit(program)
-		program = drainCmds(t, program, command)
-		if program.Phase() != kickstart.PhaseDone {
-			t.Fatalf("excluded=%d: phase = %s, want done", row.excluded, program.Phase())
-		}
-		view := strings.Join(strings.Fields(ansi.Strip(program.View())), " ")
-		if row.want != "" && !strings.Contains(view, row.want) {
-			t.Errorf("excluded=%d: completion omits %q:\n%s", row.excluded, row.want, view)
-		}
-		if row.absent != "" && strings.Contains(view, row.absent) {
-			t.Errorf("excluded=%d: completion mentions %q:\n%s", row.excluded, row.absent, view)
-		}
+	if view := doneViewWithExcluded(t, 4); !strings.Contains(view, "4 excluded by selection") {
+		t.Errorf("completion omits the excluded count:\n%s", view)
 	}
+	if view := doneViewWithExcluded(t, 0); strings.Contains(view, "excluded by selection") {
+		t.Errorf("completion mentions exclusions on a run with none:\n%s", view)
+	}
+}
+
+func doneViewWithExcluded(t *testing.T, excluded int) string {
+	t.Helper()
+	result := &ftue.IngestResult{New: 2, Updated: 1, Unchanged: 3, ExcludedBySelection: excluded}
+	program, _ := newTestProgram(t, kickstart.ProgramDeps{AlreadyConnected: true, Ingest: func(context.Context) (*ftue.IngestResult, error) { return result, nil }})
+	program.SetSize(120, 40)
+	program = drainProgram(program, program.Init())
+	program, command := advanceToCommit(program)
+	program = drainCmds(t, program, command)
+	if program.Phase() != kickstart.PhaseDone {
+		t.Fatalf("excluded=%d: phase = %s, want done", excluded, program.Phase())
+	}
+	return strings.Join(strings.Fields(ansi.Strip(program.View())), " ")
 }
