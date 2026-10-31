@@ -9,6 +9,12 @@ Release, which holds the signed artifacts and checksums.
 
 ### Fixed
 - Claude discovery skips harness-injected `isMeta` notices when choosing session titles. Existing cached transcripts are read again once to refresh their titles.
+- Two Claude or Codex source files that claim one session id now fail that
+  session with a reason naming both files, instead of storing a row mixed from
+  both while reporting 0 errors. Neither file is ingested until one is moved
+  aside; a copy stored earlier stays as it was. `harvest` and `harvest
+  --dry-run` count one error and exit 1, and a run scoped to another session
+  is not affected.
 
 ### Fixed
 - `--data-dir` now keeps default transcript copies beside its database under
@@ -20,6 +26,15 @@ Release, which holds the signed artifacts and checksums.
 - The local web commands accept decimal TCP ports from 1 to 65535 and reject
   invalid values before starting a server. Base-prefixed values such as `0x50`
   are refused; `080` means port 80.
+- `peasant harvest --json`: `Summary.Unchanged` no longer counts sessions
+  the saved selection leaves out. They are counted in a new
+  `Summary.ExcludedBySelection` key, and each such session in `Sessions`
+  carries a new `excludedBySelection: true` key; its `status` stays
+  `"unchanged"`, so readers of `status` see no change. Scripts that add up
+  `Unchanged` to get the total must add `ExcludedBySelection`. The text
+  summary and kickstart's completion screen show "N excluded by
+  selection". The local web API's sync status is unchanged: its
+  `unchanged` count still includes excluded sessions.
 
 ## [0.13.5] - 2026-10-29
 

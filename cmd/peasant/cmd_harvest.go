@@ -1291,6 +1291,9 @@ type jsonSessionResult struct {
 	Status     string           `json:"status"`
 	OutputPath string           `json:"outputPath,omitempty"`
 	Error      string           `json:"error,omitempty"`
+	// ExcludedBySelection marks a session the saved selection left out; its
+	// status stays "unchanged" for existing consumers.
+	ExcludedBySelection bool `json:"excludedBySelection"`
 }
 
 // printJSON outputs the pipeline result as JSON.
@@ -1305,10 +1308,11 @@ func printJSON(w io.Writer, result *ingest.PipelineResult) error {
 	}
 	for _, sr := range result.Sessions {
 		js := jsonSessionResult{
-			SessionID:  sr.SessionID,
-			Provider:   sr.Harness,
-			Status:     sr.Status.String(),
-			OutputPath: sr.OutputPath,
+			SessionID:           sr.SessionID,
+			Provider:            sr.Harness,
+			Status:              sr.Status.String(),
+			ExcludedBySelection: sr.ExcludedBySelection,
+			OutputPath:          sr.OutputPath,
 		}
 		if sr.Error != nil {
 			js.Error = sr.Error.Error()
@@ -1368,7 +1372,7 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 	fmt.Fprintln(w)
 
 	s := result.Summary
-	total := s.New + s.Updated + s.Unchanged + s.Active + s.Errors
+	total := s.New + s.Updated + s.Unchanged + s.ExcludedBySelection + s.Active + s.Errors
 
 	// Distinguish debounced active sessions from explicitly included ones.
 	activeLabel := "(debounced)"
@@ -1379,6 +1383,9 @@ func printSummary(w io.Writer, result *ingest.PipelineResult, verbose bool, incl
 	fmt.Fprintf(w, "   - %-5d new\n", s.New)
 	fmt.Fprintf(w, "   - %-5d updated\n", s.Updated)
 	fmt.Fprintf(w, "   - %-5d unchanged\n", s.Unchanged)
+	if s.ExcludedBySelection > 0 {
+		fmt.Fprintf(w, "   - %-5d excluded by selection (run `peasant config` to choose which projects to ingest)\n", s.ExcludedBySelection)
+	}
 	fmt.Fprintf(w, "   - %-5d errors\n", s.Errors)
 	fmt.Fprintf(w, "   - %-5d active %s\n", s.Active, activeLabel)
 	fmt.Fprintf(w, "duration: %s\n", result.Duration.Round(100*time.Millisecond))
